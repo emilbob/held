@@ -1,0 +1,34 @@
+21:21:37 funded merchant/buyer/resolver/stranger
+21:21:39 arbiter deployed 0xd1357183fa23f295cf193a8f56c0abc1bfd94905 success
+21:21:40 PASS policy recoveryAuthority == arbiter contract 0xd1357183Fa23f295Cf193a8F56C0ABc1BfD94905
+21:21:41 PASS payment A held (merchant balance unchanged) 
+21:21:42 PASS merchant release A before window (expect revert) reverted
+21:21:43 PASS stranger release A before window (expect revert) reverted
+21:21:45 PASS buyer confirms delivery -> release A 
+21:21:45 PASS merchant received 20 (resume by contract) 20
+21:21:46 PASS release A twice (expect revert) reverted
+21:21:47 PASS refund A after release (expect revert) reverted
+21:21:48 PASS stranger opens dispute on B (expect revert) reverted
+21:21:49 PASS merchant opens dispute on B (expect revert) reverted
+21:21:51 PASS resolver refunds B without dispute (expect revert) reverted
+21:21:52 PASS buyer refunds own accepted-token payment B (expect revert) reverted
+21:21:54 PASS buyer opens dispute on B 
+21:21:55 PASS dispute B twice (expect revert) reverted
+21:21:57 PASS buyer releases disputed B (expect revert) reverted
+21:21:57 PASS stranger releases disputed B (expect revert) reverted
+21:21:59 PASS resolver refunds disputed B 
+21:21:59 PASS buyer refunded 15 (reroute by contract) 15
+21:22:01 PASS merchant direct guard.claim on C (expect revert) The contract function "claim" reverted.
+21:22:01 PASS buyer direct guard.claim on C (expect revert) The contract function "claim" reverted.
+21:22:01 PASS resolver direct guard.claim on C (expect revert) The contract function "claim" reverted.
+21:22:03 PASS merchant voluntary refund D 
+21:22:03 PASS buyer refunded 3 
+21:22:08 PASS stranger refunds wrong-token E (expect revert) reverted
+21:22:09 PASS buyer self-refunds wrong-token E 
+21:22:09 PASS buyer got wrong token back 
+21:22:09 waiting 39s for window on C to close
+21:22:50 PASS buyer opens dispute on C after window (expect revert) reverted
+21:22:52 PASS stranger releases C after window (permissionless) 
+21:22:52 PASS merchant received 5 
+21:22:52 
+29/29 checks passed. arbiter=0xd1357183fa23f295cf193a8f56c0abc1bfd94905

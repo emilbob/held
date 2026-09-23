@@ -1,0 +1,16 @@
+{
+  "name": "held",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Held: buyer protection for stablecoin payments on Tempo",
+  "scripts": {
+    "compile": "node scripts/compile.mjs",
+    "spike:day1": "node scripts/day1-contract-authority.mjs"
+  },
+  "dependencies": {
+    "ox": "^1.8.1",
+    "solc": "0.8.28",
+    "viem": "^2.56.8"
+  }
+}

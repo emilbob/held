@@ -6,7 +6,11 @@
   "description": "Held: buyer protection for stablecoin payments on Tempo",
   "scripts": {
     "compile": "node scripts/compile.mjs",
-    "spike:day1": "node scripts/day1-contract-authority.mjs"
+    "setup": "node scripts/setup-merchant.mjs",
+    "server": "node server/server.mjs",
+    "spike:day1": "node scripts/day1-contract-authority.mjs",
+    "test:virtual": "node scripts/day2-virtual-address.mjs",
+    "test:indexer": "node scripts/day3-indexer-e2e.mjs"
   },
   "dependencies": {
     "ox": "^1.8.1",

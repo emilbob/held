@@ -1,0 +1,13 @@
+07:39:52 PASS create order returns a virtual address 0x82bfcadafdfdfdfdfdfdfdfdfdfd00000bab1b04
+07:39:55 PASS order A -> held (indexer matched payment to order) held
+07:39:55 PASS order A exposes receipt + window end 
+07:39:57 PASS order A -> released 
+07:40:02 PASS order B -> disputed 
+07:40:05 PASS order B -> refunded 
+07:40:09 PASS order C wrong token flagged, order still awaiting payment [[true,"held"]]
+07:40:14 PASS order C wrong-token payment -> refunded 
+07:40:17 PASS order D underpaid flag 
+07:40:20 PASS order D merchant voluntary refund -> refunded 
+07:40:23 PASS stranger early release rejected, order E stays held 
+07:40:23 PASS GET /orders lists all 5 5
+07:40:23 12/12 checks passed

@@ -1,0 +1,17 @@
+[profile.default]
+src = "contracts"
+test = "test"
+out = "forge-out"
+cache_path = "forge-cache"
+libs = ["lib"]
+solc = "0.8.28"
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+tempo = true
+
+[fuzz]
+runs = 512
+
+[rpc_endpoints]
+moderato = "https://rpc.moderato.tempo.xyz"

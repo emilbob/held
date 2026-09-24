@@ -45,7 +45,29 @@ npm run setup                       # one-time, ~3 min (salt mining); creates .s
 npm run server                      # http://localhost:8787
 ```
 
-## Tests (live on Tempo Moderato, chainId 42431)
+## Tests
+
+### Unit tests (Foundry, Tempo fork)
+
+```bash
+foundryup -n tempo        # Tempo's Foundry fork (forge 1.8.3+)
+forge test                # or: npm test
+```
+
+`test/HeldArbiter.t.sol` has 33 tests: 29 unit tests and 4 fuzz tests (512 runs each). They run on Tempo Foundry's
+local EVM with the **real protocol precompiles**: TIP-20 tokens, TIP-403 receive policies, the ReceivePolicyGuard and
+the virtual-address registry. Nothing is mocked; every held payment and claim goes through the same code as on
+testnet. Coverage:
+- every rule and every negative case (who can release, dispute or refund, and when; one decision per payment; the window boundary)
+- no wallet can claim from the guard directly; a tampered receipt can't redirect a refund; the arbiter ignores
+  receipts held under another authority or for another merchant
+- fuzz: any amount moves exactly; any random caller is powerless; for any sequence of 6 actions by any mix of
+  buyer, merchant, resolver or stranger, held money only ever reaches the merchant or the original payer, all or nothing
+
+Mutation check: breaking the early-release rule makes 5 tests fail, and redirecting merchant refunds to the merchant
+makes 3 fail. Log: [`docs/forge-test-run.log`](docs/forge-test-run.log).
+
+### Live testnet checks (Tempo Moderato, chainId 42431)
 
 | Script | What it checks | Result |
 |---|---|---|

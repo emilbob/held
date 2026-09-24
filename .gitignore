@@ -8,3 +8,6 @@ out/
 .setup.log
 web/node_modules/
 web/dist/
+cache/
+forge-cache/
+forge-out/

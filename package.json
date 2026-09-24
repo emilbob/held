@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Held: buyer protection for stablecoin payments on Tempo",
   "scripts": {
+    "test": "forge test",
     "compile": "node scripts/compile.mjs",
     "setup": "node scripts/setup-merchant.mjs",
     "server": "node server/server.mjs",

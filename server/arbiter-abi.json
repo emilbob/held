@@ -1,0 +1,383 @@
+[
+ {
+  "inputs": [
+   {
+    "internalType": "address",
+    "name": "merchant_",
+    "type": "address"
+   },
+   {
+    "internalType": "address",
+    "name": "resolver_",
+    "type": "address"
+   },
+   {
+    "internalType": "address",
+    "name": "acceptedToken_",
+    "type": "address"
+   },
+   {
+    "internalType": "uint64",
+    "name": "protectionWindow_",
+    "type": "uint64"
+   }
+  ],
+  "stateMutability": "nonpayable",
+  "type": "constructor"
+ },
+ {
+  "inputs": [],
+  "name": "AlreadyDisputed",
+  "type": "error"
+ },
+ {
+  "inputs": [],
+  "name": "AlreadySettled",
+  "type": "error"
+ },
+ {
+  "inputs": [],
+  "name": "NotAllowed",
+  "type": "error"
+ },
+ {
+  "inputs": [],
+  "name": "NotForMerchant",
+  "type": "error"
+ },
+ {
+  "inputs": [],
+  "name": "NotOriginator",
+  "type": "error"
+ },
+ {
+  "inputs": [],
+  "name": "NotOurReceipt",
+  "type": "error"
+ },
+ {
+  "inputs": [],
+  "name": "WindowClosed",
+  "type": "error"
+ },
+ {
+  "anonymous": false,
+  "inputs": [
+   {
+    "indexed": true,
+    "internalType": "bytes32",
+    "name": "id",
+    "type": "bytes32"
+   },
+   {
+    "indexed": true,
+    "internalType": "address",
+    "name": "originator",
+    "type": "address"
+   }
+  ],
+  "name": "Disputed",
+  "type": "event"
+ },
+ {
+  "anonymous": false,
+  "inputs": [
+   {
+    "indexed": true,
+    "internalType": "bytes32",
+    "name": "id",
+    "type": "bytes32"
+   },
+   {
+    "indexed": true,
+    "internalType": "address",
+    "name": "caller",
+    "type": "address"
+   },
+   {
+    "indexed": true,
+    "internalType": "address",
+    "name": "originator",
+    "type": "address"
+   },
+   {
+    "indexed": false,
+    "internalType": "uint256",
+    "name": "amount",
+    "type": "uint256"
+   }
+  ],
+  "name": "Refunded",
+  "type": "event"
+ },
+ {
+  "anonymous": false,
+  "inputs": [
+   {
+    "indexed": true,
+    "internalType": "bytes32",
+    "name": "id",
+    "type": "bytes32"
+   },
+   {
+    "indexed": true,
+    "internalType": "address",
+    "name": "caller",
+    "type": "address"
+   },
+   {
+    "indexed": false,
+    "internalType": "uint256",
+    "name": "amount",
+    "type": "uint256"
+   }
+  ],
+  "name": "Released",
+  "type": "event"
+ },
+ {
+  "inputs": [],
+  "name": "GUARD",
+  "outputs": [
+   {
+    "internalType": "contract IReceivePolicyGuard",
+    "name": "",
+    "type": "address"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [],
+  "name": "REGISTRY",
+  "outputs": [
+   {
+    "internalType": "contract IAddressRegistry",
+    "name": "",
+    "type": "address"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [],
+  "name": "acceptedToken",
+  "outputs": [
+   {
+    "internalType": "address",
+    "name": "",
+    "type": "address"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [
+   {
+    "internalType": "bytes",
+    "name": "receipt",
+    "type": "bytes"
+   }
+  ],
+  "name": "decode",
+  "outputs": [
+   {
+    "components": [
+     {
+      "internalType": "uint8",
+      "name": "version",
+      "type": "uint8"
+     },
+     {
+      "internalType": "address",
+      "name": "token",
+      "type": "address"
+     },
+     {
+      "internalType": "address",
+      "name": "recoveryAuthority",
+      "type": "address"
+     },
+     {
+      "internalType": "address",
+      "name": "originator",
+      "type": "address"
+     },
+     {
+      "internalType": "address",
+      "name": "recipient",
+      "type": "address"
+     },
+     {
+      "internalType": "uint64",
+      "name": "blockedAt",
+      "type": "uint64"
+     },
+     {
+      "internalType": "uint64",
+      "name": "blockedNonce",
+      "type": "uint64"
+     },
+     {
+      "internalType": "uint8",
+      "name": "blockedReason",
+      "type": "uint8"
+     },
+     {
+      "internalType": "uint8",
+      "name": "kind",
+      "type": "uint8"
+     },
+     {
+      "internalType": "bytes32",
+      "name": "memo",
+      "type": "bytes32"
+     }
+    ],
+    "internalType": "struct HeldArbiter.Receipt",
+    "name": "r",
+    "type": "tuple"
+   }
+  ],
+  "stateMutability": "pure",
+  "type": "function"
+ },
+ {
+  "inputs": [
+   {
+    "internalType": "bytes",
+    "name": "receipt",
+    "type": "bytes"
+   }
+  ],
+  "name": "dispute",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+ },
+ {
+  "inputs": [
+   {
+    "internalType": "bytes",
+    "name": "receipt",
+    "type": "bytes"
+   }
+  ],
+  "name": "idOf",
+  "outputs": [
+   {
+    "internalType": "bytes32",
+    "name": "",
+    "type": "bytes32"
+   }
+  ],
+  "stateMutability": "pure",
+  "type": "function"
+ },
+ {
+  "inputs": [],
+  "name": "merchant",
+  "outputs": [
+   {
+    "internalType": "address",
+    "name": "",
+    "type": "address"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [],
+  "name": "protectionWindow",
+  "outputs": [
+   {
+    "internalType": "uint64",
+    "name": "",
+    "type": "uint64"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [
+   {
+    "internalType": "bytes",
+    "name": "receipt",
+    "type": "bytes"
+   }
+  ],
+  "name": "refund",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+ },
+ {
+  "inputs": [
+   {
+    "internalType": "bytes",
+    "name": "receipt",
+    "type": "bytes"
+   }
+  ],
+  "name": "release",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+ },
+ {
+  "inputs": [],
+  "name": "resolver",
+  "outputs": [
+   {
+    "internalType": "address",
+    "name": "",
+    "type": "address"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [
+   {
+    "internalType": "bytes32",
+    "name": "",
+    "type": "bytes32"
+   }
+  ],
+  "name": "statusOf",
+  "outputs": [
+   {
+    "internalType": "enum HeldArbiter.Status",
+    "name": "",
+    "type": "uint8"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [
+   {
+    "internalType": "bytes",
+    "name": "receipt",
+    "type": "bytes"
+   }
+  ],
+  "name": "windowEndsAt",
+  "outputs": [
+   {
+    "internalType": "uint64",
+    "name": "",
+    "type": "uint64"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ }
+]

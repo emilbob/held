@@ -1,0 +1,15 @@
+# Keep the Vercel upload small: only what the web build and the API function need.
+node_modules
+web/node_modules
+web/dist
+e2e
+lib
+test
+cache
+forge-cache
+forge-out
+out
+.state
+.scratch
+docs/*.log
+*.log

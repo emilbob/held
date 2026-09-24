@@ -18,3 +18,5 @@ e2e/.metamask/
 e2e/.secrets/
 e2e/shots/
 e2e/.cft/
+.vercel
+.env*

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import * as W from './wallet.js'
+import Landing from './Landing.jsx'
 
 // ---------------------------------------------------------------- helpers
 const api = async (path, body) => {
@@ -63,13 +64,15 @@ const Badge = ({ status }) => {
 export default function App() {
   const route = useRoute()
   const pay = route.match(/^\/pay\/(\d+)/)
+  const page = pay ? <PayPage id={pay[1]} /> : route.startsWith('/dashboard') ? <Dashboard /> : <Landing />
   return (
     <>
       <header>
         <a href="#/" className="logo">🛡️ Held</a>
         <span className="tag">Buyer protection for stablecoin payments · Tempo testnet</span>
+        <nav><a href="#/">How it works</a><a href="#/dashboard">Merchant dashboard</a></nav>
       </header>
-      <main>{pay ? <PayPage id={pay[1]} /> : <Dashboard />}</main>
+      <main>{page}</main>
       <footer>
         Funds are held by Tempo's ReceivePolicyGuard. The Held arbiter contract can only release them to the merchant or refund the original payer.
       </footer>
@@ -103,12 +106,6 @@ function Dashboard() {
 
   return (
     <div className="dash">
-      <section className="how">
-        <div><b>1 · Order</b><span>Each order gets its own pay-to address. No transaction, no cost.</span></div>
-        <div><b>2 · Buyer pays</b><span>A plain transfer from any wallet. Tempo's protocol holds it, not the merchant.</span></div>
-        <div><b>3 · Delivered?</b><span>Buyer confirms, or the window closes, and the money goes to the merchant.</span></div>
-        <div><b>4 · Problem?</b><span>Buyer disputes. The resolver can only refund the buyer or pay the merchant.</span></div>
-      </section>
       <section className="summary">
         <div><label>Merchant checkout address</label>{cfg ? <a href={addrUrl(cfg.merchant)} target="_blank">{short(cfg.merchant)}</a> : '…'}</div>
         <div><label>Merchant balance</label><b>{balance === null ? '…' : usd(balance)}</b></div>
@@ -282,6 +279,7 @@ function PayPage({ id }) {
                 <code className="addr">{order.address}</code>
                 <button className="ghost" onClick={() => navigator.clipboard.writeText(order.address)}>Copy address</button>
                 <p className="muted">Any wallet or exchange works: it's a plain token transfer. This address is unique to your order.</p>
+                <p className="vault-note">Your payment goes into Tempo's protection vault until you confirm delivery. If your wallet shows 0xB10C0000… as the recipient instead of the address above, that's Tempo's vault, not a mistake.</p>
               </div>
             </div>
           </>
@@ -304,7 +302,7 @@ function PayPage({ id }) {
         {!wallet ? (
           <div className="actions">
             <button className="primary" onClick={() => connect('tempo')} disabled={!!busy}>{busy === 'connect' ? 'Connecting…' : 'Pay with Tempo Wallet'}</button>
-            <button onClick={() => connect('demo')} disabled={!!busy}>Use demo wallet</button>
+            <button className="secondary" onClick={() => connect('demo')} disabled={!!busy}>Use demo wallet</button>
             {W.hasInjected() && <button className="ghost" onClick={() => connect('injected')} disabled={!!busy}>Connect browser wallet</button>}
             <p className="muted small">Tempo Wallet signs with a passkey (Face ID / Touch ID). No extension, no seed phrase.</p>
           </div>
@@ -329,16 +327,19 @@ function PayPage({ id }) {
         )}
 
         {wallet && main && (status === 'held' || status === 'releasable') && (isPayer ? (
-          <div className="actions">
-            <button className="primary" disabled={!!busy} onClick={() => run('release', () => W.arbiter(wallet, arb, 'release', main.receipt), 'Thanks! The merchant has been paid.')}>
-              {busy === 'release' ? 'Confirming…' : 'I got it: release payment'}
-            </button>
-            {status === 'held' && (
-              <button className="danger" disabled={!!busy} onClick={() => run('dispute', () => W.arbiter(wallet, arb, 'dispute', main.receipt), 'Dispute opened.')}>
-                {busy === 'dispute' ? 'Opening…' : 'Something went wrong: open dispute'}
+          <>
+            <div className="actions">
+              <button className="primary" disabled={!!busy} onClick={() => run('release', () => W.arbiter(wallet, arb, 'release', main.receipt), 'Thanks! The merchant has been paid.')}>
+                {busy === 'release' ? 'Confirming…' : 'I got it: release payment'}
               </button>
-            )}
-          </div>
+              {status === 'held' && (
+                <button className="danger" disabled={!!busy} onClick={() => run('dispute', () => W.arbiter(wallet, arb, 'dispute', main.receipt), 'Dispute opened.')}>
+                  {busy === 'dispute' ? 'Opening…' : 'Something went wrong: open dispute'}
+                </button>
+              )}
+            </div>
+            <p className="contract-note">Calls the Held arbiter contract. Your wallet may show a "no visible balance change" warning. That's normal: the funds are held in Tempo's vault, not in your wallet. The contract moves them to the merchant (release) or keeps them held for the resolver (dispute).</p>
+          </>
         ) : (
           <div className="actions">
             <p className="muted">Only the wallet that paid ({short(main.payer)}) can confirm or dispute.</p>

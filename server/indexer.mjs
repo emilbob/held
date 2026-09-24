@@ -67,7 +67,7 @@ export function createIndexer({ store, deployment }) {
       store.lastBlock = (to + 1n).toString()
       from = to + 1n
     }
-    store.save()
+    store.save?.()
     return head
   }
 

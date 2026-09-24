@@ -17,8 +17,13 @@
     "e2e:metamask": "node e2e/metamask.mjs"
   },
   "dependencies": {
+    "@upstash/redis": "^1.35.0",
     "ox": "^1.8.1",
-    "solc": "0.8.28",
     "viem": "^2.56.8"
-  }
+  },
+  "devDependencies": {
+    "solc": "0.8.28",
+    "vercel": "^50.0.0"
+  },
+  "engines": { "node": ">=20" }
 }

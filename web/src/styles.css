@@ -1,0 +1,72 @@
+:root {
+  --bg: #f6f7f9; --card: #fff; --ink: #14161a; --muted: #6b7280; --line: #e5e7eb;
+  --blue: #2457f5; --green: #0f9d58; --red: #d93025; --amber: #b7791f; --violet: #7c3aed;
+  font-family: ui-sans-serif, -apple-system, 'Segoe UI', Roboto, sans-serif; color: var(--ink); background: var(--bg);
+}
+* { box-sizing: border-box }
+body { margin: 0 }
+a { color: var(--blue); text-decoration: none }
+a:hover { text-decoration: underline }
+code { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; background: #f1f3f5; padding: 1px 5px; border-radius: 4px }
+header { display: flex; align-items: baseline; gap: 16px; padding: 16px 28px; border-bottom: 1px solid var(--line); background: #fff }
+.logo { font-weight: 800; font-size: 22px; color: var(--ink) }
+.tag { color: var(--muted); font-size: 14px }
+main { max-width: 980px; margin: 24px auto; padding: 0 20px }
+footer { max-width: 980px; margin: 32px auto; padding: 0 20px; color: var(--muted); font-size: 12.5px }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px }
+.muted { color: var(--muted); font-size: 13px }
+.err { color: var(--red) }
+.warn { color: var(--amber) }
+label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px }
+button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--ink); background: var(--ink); color: #fff; cursor: pointer }
+button:disabled { opacity: .5; cursor: default }
+button.primary { background: var(--blue); border-color: var(--blue) }
+button.danger { background: #fff; color: var(--red); border-color: var(--red) }
+button.ghost { background: #fff; color: var(--ink); border-color: var(--line) }
+button.small { font-size: 12.5px; padding: 5px 10px }
+input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px }
+
+.summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 14px }
+.summary > div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 14px }
+.summary b { font-size: 20px }
+.neworder { display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
+.neworder h3 { margin: 0 8px 0 0; font-size: 16px }
+.neworder input { flex: 1 }
+.neworder .amt { max-width: 140px; flex: none }
+
+.order .row { display: flex; align-items: center; gap: 14px }
+.oid { font-weight: 700; color: var(--muted) }
+.item { flex: 1; font-weight: 600 }
+.amount { font-weight: 700; font-size: 17px }
+.meta { font-size: 13px; color: var(--muted); margin-top: 8px }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px }
+.sep { font-size: 12.5px; color: var(--muted); margin-left: 8px }
+.history { margin-top: 10px; font-size: 12.5px; color: var(--muted); display: flex; gap: 14px }
+.result { margin-top: 8px; font-size: 13px; padding: 7px 10px; border-radius: 8px }
+.result.ok { background: #e8f5ee; color: #0b6b3b }
+.result.blocked { background: #fdecea; color: #a1231b }
+.wrongtoken { margin-top: 10px; font-size: 13px; background: #fff8e6; border: 1px solid #f5d98b; padding: 8px 10px; border-radius: 8px }
+.wrongtoken button { margin-left: 6px; font-size: 12.5px; padding: 4px 10px }
+
+.badge { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 99px; white-space: nowrap }
+.badge.grey { background: #eef0f3; color: #4b5563 }
+.badge.blue { background: #e6edff; color: var(--blue) }
+.badge.amber { background: #fdf3e1; color: var(--amber) }
+.badge.red { background: #fdecea; color: var(--red) }
+.badge.green { background: #e6f6ee; color: var(--green) }
+.badge.violet { background: #f1eaff; color: var(--violet) }
+
+.pay { max-width: 620px; margin: 0 auto }
+.checkout h2 { margin: 4px 0 }
+.checkout .merchant { color: var(--muted); font-size: 13px }
+.big { font-size: 34px; font-weight: 800; margin: 6px 0 10px }
+.big small { font-size: 14px; color: var(--muted); font-weight: 500 }
+.protect { margin-top: 14px; font-size: 14px; line-height: 1.45; background: #f3f6ff; border-radius: 10px; padding: 10px 12px }
+.protect.on { background: #e6edff }
+.protect.dispute { background: #fdecea }
+.protect.done { background: #e6f6ee }
+.payto { display: flex; gap: 16px; margin-top: 14px; align-items: flex-start }
+.payto img { border: 1px solid var(--line); border-radius: 8px }
+.addr { display: block; word-break: break-all; font-size: 13px; padding: 8px; margin: 4px 0 8px }
+.walletbox h3 { margin: 0 0 8px; font-size: 16px }
+@media (max-width: 720px) { .summary { grid-template-columns: 1fr 1fr } .payto { flex-direction: column } }

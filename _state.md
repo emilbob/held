@@ -32,7 +32,31 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Early-release fee: out of scope unless everything else is done.
 - No agentic features in the core build (the user's decision).
 
+## Day 4: Sep 24 (done, well ahead of plan: this was the Days 9-12 work)
+- web/: React + Vite. Merchant dashboard (#/) and buyer page (#/pay/:id), served by server/server.mjs from web/dist.
+  - Buyer: QR (EIP-681) + address, "Use demo wallet" (throwaway key in localStorage, auto-faucet) or an injected wallet.
+    Pay, confirm (release) and dispute are signed by the BUYER's wallet directly against HeldArbiter.
+  - Merchant: create order, balance, held total, countdown, refund, "try to cheat" buttons (early release,
+    direct guard.claim), resolver panel for disputes, wrong-token return.
+- Server added: POST /api/admin/{refund,release,resolve-release,resolve-refund,try-grab} (uses the merchant/resolver
+  keys, header x-held-admin, default token "demo") and POST /api/faucet (demo wallets, 1 per minute per address).
+- Verified: plain EVM transactions (no Tempo-specific fields, eip1559 and legacy) to a virtual address are held,
+  so MetaMask-style wallets work. The wallet_addEthereumChain path isn't browser-tested yet (no extension here).
+- UI verification (real browser, testnet, Sep 24), all passed:
+  1. pay -> held -> merchant "release early" 🔒 NotAllowed, "take from guard" 🔒 UnauthorizedClaimer -> buyer confirms -> paid
+  2. pay -> dispute -> resolver refund -> refunded
+  3. wrong token -> flagged, order still awaiting payment -> buyer "Get it back" -> returned
+  4. another wallet tries to dispute -> 🔒 "Only the wallet that paid can do this."
+  5. window closed -> "Window over: releasable" -> release -> paid
+- docs/demo-script.md: 3-min shot list matching the verified flows.
+
+## Open items / needs a decision
+- HOSTING: the app is a node server (indexer loop + role keys), not a static site, so Vercel/Netlify alone won't do.
+  Options: Render/Railway/Fly (one service), or split static web on Vercel + API elsewhere. Needs the user's account.
+- For a public deployment, set HELD_ADMIN_TOKEN (otherwise anyone could press merchant/resolver buttons; still
+  limited by the contract to merchant/payer outcomes, but it would spoil the demo).
+- Bundle is 563 kB (viem); fine for a demo.
+
 ## Next
-- Days 9-12 work (starting early): web/ with the merchant dashboard, buyer pay page (QR/address) and buyer confirm/dispute page.
-- Later: Foundry unit tests if time allows (Foundry isn't installed; solc-js is used now), demo + pitch video.
+- Hosting (after the user decides), Foundry unit tests for HeldArbiter (install Foundry), UI polish, demo + pitch video.
 - Near submission: remind the user to change the form answer to "most of the implementation" (the coder has written all the code so far).

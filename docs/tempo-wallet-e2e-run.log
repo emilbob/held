@@ -1,0 +1,22 @@
+10:03:02   wallet popup: Sign in with Tempo Create an account or sign in with a passkey to localhost:8787. Create account or Sign in with passkey By continuing, you agree to the Terms of Service and Privacy Policy.
+10:03:02   wallet: clicked "Create account"
+10:03:05 PASS Tempo Wallet connects (passkey account created) 
+10:03:08   wallet popup: Payment Request localhost:8787 is requesting a payment. Reject Pay 0xE 014Ad5Ae6b594Fe7C6Ce … 925914B6458Dd516F4 1
+10:03:09   wallet popup: Payment Request localhost:8787 is requesting a payment. Reject Pay held-e2e-mufd5vs2
+10:03:10   wallet popup: Payment Request localhost:8787 is requesting a payment. $2.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0008 Reject Pay $2.00 held-e2e-mufd5vs2 $4,000,000.00
+10:03:10   wallet: clicked "Pay $2.00"
+10:03:13 PASS pay with Tempo Wallet -> held 
+10:03:14   wallet popup: Review Transaction Reject Confirm held-e2e-mufd5vs2 $4,000,000.00
+10:03:15   wallet popup: Review Transaction Reject Confirm held-e2e-mufd5vs2 $3,999,998.00
+10:03:15   wallet popup: Review Transaction Fee $0.003 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-mufd5vs2 $3,999,998.00
+10:03:15   wallet: clicked "Confirm"
+10:03:20 PASS confirm delivery (arbiter.release) signed by Tempo Wallet -> released released 
+10:03:22   wallet popup: Payment Request localhost:8787 is requesting a payment. Reject Pay held-e2e-mufd5vs2 $3,999,998.00
+10:03:24   wallet popup: Payment Request localhost:8787 is requesting a payment. $1.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0005 Reject Pay $1.00 held-e2e-mufd5vs2 $3,999,998.00
+10:03:24   wallet: clicked "Pay $1.00"
+10:03:28   wallet popup: Review Transaction Reject Confirm held-e2e-mufd5vs2 $3,999,998.00
+10:03:30   wallet popup: Review Transaction Fee $0.003 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-mufd5vs2 $3,999,997.00
+10:03:30   wallet: clicked "Confirm"
+10:03:32 PASS open dispute (arbiter.dispute) signed by Tempo Wallet -> disputed disputed
+10:03:32 Tempo Wallet account 0xE014Ad5Ae6b594Fe7C6Ce925914B6458Dd516F41 | orders 46010013 46010014
+10:03:32 4/4 checks passed

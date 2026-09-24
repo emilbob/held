@@ -244,7 +244,8 @@ function PayPage({ id }) {
     const w = await W.connect(kind)
     localStorage.setItem('held.walletKind', kind)
     setWallet(w)
-    if (kind === 'demo' && (await W.tokenBalance(w.address)) < 1_000_000n) await api('/faucet', { address: w.address })
+    // Testnet: top up any freshly connected wallet so the demo never stalls on an empty balance.
+    if ((await W.tokenBalance(w.address)) < 1_000_000n) await api('/faucet', { address: w.address }).catch(() => {})
   })
 
   if (err) return <p className="err">{err}</p>
@@ -296,12 +297,17 @@ function PayPage({ id }) {
         <h3>Your wallet</h3>
         {!wallet ? (
           <div className="actions">
+            <button className="primary" onClick={() => connect('tempo')} disabled={!!busy}>{busy === 'connect' ? 'Connecting…' : 'Pay with Tempo Wallet'}</button>
             <button onClick={() => connect('demo')} disabled={!!busy}>Use demo wallet</button>
             {W.hasInjected() && <button className="ghost" onClick={() => connect('injected')} disabled={!!busy}>Connect browser wallet</button>}
+            <p className="muted small">Tempo Wallet signs with a passkey (Face ID / Touch ID). No extension, no seed phrase.</p>
           </div>
         ) : (
           <p><a href={addrUrl(wallet.address)} target="_blank">{short(wallet.address)}</a> · {bal === null ? '…' : usd(bal)} pathUSD
-            {wallet.kind === 'demo' && <span className="muted"> (demo wallet in this browser)</span>}</p>
+            {wallet.kind === 'demo' && <span className="muted"> (demo wallet in this browser)</span>}
+            {wallet.kind === 'tempo' && <span className="muted"> (Tempo Wallet)</span>}
+            {wallet.kind === 'injected' && <span className="muted"> (browser wallet)</span>}
+            {' '}<button className="ghost small" onClick={() => { localStorage.removeItem('held.walletKind'); setWallet(null); setBal(null) }}>Switch</button></p>
         )}
 
         {wallet && status === 'awaiting_payment' && (

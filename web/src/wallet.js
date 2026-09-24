@@ -36,6 +36,17 @@ export const explain = (e) => {
 
 export const hasInjected = () => typeof window !== 'undefined' && !!window.ethereum
 
+// Tempo Wallet (wallet.tempo.xyz): passkey account via Tempo's official Accounts SDK. Exposed as an EIP-1193
+// provider, so the same viem wallet client code signs payments AND arbiter calls (release / dispute / refund).
+let tempoProvider
+async function tempoWalletProvider() {
+  if (!tempoProvider) {
+    const { Provider, tempoWallet } = await import('accounts')
+    tempoProvider = Provider.create({ adapter: tempoWallet(), testnet: true })
+  }
+  return tempoProvider
+}
+
 // Demo wallet: a throwaway testnet key kept in this browser, so anyone can try Held without an extension.
 function demoAccount() {
   let k = localStorage.getItem('held.demoKey')
@@ -47,6 +58,11 @@ export async function connect(kind) {
   if (kind === 'demo') {
     const account = demoAccount()
     return { kind, address: account.address, client: createWalletClient({ account, chain, transport: http() }) }
+  }
+  if (kind === 'tempo') {
+    const provider = await tempoWalletProvider()
+    const [address] = await provider.request({ method: 'eth_requestAccounts' })
+    return { kind, address, client: createWalletClient({ account: address, chain, transport: custom(provider) }) }
   }
   const eth = window.ethereum
   const [address] = await eth.request({ method: 'eth_requestAccounts' })

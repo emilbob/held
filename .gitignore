@@ -11,3 +11,10 @@ web/dist/
 cache/
 forge-cache/
 forge-out/
+e2e/node_modules/
+e2e/.browsers/
+e2e/.profiles/
+e2e/.metamask/
+e2e/.secrets/
+e2e/shots/
+e2e/.cft/

@@ -75,6 +75,16 @@ makes 3 fail. Log: [`docs/forge-test-run.log`](docs/forge-test-run.log).
 | `npm run test:virtual` | per-order virtual-address payments through the arbiter | 12/12 ([log](docs/day2-virtual-address-run.log)) |
 | `npm run test:indexer` | API + indexer: order states for release, dispute, wrong token, underpayment | 12/12 ([log](docs/day3-indexer-run.log)) |
 
+### Wallets (browser end-to-end)
+
+The buyer page supports three wallets. Buyers always sign release and dispute from their own wallet:
+- **Tempo Wallet** (wallet.tempo.xyz passkey account, via Tempo's official Accounts SDK `accounts`): pay,
+  confirm delivery and dispute. `node e2e/tempo-wallet.mjs` creates a fresh Tempo Wallet account in a throwaway
+  Chrome for Testing profile (a CDP virtual authenticator stands in for Touch ID) and runs all three: 4/4
+  ([log](docs/tempo-wallet-e2e-run.log)).
+- **Browser wallet** (MetaMask or any injected EVM wallet): adds Tempo Moderato automatically.
+- **Demo wallet**: a throwaway key in the browser, auto-funded from the testnet faucet.
+
 ## Current testnet deployment
 
 See `deployment.json`. Arbiter: [`0x853dec…cb2c`](https://explore.testnet.tempo.xyz/address/0x853dec037c6e742ad1478e849377c4b80f68cb2c),

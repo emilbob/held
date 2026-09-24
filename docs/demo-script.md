@@ -1,7 +1,9 @@
 # Held: 3-minute demo script (live product, Tempo Moderato testnet)
 
 Setup before recording: `npm run setup` (already done; the merchant lives in .state/), `cd web && npm run build`,
-`npm run server`, then open http://localhost:8787 (merchant) and the buyer page in a second window.
+`npm run demo:reset` (clean dashboard, orders start at #1042), `npm run server`, then open http://localhost:8787 (merchant)
+and the buyer page in a second window. For the buyer, "Pay with Tempo Wallet" (Touch ID) looks best on camera. Use
+the demo wallet as a fallback.
 Protection window is 300 s so the "window closes" moment fits in the video. Create order #4 before you start
 recording so its window has already closed by the end.
 

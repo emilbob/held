@@ -11,7 +11,10 @@
     "server": "node server/server.mjs",
     "spike:day1": "node scripts/day1-contract-authority.mjs",
     "test:virtual": "node scripts/day2-virtual-address.mjs",
-    "test:indexer": "node scripts/day3-indexer-e2e.mjs"
+    "test:indexer": "node scripts/day3-indexer-e2e.mjs",
+    "demo:reset": "node scripts/demo-reset.mjs",
+    "e2e:tempo-wallet": "node e2e/tempo-wallet.mjs",
+    "e2e:metamask": "node e2e/metamask.mjs"
   },
   "dependencies": {
     "ox": "^1.8.1",

@@ -103,6 +103,12 @@ function Dashboard() {
 
   return (
     <div className="dash">
+      <section className="how">
+        <div><b>1 · Order</b><span>Each order gets its own pay-to address. No transaction, no cost.</span></div>
+        <div><b>2 · Buyer pays</b><span>A plain transfer from any wallet. Tempo's protocol holds it, not the merchant.</span></div>
+        <div><b>3 · Delivered?</b><span>Buyer confirms, or the window closes, and the money goes to the merchant.</span></div>
+        <div><b>4 · Problem?</b><span>Buyer disputes. The resolver can only refund the buyer or pay the merchant.</span></div>
+      </section>
       <section className="summary">
         <div><label>Merchant checkout address</label>{cfg ? <a href={addrUrl(cfg.merchant)} target="_blank">{short(cfg.merchant)}</a> : '…'}</div>
         <div><label>Merchant balance</label><b>{balance === null ? '…' : usd(balance)}</b></div>

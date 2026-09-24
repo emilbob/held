@@ -50,6 +50,28 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   5. window closed -> "Window over: releasable" -> release -> paid
 - docs/demo-script.md: 3-min shot list matching the verified flows.
 
+## Day 5: Sep 24 (the user approved 3 additions via hack-researcher; all done)
+1. Foundry: Tempo fork installed (foundryup -n tempo, forge 1.8.3, ~/.foundry only, no profile edits).
+   test/HeldArbiter.t.sol: 33 tests (29 unit + 4 fuzz x512) on REAL Tempo precompiles in the local EVM (TIP-20,
+   TIP-403 receive policy, ReceivePolicyGuard, address registry). Nothing mocked. Mutation-checked (2 mutants,
+   both caught). `npm test` / `forge test`. Log: docs/forge-test-run.log
+   - Lesson: vm.expectRevert + low-level .call() gives false passes; use typed calls.
+   - Test tokens are created via the TIP-20 factory + mint (deal() doesn't work on TIP-20 precompile storage).
+2. Tempo Wallet: "Pay with Tempo Wallet" (npm `accounts` 0.18.4, tempoWallet adapter, EIP-1193 -> viem).
+   Signs pay, release and dispute. e2e/tempo-wallet.mjs: 4/4 (docs/tempo-wallet-e2e-run.log).
+   - Tempo Wallet opens a NEW popup per request, so the virtual authenticator must be re-seeded with the passkey
+     each time (the e2e script syncs credentials across authenticators).
+   - localhost is in the SDK's trusted hosts; a hosted domain may need adding by Tempo (check at hosting time).
+3. MetaMask: real MetaMask 13.49.0 (GitHub release, SHA256 verified) in a throwaway Chrome for Testing profile
+   (e2e/.cft, fresh temp user-data-dir, headless). A fresh in-memory seed per run. e2e/metamask.mjs: 7/7
+   (docs/metamask-e2e-run.log): onboard, connect, add network, chain 0xa5bf, pay, release, dispute.
+   - MetaMask 13.x approvals are in the Chrome SIDE PANEL: puppeteer's target.page() returns null, so drive it via
+     target.createCDPSession() + Runtime.evaluate. Confirm button testids: confirm-btn, confirm-footer-button.
+   - Chrome for Testing from @puppeteer/browsers extracted without Frameworks/: extract the zip with `ditto -x -k`.
+- Polish: a "how it works" strip on the dashboard; wallet "Switch" button; faucet top-up for any connected wallet;
+  `npm run demo:reset` (moves the DB aside, orders restart at #1042); npm scripts for e2e.
+- Regression after polish: MetaMask 7/7, Tempo Wallet 4/4, indexer 12/12, forge 33/33.
+
 ## Open items / needs a decision
 - HOSTING: the app is a node server (indexer loop + role keys), not a static site, so Vercel/Netlify alone won't do.
   Options: Render/Railway/Fly (one service), or split static web on Vercel + API elsewhere. Needs the user's account.
@@ -58,5 +80,6 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Bundle is 563 kB (viem); fine for a demo.
 
 ## Next
-- Hosting (after the user decides), Foundry unit tests for HeldArbiter (install Foundry), UI polish, demo + pitch video.
+- Hosting (waiting on the user's decision; don't start), orchestrate.py src/ path (waiting on the user; don't touch).
+- More polish if wanted; the demo video + pitch video (the user records; shot list in docs/demo-script.md).
 - Near submission: remind the user to change the form answer to "most of the implementation" (the coder has written all the code so far).

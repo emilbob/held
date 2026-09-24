@@ -1,0 +1,9 @@
+07:34:53 merchant (checkout address) 0xeDaCEd839530f85591cC7b5db6C1d79a7e6563ed | resolver 0x3a7E18E039B555e9A8eD2036ef13865147C1EDfF
+07:34:56 merchant balance 1000000
+07:34:56 mining salt, pass 0...
+07:37:09 mining salt, pass 1...
+07:37:40 salt mined in 164s, masterId 0x82bfcada
+07:37:41 registered virtual-address master 0x82bfcada
+07:37:42 HeldArbiter deployed 0x853dec037c6e742ad1478e849377c4b80f68cb2c window 300s
+07:37:43 receive policy set: hold all incoming, recovery authority = arbiter
+07:37:43 done -> deployment.json

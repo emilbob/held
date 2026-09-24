@@ -1,0 +1,10 @@
+{
+  "chainId": 42431,
+  "merchant": "0xeDaCEd839530f85591cC7b5db6C1d79a7e6563ed",
+  "resolver": "0x3a7E18E039B555e9A8eD2036ef13865147C1EDfF",
+  "masterId": "0x82bfcada",
+  "arbiter": "0x853dec037c6e742ad1478e849377c4b80f68cb2c",
+  "arbiterBlock": "36670573",
+  "window": "300",
+  "acceptedToken": "0x20c0000000000000000000000000000000000000"
+}

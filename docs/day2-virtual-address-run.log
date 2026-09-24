@@ -1,0 +1,15 @@
+07:37:53 order 1258162 address 0x82bfcadafdfdfdfdfdfdfdfdfdfd0000001332b2 tx success
+07:37:53 PASS transfer to virtual address succeeds and is held (1 receipt) 
+07:37:53 PASS merchant balance unchanged while held 
+07:37:53 receipt: {"recipient":"0x82BfCAdAfDFDFdFdfDfDFDfDfDfD0000001332b2","originator":"0x164Cd5129bB6C20527cec21AaaB9E765B61DD1F9","authority":"0x853DEC037c6e742Ad1478e849377c4B80F68CB2c"}
+07:37:53 PASS receipt recoveryAuthority = arbiter 
+07:37:53 PASS receipt originator = buyer 
+07:37:53 PASS order id recoverable from receipt recipient recipient=0x82BfCAdAfDFDFdFdfDfDFDfDfDfD0000001332b2 -> 1258162
+07:37:53 PASS order id recoverable from Transfer log (fallback) 
+07:37:53 PASS guard holds 20 for the receipt 20
+07:37:54 PASS buyer confirms -> arbiter releases virtual-address payment success
+07:37:54 PASS merchant received 20 20
+07:37:56 PASS buyer disputes 
+07:37:57 PASS resolver refunds virtual-address payment 
+07:37:57 PASS buyer got 15 back 
+07:37:57 12/12 checks passed

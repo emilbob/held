@@ -82,7 +82,10 @@ The buyer page supports three wallets. Buyers always sign release and dispute fr
   confirm delivery and dispute. `node e2e/tempo-wallet.mjs` creates a fresh Tempo Wallet account in a throwaway
   Chrome for Testing profile (a CDP virtual authenticator stands in for Touch ID) and runs all three: 4/4
   ([log](docs/tempo-wallet-e2e-run.log)).
-- **Browser wallet** (MetaMask or any injected EVM wallet): adds Tempo Moderato automatically.
+- **Browser wallet** (MetaMask or any injected EVM wallet): adds Tempo Moderato automatically. `node e2e/metamask.mjs`
+  loads real MetaMask 13.49.0 (official release, SHA256 verified) into a throwaway Chrome for Testing profile,
+  imports a fresh testnet-only seed generated in memory for that run (never stored or reused), and tests connect,
+  add network, switch network, pay, confirm delivery and dispute: 7/7 ([log](docs/metamask-e2e-run.log)).
 - **Demo wallet**: a throwaway key in the browser, auto-funded from the testnet faucet.
 
 ## Current testnet deployment

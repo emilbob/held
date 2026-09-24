@@ -1,0 +1,34 @@
+10:27:48 throwaway MetaMask account 0x56cEBdE2e7F6571B9A01c5da0f2eAFbBe888CbAf
+10:28:09 PASS MetaMask onboarded with a fresh throwaway seed Your wallet is ready! Open wallet Manage default settings
+10:28:13 PASS "Connect browser wallet" shown when MetaMask is installed 
+10:28:13   metamask[connect+network] sidepanel.html: Account 1 0x56cEB...8CbAf Fund your wallet Get your wallet ready to use web3 Add funds Buy Swap Send Receive Bitcoin moving Touches $86K, highest price since January Oura pre-IPO perp Long or short smart ring maker with 
+10:28:13   metamask[connect+network] sidepanel.html#connect: l localhost Connect this website with MetaMask Account Account 1 Permissions See addresses, balances, and activity Send requests for transactions Cannot move funds without your permission Cancel Connect
+10:28:13   metamask[connect+network]: clicked confirm-btn
+10:28:16   metamask[connect+network] sidepanel.html#confirm-transaction: Add Tempo Moderato A site is suggesting additional network details. Request from H localhost:8787 Network Tempo Moderato RPC rpc.moderato.tempo.xyz Beware of network scams and security risks. Cancel Confirm
+10:28:16   metamask[connect+network]: clicked confirm-footer-button
+10:28:19 PASS connect + add/switch to Tempo Moderato (chainId 42431) 
+10:28:19 PASS MetaMask is on Tempo Moderato 0xa5bf
+10:28:19   metamask[pay] sidepanel.html#/: Account 1 0x56cEB...8CbAf 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive Bitcoin moving Touches $86K, highest price since January Oura pre-IPO perp Long or short smart ring maker with up to 5x leverage Tokens Perps
+10:28:21   metamask[pay] sidepanel.html#confirm-transaction: Sending Unknown ? From Account 1 To 0x82bFcADAFdfd…0002BE0eaB Estimated changes Unavailable Network Tempo Moderato Request from HTTP localhost:8787 Interacting with PATHUSD Network fee 0.0116 pathUSD Speed Market <1 sec 
+10:28:21   metamask[pay]: clicked confirm-footer-button
+10:28:24   metamask[pay] sidepanel.html#/: Account 1 0x56cEB...8CbAf 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive Bitcoin moving Touches $86K, highest price since January Oura pre-IPO perp Long or short smart ring maker with up to 5x leverage Tokens Perps
+10:28:24 PASS pay with MetaMask -> held 
+10:28:24   metamask[release] sidepanel.html#/: Account 1 0x56cEB...8CbAf 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive Bitcoin moving Touches $86K, highest price since January Oura pre-IPO perp Long or short smart ring maker with up to 5x leverage Tokens Perps
+10:28:26   metamask[release] sidepanel.html#confirm-transaction: Account 1 Transaction request Network Tempo Moderato Request from HTTP localhost:8787 Interacting with 0x853DE...8CB2c Network fee Speed Market <1 sec Cancel Confirm
+10:28:26   metamask[release]: clicked confirm-footer-button
+10:28:29   metamask[release] sidepanel.html#/: Account 1 0x56cEB...8CbAf 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive Bitcoin moving Touches $86K, highest price since January Oura pre-IPO perp Long or short smart ring maker with up to 5x leverage Tokens Perps
+10:28:30 PASS confirm delivery (arbiter.release) signed in MetaMask -> released released
+10:28:33   order 2 page before pay: Order #46010028 MetaMask test: logo $1.00 pathUSD Awaiting payment 🛡️ Protected by Held. Your payment is held onchain until you confirm delivery. If something goes wrong, open a dispute and the funds
+10:28:33   metamask[reconnect] sidepanel.html#/: Account 1 0x56cEB...8CbAf 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive Bitcoin moving Touches $86K, highest price since January Oura pre-IPO perp Long or short smart ring maker with up to 5x leverage Tokens Perps
+10:28:34   metamask[pay2] sidepanel.html#/: Account 1 0x56cEB...8CbAf 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive Bitcoin moving Touches $86K, highest price since January Oura pre-IPO perp Long or short smart ring maker with up to 5x leverage Tokens Perps
+10:28:36   metamask[pay2] sidepanel.html#confirm-transaction: Sending 1 Unknown ? From Account 1 To 0x82BFCADAfdFD…0002bE0eAc Estimated changes Unavailable Network Tempo Moderato Request from HTTP localhost:8787 Interacting with PATHUSD Network fee 0.0064 pathUSD Speed Market <1 se
+10:28:36   metamask[pay2]: clicked confirm-footer-button
+10:28:39   order 2 page after pay: Order #46010028 MetaMask test: logo $1.00 pathUSD Held: protected 🛡️ Payment held: you're protected. $1.00 is locked by the Tempo protocol, not by the merchant. Protection window: 4:57 left. Your wallet 0x56ce…cbaf · $999,997.98 pathUSD (browser wallet) Switch I got it: release payment Something we
+10:28:39   clicked: Something went wrong: open dispute
+10:28:39   metamask[dispute] sidepanel.html#/: Account 1 0x56cEB...8CbAf 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive Bitcoin moving Touches $86K, highest price since January Oura pre-IPO perp Long or short smart ring maker with up to 5x leverage Tokens Perps
+10:28:41   metamask[dispute] sidepanel.html#confirm-transaction: Account 1 Transaction request Estimated changes Unavailable Network Tempo Moderato Request from HTTP localhost:8787 Interacting with 0x853DE...8CB2c Network fee 0.0412 pathUSD Speed Market <1 sec Cancel Confirm
+10:28:41   metamask[dispute]: clicked confirm-footer-button
+10:28:43   metamask[dispute] sidepanel.html#/: Account 1 0x56cEB...8CbAf 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive Bitcoin moving Touches $86K, highest price since January Oura pre-IPO perp Long or short smart ring maker with up to 5x leverage Tokens Perps
+10:28:44 PASS open dispute (arbiter.dispute) signed in MetaMask -> disputed disputed
+10:28:44 orders 46010027 46010028
+10:28:44 7/7 checks passed

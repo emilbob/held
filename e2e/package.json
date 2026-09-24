@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Browser end-to-end checks in a throwaway Chrome for Testing profile (never the user's main Chrome).",
   "dependencies": {
+    "viem": "^2.56.8",
     "@puppeteer/browsers": "^2.10.0",
     "puppeteer-core": "^24.0.0"
   }

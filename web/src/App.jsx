@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import * as W from './wallet.js'
 import Landing from './Landing.jsx'
+import Logo from './Logo.jsx'
 
 // ---------------------------------------------------------------- helpers
 const api = async (path, body) => {
@@ -68,7 +69,7 @@ export default function App() {
   return (
     <>
       <header>
-        <a href="#/" className="logo">🛡️ Held</a>
+        <a href="#/" className="logo"><Logo size={24} /> Held</a>
         <span className="tag">Buyer protection for stablecoin payments · Tempo testnet</span>
         <nav><a href="#/">How it works</a><a href="#/dashboard">Merchant dashboard</a></nav>
       </header>
@@ -270,7 +271,7 @@ function PayPage({ id }) {
 
         {status === 'awaiting_payment' && (
           <>
-            <p className="protect">🛡️ <b>Protected by Held.</b> Your payment is held onchain until you confirm delivery.
+            <p className="protect"><b>Protected by Held.</b> Your payment is held onchain until you confirm delivery.
               If something goes wrong, open a dispute and the funds can only go back to you or to the merchant.</p>
             <div className="payto">
               {qr && <img src={qr} alt="QR" />}
@@ -286,14 +287,14 @@ function PayPage({ id }) {
         )}
 
         {(status === 'held' || status === 'releasable') && (
-          <div className="protect on">
-            🛡️ <b>Payment held: you're protected.</b> {usd(main.amount)} is locked by the Tempo protocol, not by the merchant.
+          <div className="protect held">
+            <b>Payment held: you're protected.</b> {usd(main.amount)} is locked by the Tempo protocol, not by the merchant.<br />
             {status === 'held' ? <> Protection window: <b>{countdown(left)}</b> left.</> : <> The protection window is over; the merchant can now be paid.</>}
           </div>
         )}
-        {status === 'disputed' && <div className="protect dispute">⚖️ <b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.</div>}
-        {status === 'released' && <div className="protect done">✅ Delivery confirmed. The merchant has been paid.</div>}
-        {status === 'refunded' && <div className="protect done">↩️ Refunded. {usd(main.amount)} was returned to the wallet that paid.</div>}
+        {status === 'disputed' && <div className="protect dispute"><b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.</div>}
+        {status === 'released' && <div className="protect done"><b>Delivery confirmed.</b> The merchant has been paid.</div>}
+        {status === 'refunded' && <div className="protect done"><b>Refunded.</b> {usd(main.amount)} was returned to the wallet that paid.</div>}
         {order.underpaid && <p className="warn">This order was underpaid ({usd(main.amount)} of {usd(order.amount)}).</p>}
       </div>
 

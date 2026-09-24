@@ -1,9 +1,11 @@
 // Landing / explainer at #/ (design direction, delta 4). The how-it-works strip lives here now.
+import Logo from './Logo.jsx'
+
 export default function Landing() {
   return (
     <div className="landing">
       <div className="card">
-        <div className="logo">🛡️ Held</div>
+        <div className="logo"><Logo size={80} /></div>
         <div className="tag">Buyer protection for stablecoin payments · Tempo testnet</div>
         <h2>Pay a stranger on-chain. Get your money back if it goes wrong.</h2>
         <p>

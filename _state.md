@@ -72,14 +72,19 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   `npm run demo:reset` (moves the DB aside, orders restart at #1042); npm scripts for e2e.
 - Regression after polish: MetaMask 7/7, Tempo Wallet 4/4, indexer 12/12, forge 33/33.
 
+## Sep 25: Redis + Vercel serverless deploy (done)
+- Upstash Redis (held-kv) connected to held Production: KV_REST_API_URL + KV_REST_API_TOKEN set as Vercel env vars.
+- api/api/index.js reads exactly those. State stored in Redis (KEY 'held:db'); indexing on-demand under a Redis lock.
+- Deployed b7e1200 to Vercel production: https://held-lilac.vercel.app (commit b7e1200).
+- Verified live: order #1044 "live-redeploy-check" ($1 pathUSD) created and in awaiting_payment state. /api/config healthy.
+- Design fixes from 12c65e3 confirmed live: single Header "Held", dark --surface buttons with --ink text.
+
 ## Open items / needs a decision
-- HOSTING: the app is a node server (indexer loop + role keys), not a static site, so Vercel/Netlify alone won't do.
-  Options: Render/Railway/Fly (one service), or split static web on Vercel + API elsewhere. Needs the user's account.
-- For a public deployment, set HELD_ADMIN_TOKEN (otherwise anyone could press merchant/resolver buttons; still
-  limited by the contract to merchant/payer outcomes, but it would spoil the demo).
+- ~~HOSTING~~ RESOLVED: Vercel serverless + Upstash Redis handles it (no separate node service needed). MERCHANT_KEY / RESOLVER_KEY / HELD_ADMIN_TOKEN set in Vercel env.
+- Demo video + pitch video — researcher/handoff item, not in scope for coder.
 - Bundle is 563 kB (viem); fine for a demo.
 
 ## Next
-- Hosting (waiting on the user's decision; don't start), orchestrate.py src/ path (waiting on the user; don't touch).
-- More polish if wanted; the demo video + pitch video (the user records; shot list in docs/demo-script.md).
-- Near submission: remind the user to change the form answer to "most of the implementation" (the coder has written all the code so far).
+- Demo video + pitch video (per researcher's next ask).
+- Near submission: remind the user to change the form answer to "most of the implementation" (the coder wrote all the code).
+

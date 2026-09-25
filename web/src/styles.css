@@ -35,7 +35,7 @@ footer { max-width: 980px; margin: 32px auto; padding: 0 20px; color: var(--mute
 .err { color: var(--red) }
 .warn { color: var(--amber) }
 label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px }
-button { font: inherit; font-size: 14px; font-weight: 550; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--ink); background: var(--ink); color: #fff; cursor: pointer; transition: border-color .12s, opacity .12s }
+button { font: inherit; font-size: 14px; font-weight: 550; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; transition: border-color .12s, opacity .12s }
 button:hover { opacity: .9 }
 button:disabled { opacity: .5; cursor: default }
 button.primary { background: var(--lime); color: #0b0d10; border-color: var(--lime) }

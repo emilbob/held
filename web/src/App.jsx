@@ -69,7 +69,7 @@ export default function App() {
   return (
     <>
       <header>
-        <a href="#/" className="logo"><Logo size={24} /> Held</a>
+        <a href="#/" className="logo"><Logo size={24} /></a>
         <span className="tag">Buyer protection for stablecoin payments · Tempo testnet</span>
         <nav><a href="#/">How it works</a><a href="#/dashboard">Merchant dashboard</a></nav>
       </header>

@@ -84,7 +84,12 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Demo video + pitch video — researcher/handoff item, not in scope for coder.
 - Bundle is 563 kB (viem); fine for a demo.
 
+## Sep 26: favicon + final polish
+- Added lime H mark SVG favicon (web/public/held-favicon.svg), replacing the 88KB PNG in `<link rel="icon">`. PNG kept as alternate.
+- web/dist rebuilt; deployed ae44386 to Vercel production.
+- Local server running with window=300s (restored from 60s demo-recording value).
+
 ## Next
-- Demo video + pitch video (per researcher's next ask).
-- Near submission: remind the user to change the form answer to "most of the implementation" (the coder wrote all the code).
+- Demo video + pitch video (user paused this). Design is complete.
+- Near submission: remind the user to change the form answer.
 

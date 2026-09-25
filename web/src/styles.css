@@ -41,8 +41,8 @@ button:disabled { opacity: .5; cursor: default }
 button.primary { background: var(--lime); color: #0b0d10; border-color: var(--lime) }
 button.primary:hover { filter: brightness(1.08) }
 button.danger { background: var(--red); border-color: var(--red); color: #fff }
-button.ghost { background: transparent; color: var(--ink); border-color: var(--line) }
-button.ghost:hover { background: var(--surface-2) }
+button.ghost { background: var(--surface-2); color: var(--ink); border-color: var(--line) }
+button.ghost:hover { background: var(--surface) }
 button.secondary { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; font-weight: 550 }
 button.secondary:hover { background: var(--surface); border-color: var(--muted) }
 button.small { font-size: 12.5px; padding: 5px 10px }

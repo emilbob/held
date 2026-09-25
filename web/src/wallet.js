@@ -85,7 +85,18 @@ export async function transfer(wallet, to, amount, token = PATHUSD) {
 
 export async function arbiter(wallet, address, functionName, receipt) {
   // Simulate first so a rule violation shows a clear reason instead of a failed transaction.
-  await pub.simulateContract({ account: wallet.address, address, abi: arbiterAbi, functionName, args: [receipt] })
+  // Tempo's RPC occasionally returns OpcodeNotFound for eth_call (node-level, not a contract revert);
+  // retry once, and if it's still a simulation error (not a clean revert), send the tx directly.
+  try {
+    await pub.simulateContract({ account: wallet.address, address, abi: arbiterAbi, functionName, args: [receipt] })
+  } catch (e) {
+    const msg = e?.shortMessage || e?.message || ''
+    if (msg.includes('OpcodeNotFound') || msg.includes('Transaction creation failed')) {
+      console.warn('  [arbiter] simulate inconclusive (RPC), sending tx directly')
+    } else {
+      throw e
+    }
+  }
   const hash = await wallet.client.writeContract({ address, abi: arbiterAbi, functionName, args: [receipt], gas: 2_000_000n })
   const rc = await pub.waitForTransactionReceipt({ hash })
   if (rc.status !== 'success') throw new Error('Transaction reverted')

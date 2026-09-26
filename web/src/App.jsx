@@ -145,7 +145,10 @@ function OrderCard({ order: o }) {
     try {
       const r = await api(`/admin/${action}`, { paymentId: p.id })
       setLog((l) => [{ label, ...r }, ...l].slice(0, 4))
-    } catch (e) { setLog((l) => [{ label, ok: false, error: e.message }, ...l]) }
+    } catch (e) {
+      // 401/404 etc: server-auth or not-found, NOT a contract revert.
+      setLog((l) => [{ label, ok: false, error: e.message }, ...l])
+    }
     setBusy(null)
   }
   const B = ({ action, p, label, kind = '' }) => (
@@ -203,7 +206,7 @@ function OrderCard({ order: o }) {
       )}
       {log.map((l, i) => (
         <div key={i} className={`result ${l.ok ? 'ok' : 'blocked'}`}>
-          {l.label}: {l.ok ? <>done {l.tx && <a href={txUrl(l.tx)} target="_blank">tx</a>}</> : <>🔒 blocked by the contract ({l.error})</>}
+          {l.label}: {l.ok ? <>done {l.tx && <a href={txUrl(l.tx)} target="_blank">tx</a>}</> : l.reverted ? <>🔒 blocked by the contract ({l.error})</> : <>🔒 {l.error}</>}
         </div>
       ))}
     </div>

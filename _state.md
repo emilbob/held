@@ -89,7 +89,16 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - web/dist rebuilt; deployed ae44386 to Vercel production.
 - Local server running with window=300s (restored from 60s demo-recording value).
 
+## Sep 26 (researcher + coder): error-messaging fix + final regression
+- fix: distinguish contract reverts from server-auth errors in dashboard result messages (commit 95d2dc0).
+  Contract reverts show "🔒 blocked by the contract (NotOriginator)"; server-auth errors show "🔒 Merchant and resolver actions need the demo admin token." without the "blocked by the contract" prefix.
+- Both flows verified on LIVE Vercel deployment:
+  - Flow 1 (release): order #1067 -> pay -> Held: protected -> "I got it: release payment" -> Paid to merchant / Delivery confirmed ✓
+  - Flow 2 (refund): order #1068 -> pay -> Held: protected -> "Something went wrong: open dispute" -> Disputed -> dashboard "Refund buyer" -> Refunded to buyer / $20.00 returned ✓
+- Local regression: Flow 1 (release) on #1069 confirmed working on localhost:8787 ✓
+- Scratch files cleaned up: demo-drive.py, check-*.mjs/cjs, verify-*.mjs, ObjectDiff*.js, etc. (kept: tempo-wallet.mjs, metamask.mjs, mm-lib.mjs, mm-probe.mjs, live-proof-demo.mjs, diagnose-demo-wallet.mjs, screenshot-*.mjs, run-metamask.sh, demo-script.md)
+- web/dist rebuilt + deployed to Vercel production (95d2dc0) ✓
+
 ## Next
 - Demo video + pitch video (user paused this). Design is complete.
 - Near submission: remind the user to change the form answer.
-

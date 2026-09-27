@@ -98,3 +98,23 @@ window 300 s (short for the demo).
 - Testnet only. The resolver is a single fixed address. Claims are all-or-nothing per payment (no partial refunds).
 - The demo server holds the merchant's and resolver's own testnet keys so the dashboard buttons can act for those roles.
   The contract limits what those keys can do. Buyers always sign from their own wallet.
+
+## Why this (and what's the competitor context)
+
+Stablecoin checkout is going mainstream but still behaves like cash for the buyer. Stripe's stablecoin payments — the
+market leader — list "Dispute support: No" and say payments "cannot be cancelled, modified, or reversed once submitted."
+If a merchant never delivers, the buyer has no recourse.
+
+Competitors are moving into this gap: Circle's Refund Protocol (Apr 2025) adds contract-based escrow + arbiter for ERC-20;
+Stabledrop (live) offers 1%-flat buyer protection with escrow-by-payout-date (WordPress/Shopify plugin, open source); Settld
+(early access) is an embedded non-custodial escrow + dispute + reputation layer. All of them ask the buyer to do something
+extra — fund a smart-contract escrow, or pay through a platform.
+
+Tempo changed the shape of the problem in 2026: virtual addresses (T3) give each order its own deposit address, and receive
+policies (T6, June 2026) hold blocked inbound transfers in a protocol-level guard with claimable receipts, where only the
+designated recovery authority can claim them. Together they let a merchant accept protected payments from a **plain transfer**
+— no escrow contract, no approvals, no wallet connect. The buyer just sends. That path to protected checkout wasn't possible
+on any chain before this summer, and it's the lowest-friction path to it we've found.
+
+The arbiter contract is the safety rule: it can only release to the merchant or refund the original payer — never anyone else.
+So the held funds are non-custodial by construction.

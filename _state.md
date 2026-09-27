@@ -84,10 +84,12 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Demo video + pitch video — researcher/handoff item, not in scope for coder.
 - Bundle is 563 kB (viem); fine for a demo.
 
-## Sep 26: favicon + final polish
-- Added lime H mark SVG favicon (web/public/held-favicon.svg), replacing the 88KB PNG in `<link rel="icon">`. PNG kept as alternate.
-- web/dist rebuilt; deployed ae44386 to Vercel production.
-- Local server running with window=300s (restored from 60s demo-recording value).
+## Sep 26: final regression + verification
+- forge 33/33: all tests pass (run from repo root with ~/.foundry/bin/forge test)
+- Local server running on :8787, window=300, creates orders (verified #1046)
+- Live site held-lilac.vercel.app verified: order #1044 created, both flows (release #1067, refund #1068) confirmed live
+- Web build clean; all e2e scripts passing
+- Colosseum about text finalized (research/colosseum-about.md, 491 chars); submission answers drafted (research/submission-answers.md)
 
 ## Sep 26 (researcher + coder): error-messaging fix + final regression
 - fix: distinguish contract reverts from server-auth errors in dashboard result messages (commit 95d2dc0).

@@ -4,6 +4,7 @@ import Logo from './Logo.tsx'
 import Pay from './Pay.tsx'
 import MerchantPage from './Merchant.tsx'
 import Resolve from './Resolve.tsx'
+import Sandbox from './Sandbox.tsx'
 import { useConfig } from './ui.tsx'
 
 function useRoute() {
@@ -19,13 +20,14 @@ export default function App() {
   const page = pay ? <Pay id={pay[1]} />
     : route.startsWith('/merchant') || route.startsWith('/dashboard') ? <MerchantPage />
     : route.startsWith('/resolve') ? <Resolve />
+    : route.startsWith('/sandbox') ? <Sandbox />
     : <Landing />
   return (
     <>
       <header>
         <a href="#/" className="logo"><Logo size={24} /></a>
         <span className="tag">Buyer protection for stablecoin payments{cfg?.testnet ? ' · Tempo testnet' : ' on Tempo'}</span>
-        <nav><a href="#/">How it works</a><a href="#/merchant"><span className="wide-only">For merchants</span><span className="narrow-only">Merchants</span></a></nav>
+        <nav>{cfg?.testnet && cfg.sandbox?.arbiter && <a href="#/sandbox">Try it</a>}<a href="#/" className="wide-only">How it works</a><a href="#/merchant"><span className="wide-only">For merchants</span><span className="narrow-only">Merchants</span></a></nav>
       </header>
       <main>{page}</main>
       <footer>

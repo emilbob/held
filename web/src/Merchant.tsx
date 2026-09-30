@@ -33,6 +33,9 @@ export default function MerchantPage() {
     setSigning(false)
   }
 
+  // The sandbox wallet's key is in the browser anyway, so skip the sign-in click for it.
+  useEffect(() => { if (w.wallet?.kind === 'sandbox' && !signedIn && !signing) signIn() }, [w.wallet?.address, signedIn])
+
   if (!w.wallet) return (
     <div className="narrow">
       <div className="card">

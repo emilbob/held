@@ -167,3 +167,9 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 .picker button { width: 100% }
 .walletline { margin: 0 0 4px }
 .created { flex-basis: 100%; margin: 6px 0 0; font-size: 13px; word-break: break-all }
+
+/* Sandbox */
+.roles { padding-left: 20px; display: grid; gap: 14px; margin: 16px 0 }
+.roles li button { display: block; margin-top: 8px }
+.landing .ctas { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap }
+.landing .ctas .cta { margin-top: 24px }

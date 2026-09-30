@@ -34,6 +34,11 @@ Every payment gets exactly one decision. No party can send held funds anywhere e
 - **Buyers** open the checkout link (`#/pay/:id`), pay from any wallet, then confirm delivery or open a dispute.
 - **Resolvers** decide disputes at `#/resolve`: refund the buyer or pay the merchant, nothing else.
 
+- **Sandbox** (`#/sandbox`, testnet only): a shared, already-set-up *Sandbox Shop* so anyone can play merchant, buyer
+  and resolver in about two minutes, with no mining or wallet install. Its merchant and resolver use **public testnet
+  keys** (in `network.json`, set up by `scripts/sandbox-setup.ts`) that hold only test funds and are never offered on
+  mainnet. The server refuses to re-register the sandbox address with any other arbiter.
+
 Held's server holds no keys and signs nothing. Every release, refund, dispute and resolution is signed by that
 party's own wallet, and the arbiter contract enforces who may do what.
 

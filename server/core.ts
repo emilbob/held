@@ -81,7 +81,8 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
   async function handle(method: string, path: string, headers: Headers, body: Record<string, unknown> = {}, query: URLSearchParams = new URLSearchParams()): Promise<ApiResponse> {
     const ok = (b: unknown, status = 200): ApiResponse => ({ status, body: b })
     if (method === 'OPTIONS') return ok({}, 204)
-    if (path === '/api/config') return ok({ ...network, head: head.toString(), indexerError: lastErr, now: now() })
+    // The sandbox's public test keys are served only on testnet.
+    if (path === '/api/config') return ok({ ...network, sandbox: network.testnet ? network.sandbox : undefined, head: head.toString(), indexerError: lastErr, now: now() })
 
     if (path === '/api/auth' && method === 'POST') {
       const { address, issued, signature } = body
@@ -111,6 +112,10 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const { name, arbiter, masterId } = body
       if (typeof arbiter !== 'string' || !isAddress(arbiter) || typeof masterId !== 'string' || !/^0x[0-9a-fA-F]{8}$/.test(masterId))
         return ok({ error: 'Bad registration request.' }, 400)
+      // The sandbox's merchant key is public, so nobody may re-register that address with a different arbiter.
+      const sb = network.sandbox
+      if (sb?.arbiter && address.toLowerCase() === sb.merchant.toLowerCase() && arbiter.toLowerCase() !== sb.arbiter.toLowerCase())
+        return ok({ error: 'The sandbox shop can only use its own arbiter.' }, 403)
       const v = await verifyMerchant(address, arbiter, masterId as Hex, network)
       if (!v.ok) return ok({ error: v.error }, 422)
       const merchant = { ...v.merchant, name: String(name || 'Merchant').slice(0, 60), registeredAt: now() }

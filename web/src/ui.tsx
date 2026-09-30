@@ -112,8 +112,14 @@ export function useWallet(role: W.Role) {
   const topUp = async (w: W.Wallet) => {
     if ((await getConfig()).testnet && (await W.tokenBalance(w.address)) < 1_000_000n) await api('/faucet', { address: w.address }).catch(() => {})
   }
+  const sandboxKey = async () => {
+    const sb = (await getConfig()).sandbox
+    return role === 'merchant' ? sb?.merchantKey : role === 'resolver' ? sb?.resolverKey : undefined
+  }
   useEffect(() => {
-    if (localStorage.getItem(rememberKey) === 'demo') W.connect('demo', undefined, role).then((w) => { setWallet(w); topUp(w) })
+    const k = localStorage.getItem(rememberKey)
+    if (k === 'demo') W.connect('demo', undefined, role).then((w) => { setWallet(w); topUp(w) })
+    if (k === 'sandbox') sandboxKey().then((key) => W.connect('sandbox', undefined, role, key)).then((w) => { setWallet(w); topUp(w) }, () => localStorage.removeItem(rememberKey))
   }, [])
   useEffect(() => {
     if (!wallet) return
@@ -123,7 +129,7 @@ export function useWallet(role: W.Role) {
   const connect = async (kind: W.WalletKind, injected?: W.InjectedWallet) => {
     setBusy(true); setError(null)
     try {
-      const w = await W.connect(kind, injected, role)
+      const w = await W.connect(kind, injected, role, kind === 'sandbox' ? await sandboxKey() : undefined)
       localStorage.setItem(rememberKey, kind)
       setWallet(w)
       await topUp(w)
@@ -131,7 +137,8 @@ export function useWallet(role: W.Role) {
     setBusy(false)
   }
   const disconnect = () => { localStorage.removeItem(rememberKey); setWallet(null); setBalance(null) }
-  return { wallet, balance, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet }
+  const sandbox = !!cfg?.testnet && !!cfg.sandbox?.arbiter && role !== 'buyer'
+  return { wallet, balance, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
 }
 
 export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, note?: string }) {
@@ -149,6 +156,7 @@ export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, not
         </button>
       ))}
       {w.testnet && <button className="secondary" onClick={() => w.connect('demo')} disabled={w.busy}>Test wallet in this browser</button>}
+      {w.sandbox && <button className="secondary" onClick={() => w.connect('sandbox')} disabled={w.busy}>Sandbox {w.role} (shared, no setup)</button>}
       <p className="muted small">{note ?? 'Tempo Wallet signs with a passkey (Face ID / Touch ID). No extension, no seed phrase.'}</p>
       {w.error && <Result msg={{ ok: false, text: w.error }} />}
     </div>

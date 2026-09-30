@@ -75,7 +75,7 @@ export function watchWallets(onChange: (wallets: InjectedWallet[]) => void): () 
   return () => { clearTimeout(fallback); window.removeEventListener('eip6963:announceProvider', onAnnounce) }
 }
 
-export type WalletKind = 'demo' | 'tempo' | 'injected'
+export type WalletKind = 'demo' | 'tempo' | 'injected' | 'sandbox'
 export interface Wallet {
   kind: WalletKind
   name: string // shown next to the address
@@ -105,7 +105,13 @@ function demoAccount(role: Role) {
   return privateKeyToAccount(k)
 }
 
-export async function connect(kind: WalletKind, injected?: InjectedWallet, role: Role = 'buyer'): Promise<Wallet> {
+export async function connect(kind: WalletKind, injected?: InjectedWallet, role: Role = 'buyer', sandboxKey?: Hex): Promise<Wallet> {
+  // Testnet sandbox: a shared, PUBLIC test key for the sandbox shop's merchant or resolver.
+  if (kind === 'sandbox') {
+    if (!sandboxKey) throw new Error('The sandbox is not available here.')
+    const account = privateKeyToAccount(sandboxKey)
+    return { kind, name: `sandbox ${role}, shared test wallet`, address: account.address, client: createWalletClient({ account, chain, transport: rpc() }) }
+  }
   if (kind === 'demo') {
     const account = demoAccount(role)
     return { kind, name: 'test wallet in this browser', address: account.address, client: createWalletClient({ account, chain, transport: rpc() }) }

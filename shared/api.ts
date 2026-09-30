@@ -80,6 +80,8 @@ export interface Network {
   acceptedToken: Address
   defaultResolver: Address // suggested at merchant setup; merchants may choose another
   defaultWindow: number // seconds
+  // Testnet only: a shared, already-set-up shop anyone can try (scripts/sandbox-setup.ts). The keys are PUBLIC test keys.
+  sandbox?: { merchant: Address, merchantKey: Hex, resolver: Address, resolverKey: Hex, salt?: Hex, masterId?: Hex, arbiter?: Address }
 }
 export interface Config extends Network {
   head: string

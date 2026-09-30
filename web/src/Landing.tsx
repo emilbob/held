@@ -15,7 +15,10 @@ export default function Landing() {
           contract is the only way out: it can release the funds to the merchant or refund the buyer. No custodian.
           No platform risk. Just a plain token transfer from any wallet.
         </p>
-        <a href="#/merchant"><button className="primary cta">Start accepting payments</button></a>
+        <div className="ctas">
+          <a href="#/merchant"><button className="primary cta">Start accepting payments</button></a>
+          {cfg?.testnet && cfg.sandbox?.arbiter && <a href="#/sandbox"><button className="cta">Try the sandbox (2 min)</button></a>}
+        </div>
         <p className="hint">Buying something? Open the checkout link your merchant sent you.
           {cfg?.testnet && ' Running on Tempo Moderato testnet: test wallets and test funds are free.'}</p>
       </div>

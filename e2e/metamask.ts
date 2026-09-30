@@ -2,20 +2,19 @@
 //   - real MetaMask 13.49.0 (official GitHub release, SHA256 verified), loaded unpacked
 //   - a NEW 12-word testnet seed generated in memory for this run only (never printed, stored or reused)
 //   - tests: connect, add Tempo Moderato network, pay, confirm delivery (release), and on a 2nd order: dispute
-// Usage: node e2e/metamask.mjs   (server must be running on :8787)
+// Usage: node e2e/metamask.ts   (server must be running on :8787)
 import { generateMnemonic, english, mnemonicToAccount } from 'viem/accounts'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
-import { launchWithMetaMask, screen, sleep, log, clickTestId, clickText, here } from './mm-lib.mjs'
+import type { Target } from 'puppeteer-core'
+import type { EIP1193Provider } from 'viem'
+import { launchWithMetaMask, screen, sleep, log, clickTestId, clickText, here, APP, api, check, results, finish } from './lib.ts'
 
-const APP = process.env.APP || 'http://localhost:8787'
+declare global { interface Window { ethereum?: EIP1193Provider } }
 const mnemonic = generateMnemonic(english)
 const address = mnemonicToAccount(mnemonic).address
 const PASSWORD = 'HeldE2E-throwaway-' + Math.random().toString(36).slice(2)
 mkdirSync(join(here, 'shots'), { recursive: true })
-const results = []
-const check = (name, pass, detail = '') => { results.push(pass); log(pass ? 'PASS' : 'FAIL', name, detail) }
-const api = async (path, body) => (await fetch(APP + '/api' + path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {})).json()
 
 const { browser, id } = await launchWithMetaMask()
 log('throwaway MetaMask account', address)
@@ -25,9 +24,9 @@ async function onboard() {
   await sleep(2500)
   const mm = (await browser.pages()).find((p) => p.url().includes(id)) || await browser.newPage()
   if (!mm.url().includes(id)) await mm.goto(`chrome-extension://${id}/home.html#onboarding/welcome`)
-  const step = async (fn) => { await fn(); await sleep(1800) }
-  const waitFor = async (sel) => { for (let i = 0; i < 30; i++) { const e = await mm.$(sel); if (e) return e; await sleep(500) } throw new Error('onboarding: missing ' + sel) }
-  const waitTid = async (tid) => { for (let i = 0; i < 30; i++) { if (await clickTestId(mm, tid)) return; await sleep(500) } throw new Error('onboarding: missing ' + tid) }
+  const step = async (fn: () => Promise<unknown>) => { await fn(); await sleep(1800) }
+  const waitFor = async (sel: string) => { for (let i = 0; i < 30; i++) { const e = await mm.$(sel); if (e) return e; await sleep(500) } throw new Error('onboarding: missing ' + sel) }
+  const waitTid = async (tid: string) => { for (let i = 0; i < 30; i++) { if (await clickTestId(mm, tid)) return; await sleep(500) } throw new Error('onboarding: missing ' + tid) }
   await step(() => waitTid('onboarding-import-wallet'))
   await step(() => waitTid('onboarding-import-with-srp-button'))
   await step(async () => (await waitFor('textarea')).type(mnemonic))
@@ -45,7 +44,8 @@ async function onboard() {
 // ---------------------------------------------------------------- MetaMask approval UI
 // MetaMask 13.x shows approvals in Chrome's side panel (sidepanel.html), which puppeteer can't wrap as a Page,
 // so drive every MetaMask surface through a raw CDP session with Runtime.evaluate.
-const evalIn = async (t, expr) => {
+type ApproveResult = { txt?: string, clicked?: string }
+const evalIn = async (t: Target, expr: string): Promise<ApproveResult> => {
   const s = await t.createCDPSession()
   try { return (await s.send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result.value } finally { await s.detach().catch(() => {}) }
 }
@@ -61,7 +61,7 @@ const approveScript = `(() => {
 })()`
 
 // Approves whatever MetaMask shows (connect, add network, switch network, transaction) until `done()` is true.
-async function approveMetaMask(what, done, timeout = 90000) {
+async function approveMetaMask(what: string, done: () => Promise<boolean>, timeout = 90000) {
   const t = Date.now(); let last = '', clicks = 0
   while (Date.now() - t < timeout) {
     if (await done()) return clicks
@@ -80,9 +80,9 @@ async function approveMetaMask(what, done, timeout = 90000) {
 
 const held = await browser.newPage()
 // Held's buttons stay disabled until the previous tx receipt resolves, so retry the click until it's enabled.
-const clickHeld = async (re, timeout = 30000) => { const t = Date.now(); while (Date.now() - t < timeout) { const r = await clickText(held, re); if (r) return r; await sleep(500) } return null }
-const walletText = () => held.$eval('.walletbox', (e) => e.innerText).catch(() => '')
-const payText = () => held.$eval('.pay', (e) => e.innerText).catch(() => '')
+const clickHeld = async (re: RegExp, timeout = 30000) => { const t = Date.now(); while (Date.now() - t < timeout) { const r = await clickText(held, re); if (r) return r; await sleep(500) } return null }
+const walletText = () => held.$eval('.walletbox', (e) => (e as HTMLElement).innerText).catch(() => '')
+const payText = () => held.$eval('.pay', (e) => (e as HTMLElement).innerText).catch(() => '')
 try {
   const ob = await onboard()
   check('MetaMask onboarded with a fresh throwaway seed', true, (ob.text || '').slice(0, 60))
@@ -98,7 +98,7 @@ try {
   await approveMetaMask('connect+network', async () => /\(browser wallet\)/.test(await walletText()))
   const wb = await walletText()
   check('connect + add/switch to Tempo Moderato (chainId 42431)', /\(browser wallet\)/.test(wb) && wb.toLowerCase().includes(address.slice(2, 6).toLowerCase()), wb.split('\n')[1])
-  const chainId = await held.evaluate(() => window.ethereum.request({ method: 'eth_chainId' }))
+  const chainId = await held.evaluate(() => window.ethereum!.request({ method: 'eth_chainId' }))
   check('MetaMask is on Tempo Moderato', chainId === '0xa5bf', chainId)
   await held.screenshot({ path: join(here, 'shots/mm-1-connected.png') }).catch(() => {})
 
@@ -131,12 +131,10 @@ try {
   await held.screenshot({ path: join(here, 'shots/mm-4-disputed.png') }).catch(() => {})
   log('orders', o1.id, o2.id)
 } catch (e) {
-  log('ERROR', e.message)
+  log('ERROR', (e as Error).message)
   await held.screenshot({ path: join(here, 'shots/mm-error.png') }).catch(() => {})
   results.push(false)
 } finally {
   await browser.close()
 }
-const bad = results.filter((x) => !x).length
-log(`${results.length - bad}/${results.length} checks passed`)
-process.exit(bad ? 1 : 0)
+finish()

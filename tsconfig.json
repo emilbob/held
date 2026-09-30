@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "types": ["node"],
@@ -14,5 +14,5 @@
     "verbatimModuleSyntax": true,
     "noUnusedLocals": true
   },
-  "include": ["server", "api", "scripts/lib.ts", "shared"]
+  "include": ["server", "api", "scripts", "shared", "e2e/*.ts"]
 }

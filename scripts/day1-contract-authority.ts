@@ -2,7 +2,7 @@
 // ReceivePolicyGuard.claim for both resume (-> merchant) and reroute (-> originator)?
 // Deploys HeldArbiter on Tempo Moderato with a short window and runs the full rule set, incl. negative tests.
 // Fresh random keys + faucet funds only.
-import { createClient, createPublicClient, http, parseUnits, formatUnits, publicActions, walletActions } from 'viem'
+import { createClient, createPublicClient, http, parseUnits, formatUnits, publicActions, walletActions, type Address, type Hex } from 'viem'
 import { tempoModerato } from 'viem/chains'
 import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
@@ -10,27 +10,31 @@ import { ReceivePolicyReceipt } from 'ox/tempo'
 import { readFileSync } from 'node:fs'
 
 const { abi, bytecode } = JSON.parse(readFileSync(new URL('../out/HeldArbiter.json', import.meta.url), 'utf8'))
-const PATHUSD = '0x20c0000000000000000000000000000000000000'
-const WRONG = '0x20c0000000000000000000000000000000000001'
+const PATHUSD: Address = '0x20c0000000000000000000000000000000000000'
+const WRONG: Address = '0x20c0000000000000000000000000000000000001'
 const WINDOW = Number(process.env.WINDOW || 45)
 const chain = tempoModerato.extend({ feeToken: PATHUSD })
 const pub = createPublicClient({ chain, transport: http() })
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a)
-const bal = async (a, token = PATHUSD) => BigInt((await Actions.token.getBalance(pub, { account: a, token })).amount)
-const f = (x) => formatUnits(x, 6)
+const walletClientFor = (account: ReturnType<typeof privateKeyToAccount>) =>
+  createClient({ account, chain, transport: http() }).extend(publicActions).extend(walletActions)
+const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a)
+const bal = async (a: Address, token: Address = PATHUSD) => BigInt((await Actions.token.getBalance(pub, { account: a, token })).amount)
+const f = (x: bigint) => formatUnits(x, 6)
 
-const names = ['merchant', 'buyer', 'resolver', 'stranger']
-const acct = Object.fromEntries(names.map((n) => [n, privateKeyToAccount(generatePrivateKey())]))
-const cl = Object.fromEntries(names.map((n) => [n, createClient({ account: acct[n], chain, transport: http() }).extend(publicActions).extend(walletActions)]))
+const names = ['merchant', 'buyer', 'resolver', 'stranger'] as const
+type Who = (typeof names)[number]
+const acct = Object.fromEntries(names.map((n) => [n, privateKeyToAccount(generatePrivateKey())])) as Record<Who, ReturnType<typeof privateKeyToAccount>>
+const cl = Object.fromEntries(names.map((n) => [n, walletClientFor(acct[n])])) as Record<Who, ReturnType<typeof walletClientFor>>
 for (const n of names) await Actions.faucet.fundSync(pub, { account: acct[n].address })
 log('funded', names.join('/'))
 
-const results = []
-const check = (name, pass, detail = '') => { results.push({ name, pass }); log(pass ? 'PASS' : 'FAIL', name, detail) }
+const results: { name: string, pass: boolean }[] = []
+const check = (name: string, pass: boolean, detail: unknown = '') => { results.push({ name, pass }); log(pass ? 'PASS' : 'FAIL', name, detail) }
 
 // 1. deploy arbiter
 const hash = await cl.merchant.deployContract({ abi, bytecode, args: [acct.merchant.address, acct.resolver.address, PATHUSD, BigInt(WINDOW)] })
 const dep = await pub.waitForTransactionReceipt({ hash })
+if (!dep.contractAddress) throw new Error('arbiter deploy failed')
 const arbiter = dep.contractAddress
 log('arbiter deployed', arbiter, dep.status)
 
@@ -39,21 +43,22 @@ await Actions.receivePolicy.setSync(cl.merchant, { senderPolicyId: 'reject-all',
 const pol = await Actions.receivePolicy.get(pub, { account: acct.merchant.address })
 check('policy recoveryAuthority == arbiter contract', pol.recoveryAuthority?.toLowerCase() === arbiter.toLowerCase(), pol.recoveryAuthority)
 
-async function pay(amount, token = PATHUSD) {
+async function pay(amount: string, token: Address = PATHUSD) {
   const tx = await Actions.token.transferSync(cl.buyer, { to: acct.merchant.address, amount: parseUnits(amount, 6), token })
   const rc = tx.receipt ?? tx
   const [r] = ReceivePolicyReceipt.fromTransactionReceipt(rc)
-  return r
+  return r as Hex
 }
-async function call(who, fn, receipt) {
+type Result = { ok: boolean, err?: string }
+async function call(who: Who, fn: 'release' | 'refund' | 'dispute', receipt: Hex): Promise<Result> {
   try {
     const h = await cl[who].writeContract({ address: arbiter, abi, functionName: fn, args: [receipt], gas: 2_000_000n })
     const rc = await pub.waitForTransactionReceipt({ hash: h })
     return rc.status === 'success' ? { ok: true } : { ok: false, err: 'reverted' }
-  } catch (e) { return { ok: false, err: (e.shortMessage || e.message).split('\n')[0] } }
+  } catch (e) { const x = e as { shortMessage?: string, message: string }; return { ok: false, err: (x.shortMessage || x.message).split('\n')[0] } }
 }
-const expectOk = async (name, who, fn, r) => { const x = await call(who, fn, r); check(name, x.ok, x.err || '') }
-const expectFail = async (name, who, fn, r) => { const x = await call(who, fn, r); check(name + ' (expect revert)', !x.ok, x.err || 'UNEXPECTEDLY SUCCEEDED') }
+const expectOk = async (name: string, who: Who, fn: 'release' | 'refund' | 'dispute', r: Hex) => { const x = await call(who, fn, r); check(name, x.ok, x.err || '') }
+const expectFail = async (name: string, who: Who, fn: 'release' | 'refund' | 'dispute', r: Hex) => { const x = await call(who, fn, r); check(name + ' (expect revert)', !x.ok, x.err || 'UNEXPECTEDLY SUCCEEDED') }
 
 // ORDER A: delivered, buyer confirms -> contract RESUME claim to merchant
 let m0 = await bal(acct.merchant.address)
@@ -83,8 +88,8 @@ check('buyer refunded 15 (reroute by contract)', (await bal(acct.buyer.address))
 
 // Direct guard claims by humans must fail (only the arbiter contract is recovery authority)
 const rC = await pay('5')
-for (const who of ['merchant', 'buyer', 'resolver']) {
-  const x = await Actions.receivePolicy.claimSync(cl[who], { receipt: rC, to: acct[who].address }).then(() => ({ ok: true }), (e) => ({ ok: false, err: e.shortMessage }))
+for (const who of ['merchant', 'buyer', 'resolver'] as const) {
+  const x = await Actions.receivePolicy.claimSync(cl[who], { receipt: rC, to: acct[who].address }).then((): Result => ({ ok: true }), (e): Result => ({ ok: false, err: e.shortMessage }))
   check(`${who} direct guard.claim on C (expect revert)`, !x.ok, x.err || 'UNEXPECTEDLY SUCCEEDED')
 }
 

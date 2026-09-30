@@ -1,31 +1,30 @@
 // Day 2 check: a payment to a per-order VIRTUAL address is held and goes through HeldArbiter.
-// Uses the persistent merchant from setup-merchant.mjs (.state/merchant.json) and a fresh throwaway buyer.
+// Uses the persistent merchant from setup-merchant.ts (.state/merchant.json) and a fresh throwaway buyer.
 // Checks: payment held, receipt recipient = virtual address (order id recoverable), release pays the merchant,
 // refund goes back to the payer, and the arbiter's NotForMerchant check accepts virtual recipients.
 import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { ReceivePolicyReceipt } from 'ox/tempo'
-import { parseUnits } from 'viem'
-import { pub, walletFor, artifact, loadState, log, PATHUSD, bal, fmt, orderAddress, orderIdOf } from './lib.ts'
+import { parseUnits, type Hex } from 'viem'
+import { pub, walletFor, artifact, requireState, log, PATHUSD, bal, fmt, orderAddress, orderIdOf } from './lib.ts'
 
-const s = loadState()
-if (!s.arbiter) throw new Error('run scripts/setup-merchant.mjs first')
+const s = requireState()
 const { abi } = artifact()
 const buyer = privateKeyToAccount(generatePrivateKey())
 await Actions.faucet.fundSync(pub, { account: buyer.address })
 const bc = walletFor(buyer)
 
-const results = []
-const check = (name, pass, detail = '') => { results.push(pass); log(pass ? 'PASS' : 'FAIL', name, detail) }
+const results: boolean[] = []
+const check = (name: string, pass: boolean, detail: unknown = '') => { results.push(pass); log(pass ? 'PASS' : 'FAIL', name, detail) }
 
-async function payOrder(orderId, amount) {
+async function payOrder(orderId: number, amount: string) {
   const to = orderAddress(s.masterId, orderId)
   const tx = await Actions.token.transferSync(bc, { to, amount: parseUnits(amount, 6), token: PATHUSD })
   const rc = tx.receipt ?? tx
   const recs = ReceivePolicyReceipt.fromTransactionReceipt(rc)
-  return { to, rc, receipt: recs[0], count: recs.length }
+  return { to, rc, receipt: recs[0] as Hex, count: recs.length }
 }
-const release = async (receipt) => {
+const release = async (receipt: Hex) => {
   const h = await bc.writeContract({ address: s.arbiter, abi, functionName: 'release', args: [receipt], gas: 2_000_000n })
   return (await pub.waitForTransactionReceipt({ hash: h })).status
 }
@@ -47,7 +46,7 @@ check('order id recoverable from Transfer log (fallback)', recOrder === orderId)
 const held = await pub.readContract({ address: '0xB10C000000000000000000000000000000000000', abi: [{ name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ type: 'bytes' }], outputs: [{ type: 'uint256' }] }], functionName: 'balanceOf', args: [p.receipt] })
 check('guard holds 20 for the receipt', held === parseUnits('20', 6), fmt(held))
 m0 = await bal(s.merchant)
-const st = await release(p.receipt).catch((e) => e.shortMessage)
+const st = await release(p.receipt).catch((e: { shortMessage?: string }) => e.shortMessage)
 check('buyer confirms -> arbiter releases virtual-address payment', st === 'success', st)
 check('merchant received 20', (await bal(s.merchant)) - m0 === parseUnits('20', 6), fmt((await bal(s.merchant)) - m0))
 

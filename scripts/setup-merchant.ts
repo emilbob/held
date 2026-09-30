@@ -42,7 +42,7 @@ if (!s.salt) {
   log(`salt mined in ${((Date.now() - t) / 1000).toFixed(0)}s, masterId ${s.masterId}`)
 }
 
-const registered = await Actions.virtualAddress.getMasterAddress(pub, { masterId: s.masterId }).catch(() => null)
+const registered = await Actions.virtualAddress.getMasterAddress(pub, { masterId: s.masterId! }) // set by the salt step above.catch(() => null)
 if (registered?.toLowerCase() !== merchant.address.toLowerCase()) {
   await Actions.virtualAddress.registerMasterSync(mc, { salt: s.salt })
   log('registered virtual-address master', s.masterId)
@@ -59,7 +59,7 @@ if (!s.arbiter || process.env.REDEPLOY || BigInt(s.window ?? 0) !== WINDOW) {
 }
 
 const pol = await Actions.receivePolicy.get(pub, { account: merchant.address })
-if (pol.recoveryAuthority?.toLowerCase() !== s.arbiter.toLowerCase() || pol.senderPolicyId !== 'reject-all') {
+if (pol.recoveryAuthority?.toLowerCase() !== s.arbiter!.toLowerCase() || pol.senderPolicyId !== 'reject-all') {
   await Actions.receivePolicy.setSync(mc, { senderPolicyId: 'reject-all', tokenPolicyId: 'allow-all', claimer: s.arbiter })
   log('receive policy set: hold all incoming, recovery authority = arbiter')
 } else log('receive policy already set')

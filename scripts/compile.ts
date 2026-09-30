@@ -13,7 +13,12 @@ const input = {
     outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } },
   },
 }
-const out = JSON.parse(solc.compile(JSON.stringify(input)))
+interface SolcError { severity: 'error' | 'warning' | 'info', formattedMessage: string }
+interface SolcOutput {
+  errors?: SolcError[]
+  contracts: Record<string, Record<string, { abi: unknown[], evm: { bytecode: { object: string } } }>>
+}
+const out: SolcOutput = JSON.parse(solc.compile(JSON.stringify(input)))
 const errs = (out.errors || []).filter((e) => e.severity === 'error')
 for (const e of out.errors || []) console.error(e.formattedMessage)
 if (errs.length) process.exit(1)

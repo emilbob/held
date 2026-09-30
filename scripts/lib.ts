@@ -19,8 +19,17 @@ export const artifact = () => JSON.parse(readFileSync(new URL('out/HeldArbiter.j
 // .state/merchant.json holds testnet-only keys + deployment info (gitignored).
 const stateDir = new URL('.state/', root)
 const stateFile = new URL('.state/merchant.json', root)
-export interface MerchantState { merchantKey?: Hex, resolverKey?: Hex, [k: string]: unknown }
+export interface MerchantState {
+  merchantKey?: Hex, resolverKey?: Hex, merchant?: Address, resolver?: Address,
+  salt?: Hex, masterId?: Hex, arbiter?: Address, arbiterBlock?: string, window?: string,
+}
 export const loadState = (): MerchantState => (existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : {})
+// For scripts that need a completed setup: every field present, or a clear error.
+export const requireState = (): Required<MerchantState> => {
+  const s = loadState()
+  if (!s.arbiter || !s.masterId || !s.merchant || !s.resolverKey) throw new Error('run scripts/setup-merchant.ts first')
+  return s as Required<MerchantState>
+}
 export const saveState = (s: MerchantState) => {
   mkdirSync(stateDir, { recursive: true })
   writeFileSync(stateFile, JSON.stringify(s, null, 2))

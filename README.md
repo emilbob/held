@@ -29,7 +29,7 @@ Every payment gets exactly one decision. No party can send held funds anywhere e
 
 ```
 contracts/HeldArbiter.sol   the arbiter (recovery authority)
-scripts/setup-merchant.mjs  one-time merchant setup: salt mining, virtual master, arbiter deploy, receive policy
+scripts/setup-merchant.ts   one-time merchant setup: salt mining, virtual master, arbiter deploy, receive policy
 server/                     indexer (TransferBlocked + arbiter events -> order states) and JSON API
 web/                        React app: merchant dashboard (#/) and buyer pay / confirm / dispute page (#/pay/:id)
 deployment.json             current testnet deployment (public info)
@@ -79,10 +79,10 @@ makes 3 fail. Log: [`docs/forge-test-run.log`](docs/forge-test-run.log).
 
 The buyer page supports three wallets. Buyers always sign release and dispute from their own wallet:
 - **Tempo Wallet** (wallet.tempo.xyz passkey account, via Tempo's official Accounts SDK `accounts`): pay,
-  confirm delivery and dispute. `node e2e/tempo-wallet.mjs` creates a fresh Tempo Wallet account in a throwaway
+  confirm delivery and dispute. `node e2e/tempo-wallet.ts` creates a fresh Tempo Wallet account in a throwaway
   Chrome for Testing profile (a CDP virtual authenticator stands in for Touch ID) and runs all three: 4/4
   ([log](docs/tempo-wallet-e2e-run.log)).
-- **Browser wallet** (MetaMask or any injected EVM wallet): adds Tempo Moderato automatically. `node e2e/metamask.mjs`
+- **Browser wallet** (MetaMask or any injected EVM wallet): adds Tempo Moderato automatically. `node e2e/metamask.ts`
   loads real MetaMask 13.49.0 (official release, SHA256 verified) into a throwaway Chrome for Testing profile,
   imports a fresh testnet-only seed generated in memory for that run (never stored or reused), and tests connect,
   add network, switch network, pay, confirm delivery and dispute: 7/7 ([log](docs/metamask-e2e-run.log)).

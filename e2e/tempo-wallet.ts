@@ -1,33 +1,27 @@
 // Tempo Wallet end-to-end in a throwaway Chrome for Testing profile, with a CDP virtual WebAuthn authenticator
 // standing in for Touch ID. Creates a real Tempo Wallet passkey account on wallet.tempo.xyz (testnet), then drives
 // Held's buyer page: connect -> pay -> confirm delivery (release), and a second order: pay -> dispute.
-// Usage: node e2e/tempo-wallet.mjs   (server must be running on :8787)
-import puppeteer from 'puppeteer-core'
-import { mkdirSync, readdirSync, mkdtempSync } from 'node:fs'
+// Usage: node e2e/tempo-wallet.ts   (server must be running on :8787)
+import puppeteer, { type CDPSession, type Frame, type Page, type Protocol, type Target } from 'puppeteer-core'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { here, APP, api, check, results, finish, log, sleep, chromeForTesting } from './lib.ts'
 
-const here = new URL('./', import.meta.url).pathname
-const APP = process.env.APP || 'http://localhost:8787'
-const find = (dir) => { for (const e of readdirSync(dir, { withFileTypes: true })) { const p = join(dir, e.name); if (e.name === 'Google Chrome for Testing' && !e.isDirectory()) return p; if (e.isDirectory()) { const r = find(p); if (r) return r } } }
-const executablePath = find(join(here, '.cft'))
+const executablePath = chromeForTesting()
 mkdirSync(join(here, 'shots'), { recursive: true })
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a)
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const browser = await puppeteer.launch({
-  executablePath, headless: process.env.HEADFUL ? false : 'new',
+  executablePath, headless: process.env.HEADFUL ? false : true,
   userDataDir: mkdtempSync(join(tmpdir(), 'held-tempo-wallet-')), // fresh throwaway profile every run
   args: ['--no-first-run', '--no-default-browser-check', '--window-size=1280,900'],
   defaultViewport: { width: 1280, height: 900 },
 })
-const results = []
-const check = (name, pass, detail = '') => { results.push(pass); log(pass ? 'PASS' : 'FAIL', name, detail) }
 
 // Attach a virtual authenticator to every page target (Tempo Wallet opens a new popup per request). A real device's
 // keychain is shared across windows, so mirror that: remember every passkey created and add it to each new authenticator.
-const creds = new Map() // credentialId -> credential
-const authSessions = []
+const creds = new Map<string, Protocol.WebAuthn.Credential>() // credentialId -> credential
+const authSessions: { s: CDPSession, id: string }[] = []
 async function syncCreds() {
   for (const { s, id } of authSessions) {
     const r = await s.send('WebAuthn.getCredentials', { authenticatorId: id }).catch(() => null)
@@ -35,7 +29,7 @@ async function syncCreds() {
   }
 }
 setInterval(syncCreds, 500).unref()
-async function addAuthenticator(target) {
+async function addAuthenticator(target: Target) {
   if (target.type() !== 'page') return
   try {
     const s = await target.createCDPSession()
@@ -47,14 +41,13 @@ async function addAuthenticator(target) {
 }
 browser.on('targetcreated', addAuthenticator)
 
-const api = async (path, body) => (await fetch(APP + '/api' + path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {})).json()
-const text = (page, sel) => page.$eval(sel, (e) => e.innerText).catch(() => '')
-async function clickText(frameOrPage, re, timeout = 20000) {
+const text = (page: Page, sel: string) => page.$eval(sel, (e) => (e as HTMLElement).innerText).catch(() => '')
+async function clickText(frameOrPage: Page | Frame, re: RegExp, timeout = 20000) {
   const t = Date.now()
   while (Date.now() - t < timeout) {
     const ok = await frameOrPage.evaluate((src) => {
       const r = new RegExp(src, 'i')
-      const el = [...document.querySelectorAll('button, a, [role=button]')].find((b) => r.test(b.innerText || b.getAttribute('aria-label') || '') && !b.disabled)
+      const el = [...document.querySelectorAll<HTMLButtonElement>('button, a, [role=button]')].find((b) => r.test(b.innerText || b.getAttribute('aria-label') || '') && !b.disabled)
       if (el) { el.click(); return true }
       return false
     }, re.source).catch(() => false)
@@ -64,21 +57,21 @@ async function clickText(frameOrPage, re, timeout = 20000) {
   return false
 }
 // Approve whatever the wallet popup asks (sign up / confirm), logging each screen so UI changes are easy to debug.
-async function approveWallet(page, what, timeout = 60000) {
+async function approveWallet(page: Page, what: { done?: () => Promise<boolean> }, timeout = 60000) {
   const t = Date.now()
   const labels = /^(create account|continue|confirm|approve|pay( \$[\d,.]+)?|send|sign|sign transaction|submit|allow)$/i
   let clicks = 0, lastText = ''
   while (Date.now() - t < timeout) {
     if (await what.done?.()) return clicks
-    const surfaces = [...page.frames().filter((f) => /wallet\.tempo\.xyz/.test(f.url())),
+    const surfaces: (Page | Frame)[] = [...page.frames().filter((f) => /wallet\.tempo\.xyz/.test(f.url())),
       ...(await browser.pages()).filter((p) => /wallet\.tempo\.xyz/.test(p.url()))]
     for (const s of surfaces) {
       const state = await s.evaluate(() => ({ text: (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 300),
-        hasLabel: !!document.querySelector('input') && !document.querySelector('input').value })).catch(() => null)
+        hasLabel: !!document.querySelector('input') && !document.querySelector('input')!.value })).catch(() => null)
       if (!state || !state.text) continue
       if (state.text !== lastText) { log(`  wallet popup: ${state.text}`); lastText = state.text }
       if (state.hasLabel && /Create account/.test(state.text)) {
-        const inp = await s.$('input'); await inp.type('held-e2e-' + Date.now().toString(36))
+        const inp = await s.$('input'); await inp?.type('held-e2e-' + Date.now().toString(36))
       }
       const clicked = await s.evaluate((src) => {
         const r = new RegExp(src, 'i')
@@ -139,12 +132,10 @@ try {
   const payer = o.payments[0]?.payer
   log('Tempo Wallet account', payer, '| orders', o1.id, o2.id)
 } catch (e) {
-  log('ERROR', e.message)
+  log('ERROR', (e as Error).message)
   await page.screenshot({ path: join(here, 'shots/tw-error.png') }).catch(() => {})
   results.push(false)
 } finally {
   await browser.close()
 }
-const bad = results.filter((x) => !x).length
-log(`${results.length - bad}/${results.length} checks passed`)
-process.exit(bad ? 1 : 0)
+finish()

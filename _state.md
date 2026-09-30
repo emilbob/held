@@ -104,3 +104,12 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 ## Next
 - Demo video + pitch video (user paused this). Design is complete.
 - Near submission: remind the user to change the form answer.
+
+## Sep 30: JavaScript -> TypeScript (done, deployed)
+- Whole repo is TypeScript (strict). web/ builds with `tsc && vite build`; server/, api/, scripts/ and e2e/ run
+  natively under Node's type stripping (`node file.ts`, Node 26) and on Vercel. `npm run typecheck` checks everything.
+- shared/api.ts: one set of data types for the server and web. e2e/mm-lib -> e2e/lib.ts (shared test helpers).
+- Removed server/store.mjs (unused). File names in the dated entries above are the old .mjs/.js names.
+- Verified: typecheck; local TS server returns identical orders to the old JS server (13/13); Vercel preview + prod
+  serve the API from Redis; compile/export-abi output byte-identical. MetaMask e2e is 5/7 but the old JS build
+  failed the same way (Tempo RPC "Request is being rate limited"); rerun when the testnet is calm.

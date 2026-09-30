@@ -1,6 +1,6 @@
 // Fresh demo database for recording: moves the current order DB aside (never deletes it) and starts the indexer from
 // the current block, so the dashboard opens with zero orders and order numbers start at 1042.
-// Usage: node scripts/demo-reset.mjs   then restart `npm run server`.
+// Usage: node scripts/demo-reset.ts   then restart `npm run server`.
 import { existsSync, renameSync, writeFileSync, mkdirSync } from 'node:fs'
 import { pub } from './lib.ts'
 

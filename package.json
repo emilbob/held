@@ -6,15 +6,15 @@
   "description": "Held: buyer protection for stablecoin payments on Tempo",
   "scripts": {
     "test": "forge test",
-    "compile": "node scripts/compile.mjs",
-    "setup": "node scripts/setup-merchant.mjs",
+    "compile": "node scripts/compile.ts",
+    "setup": "node scripts/setup-merchant.ts",
     "server": "node server/server.ts",
-    "spike:day1": "node scripts/day1-contract-authority.mjs",
-    "test:virtual": "node scripts/day2-virtual-address.mjs",
-    "test:indexer": "node scripts/day3-indexer-e2e.mjs",
-    "demo:reset": "node scripts/demo-reset.mjs",
-    "e2e:tempo-wallet": "node e2e/tempo-wallet.mjs",
-    "e2e:metamask": "node e2e/metamask.mjs",
+    "spike:day1": "node scripts/day1-contract-authority.ts",
+    "test:virtual": "node scripts/day2-virtual-address.ts",
+    "test:indexer": "node scripts/day3-indexer-e2e.ts",
+    "demo:reset": "node scripts/demo-reset.ts",
+    "e2e:tempo-wallet": "node e2e/tempo-wallet.ts",
+    "e2e:metamask": "node e2e/metamask.ts",
     "typecheck": "tsc && npm --prefix web run typecheck"
   },
   "dependencies": {

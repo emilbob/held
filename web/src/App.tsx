@@ -34,7 +34,7 @@ export default function App() {
       </header>
       <main>{page}</main>
       <footer>
-        <p>Funds are held by Tempo's ReceivePolicyGuard. Each merchant's Held arbiter contract can only release them to the merchant or refund the original payer.</p>
+        <p>Funds are held by Tempo's ReceivePolicyGuard; each merchant's arbiter can only pay the merchant or refund the payer.</p>
         {!route.startsWith('/resolve') && <a href="#/resolve">Resolver console</a>}
       </footer>
     </>

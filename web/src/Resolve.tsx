@@ -37,7 +37,9 @@ export default function Resolve() {
         {signErr && <Result msg={{ ok: false, text: signErr }} />}
       </div>
       {err && <p className="err">{err}</p>}
-      {addr && data && data.orders.length === 0 && <p className="muted">No open disputes for {short(addr)}.</p>}
+      {addr && data && data.orders.length === 0 && (
+        <div className="card empty"><b>No open disputes.</b> <span className="muted">When a buyer disputes a payment at a shop that chose {short(addr)} as its resolver, it appears here.</span></div>
+      )}
       {w.wallet && data?.orders.map((o) => <Dispute key={o.id} order={o} wallet={w.wallet!} />)}
     </div>
   )

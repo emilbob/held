@@ -58,6 +58,9 @@ export default function MerchantPage() {
   return <Dashboard merchant={me.merchant} w={w} testnet={!!cfg?.testnet} />
 }
 
+type OrderFilter = 'action' | 'unpaid' | 'settled' | 'all'
+const FILTERS: [OrderFilter, string][] = [['action', 'Needs action'], ['unpaid', 'Awaiting payment'], ['settled', 'Settled'], ['all', 'All']]
+
 // ---------------------------------------------------------------- one-time setup
 const STEPS: [SetupStep, string][] = [
   ['mine', 'Create your checkout address (proof of work in this browser)'],
@@ -144,6 +147,16 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
     setBusy(false)
   }
   const orders = data?.orders || []
+  // Orders a merchant should look at: held or releasable (can release/refund), disputed, or a wrong token to return.
+  const needsAction = (o: Order) => ['held', 'releasable', 'disputed'].includes(o.status) || o.payments.some((p) => p.wrongToken && p.status === 'held')
+  const groups: Record<OrderFilter, Order[]> = {
+    action: orders.filter(needsAction),
+    unpaid: orders.filter((o) => o.status === 'awaiting_payment' && !needsAction(o)),
+    settled: orders.filter((o) => o.status === 'released' || o.status === 'refunded'),
+    all: orders,
+  }
+  const [filter, setFilter] = useState<OrderFilter>('all')
+  const shown = groups[filter]
   const heldTotal = orders.flatMap((o) => o.payments).filter((p) => ['held', 'disputed'].includes(p.status)).reduce((a, p) => a + Number(p.amount), 0)
   const link = (id: number) => `${location.origin}/#/pay/${id}`
 
@@ -155,7 +168,8 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
         <div><label>Balance</label><b>{w.balance === null ? '…' : usd(w.balance)}</b></div>
         <div><label>Held for buyers</label><b>{usd(heldTotal)}</b></div>
         <div><label>Protection window</label>{duration(m.window)}</div>
-        <div><label>Your arbiter · resolver</label><a href={addrUrl(m.arbiter)} target="_blank">{short(m.arbiter)}</a> · <a href={addrUrl(m.resolver)} target="_blank">{short(m.resolver)}</a></div>
+        <div><label>Your arbiter</label><a href={addrUrl(m.arbiter)} target="_blank">{short(m.arbiter)}</a></div>
+        <div><label>Resolver</label><a href={addrUrl(m.resolver)} target="_blank">{short(m.resolver)}</a></div>
       </section>
 
       <form className="card neworder" onSubmit={create}>
@@ -173,8 +187,20 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
       <Links />
 
       {err && <p className="err">{err}</p>}
-      {orders.length === 0 && data && <p className="muted">No orders yet. Create one above and send the link to your buyer.</p>}
-      {orders.map((o) => <OrderCard key={o.id} order={o} wallet={w.wallet} merchant={m} testnet={testnet} />)}
+      <section className="orders" aria-labelledby="orders-title">
+        <div className="orders-head">
+          <h2 id="orders-title">Orders</h2>
+          <div className="chips" role="group" aria-label="Show orders">
+            {FILTERS.map(([k, label]) => (
+              <button key={k} className={`chip ${filter === k ? 'on' : ''} ${k === 'action' && groups.action.length ? 'attention' : ''}`}
+                aria-pressed={filter === k} onClick={() => setFilter(k)}>{label} <span>{groups[k].length}</span></button>
+            ))}
+          </div>
+        </div>
+        {data && orders.length === 0 && <p className="muted">No orders yet. Create one above, or make a checkout link, and send it to your buyer.</p>}
+        {data && orders.length > 0 && shown.length === 0 && <p className="muted">Nothing here right now.</p>}
+        {shown.map((o) => <OrderCard key={o.id} order={o} wallet={w.wallet} merchant={m} testnet={testnet} />)}
+      </section>
     </div>
   )
 }
@@ -202,7 +228,7 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
   )
 
   return (
-    <div className="card order">
+    <div className="card order ordercard">
       <div className="row">
         <div className="oid">#{o.id}</div>
         <div className="item">{o.item}</div>
@@ -290,6 +316,28 @@ function Links() {
   const toggle = async (l: CheckoutLinkView) => { await api(`/links/${l.id}`, { active: !l.active }).catch(() => {}); refresh() }
   const links = data?.links ?? []
 
+  const renderLink = (l: CheckoutLinkView) => (
+    <div key={l.id} className={`link ${l.active ? '' : 'off'}`}>
+      <div className="row">
+        <div className="item">{l.item}</div>
+        <div className="amount">{usd(l.amount)}</div>
+        <span className="muted small">{l.orders} order{l.orders === 1 ? '' : 's'} · {l.paid} paid</span>
+        <button className="ghost small" onClick={() => toggle(l)}>{l.active ? 'Turn off' : 'Turn on'}</button>
+      </div>
+      {l.active ? (
+        <>
+          <code className="addr">{linkUrl(l.id)}</code>
+          <div className="actions">
+            <button className="small" onClick={() => copy('url' + l.id, linkUrl(l.id))}>{copied === 'url' + l.id ? 'Copied ✓' : 'Copy link'}</button>
+            <button className="small" onClick={() => copy('btn' + l.id, buttonHtml(l.id, l.amount))}>{copied === 'btn' + l.id ? 'Copied ✓' : 'Copy button code'}</button>
+            <span className="preview" dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
+          </div>
+          {copied === 'failed' && <p className="muted small">Couldn't copy: select the link above instead.</p>}
+        </>
+      ) : <p className="muted small">Turned off: buyers who open it see that it's no longer available.</p>}
+    </div>
+  )
+
   return (
     <section className="card links">
       <h2>Checkout links</h2>
@@ -302,27 +350,13 @@ function Links() {
         {formErr && <span className="err">{formErr}</span>}
       </form>
       {err && <p className="err">{err}</p>}
-      {links.map((l) => (
-        <div key={l.id} className={`link ${l.active ? '' : 'off'}`}>
-          <div className="row">
-            <div className="item">{l.item}</div>
-            <div className="amount">{usd(l.amount)}</div>
-            <span className="muted small">{l.orders} order{l.orders === 1 ? '' : 's'} · {l.paid} paid</span>
-            <button className="ghost small" onClick={() => toggle(l)}>{l.active ? 'Turn off' : 'Turn on'}</button>
-          </div>
-          {l.active ? (
-            <>
-              <code className="addr">{linkUrl(l.id)}</code>
-              <div className="actions">
-                <button className="small" onClick={() => copy('url' + l.id, linkUrl(l.id))}>{copied === 'url' + l.id ? 'Copied ✓' : 'Copy link'}</button>
-                <button className="small" onClick={() => copy('btn' + l.id, buttonHtml(l.id, l.amount))}>{copied === 'btn' + l.id ? 'Copied ✓' : 'Copy button code'}</button>
-                <span className="preview" dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
-              </div>
-              {copied === 'failed' && <p className="muted small">Couldn't copy: select the link above instead.</p>}
-            </>
-          ) : <p className="muted small">Turned off: buyers who open it see that it's no longer available.</p>}
-        </div>
-      ))}
+      {links.filter((l) => l.active).map(renderLink)}
+      {links.some((l) => !l.active) && (
+        <details className="offlinks">
+          <summary>Turned off ({links.filter((l) => !l.active).length})</summary>
+          {links.filter((l) => !l.active).map(renderLink)}
+        </details>
+      )}
     </section>
   )
 }

@@ -2,7 +2,7 @@
 
 Buyer protection for stablecoin payments on Tempo.
 
-The buyer pays with a plain transfer from any wallet. The chain holds the money until delivery, and a limited
+The buyer pays with a plain transfer from their own wallet. The chain holds the money until delivery, and a limited
 arbiter contract can only release it to the merchant or refund the buyer.
 
 Built for the Colosseum Crypto World's Fair, Tempo track.
@@ -88,44 +88,51 @@ makes 3 fail. Log: [`docs/forge-test-run.log`](docs/forge-test-run.log).
 
 ### Wallets (browser end-to-end)
 
-The buyer page supports three wallets. Buyers always sign release and dispute from their own wallet:
+Buyers, merchants and resolvers each sign from their own wallet. The wallet picker offers:
 - **Tempo Wallet** (wallet.tempo.xyz passkey account, via Tempo's official Accounts SDK `accounts`): pay,
   confirm delivery and dispute. `node e2e/tempo-wallet.ts` creates a fresh Tempo Wallet account in a throwaway
   Chrome for Testing profile (a CDP virtual authenticator stands in for Touch ID) and runs all three: 4/4
   ([log](docs/tempo-wallet-e2e-run.log)).
-- **Browser wallet** (MetaMask or any injected EVM wallet): adds Tempo Moderato automatically. `node e2e/metamask.ts`
+- **Installed wallet extensions**, each listed by name (EIP-6963; e.g. MetaMask, Rabby), adding Tempo Moderato automatically. `node e2e/metamask.ts`
   loads real MetaMask 13.49.0 (official release, SHA256 verified) into a throwaway Chrome for Testing profile,
   imports a fresh testnet-only seed generated in memory for that run (never stored or reused), and tests connect,
   add network, switch network, pay, confirm delivery and dispute: 7/7 ([log](docs/metamask-e2e-run.log)).
-- **Demo wallet**: a throwaway key in the browser, auto-funded from the testnet faucet.
+- **Test wallet** (testnet only): a throwaway key in the browser, one per role, auto-funded from the testnet faucet.
 
-## Current testnet deployment
+## Why Held
 
-See `deployment.json`. Arbiter: [`0x853dec…cb2c`](https://explore.testnet.tempo.xyz/address/0x853dec037c6e742ad1478e849377c4b80f68cb2c),
-window 300 s (short for the demo).
+Stablecoin checkout is going mainstream but still behaves like cash for the buyer. Stripe's stablecoin payments, the
+market leader, list "Dispute support: No": once sent, a payment can't be reversed, and if a merchant never delivers the
+buyer has no recourse.
+
+**Held's advantage: the chain itself holds the payment.** The buyer just sends a plain transfer from their own wallet,
+and nobody (not the merchant, not Held) can move the money anywhere except back to the buyer or on to the merchant.
+
+| | Buyer's side | Who holds the money | Buyer protection |
+|---|---|---|---|
+| Stripe stablecoin checkout | Redirect + connect a wallet | Stripe (custodial) | None ("Dispute support: No") |
+| Circle Refund Protocol | `approve` + `pay()` on an escrow contract | Escrow contract | Yes |
+| Stabledrop | Fund a smart-contract escrow | Escrow contract | Yes (1% flat) |
+| Settld | Through the platform's API flow | Escrow contract | Yes (early access) |
+| **Held** | **A plain transfer from their own wallet** | **Tempo's protocol (ReceivePolicyGuard)** | **Yes** |
+
+Why this is only possible now: Tempo's receive policies (T6, June 2026) hold incoming transfers in a protocol-level guard
+that only a designated recovery authority can claim, and virtual addresses (T3) give every order its own deposit address.
+On other chains, protection means an escrow contract the buyer has to interact with.
+
+The arbiter contract is the safety rule: it can only release to the merchant or refund the original payer, never anyone
+else. Each merchant deploys their own, and Held verifies it byte for byte, so held funds are non-custodial by construction.
+
+We're not the first to see this gap (Circle, Stabledrop and Settld are all working on it). Held is the lowest-friction
+way to protected stablecoin checkout we know of.
 
 ## Honest limits
 
-- Testnet only. The resolver is a single fixed address. Claims are all-or-nothing per payment (no partial refunds).
-- The demo server holds the merchant's and resolver's own testnet keys so the dashboard buttons can act for those roles.
-  The contract limits what those keys can do. Buyers always sign from their own wallet.
-
-## Why this (and what's the competitor context)
-
-Stablecoin checkout is going mainstream but still behaves like cash for the buyer. Stripe's stablecoin payments — the
-market leader — list "Dispute support: No" and say payments "cannot be cancelled, modified, or reversed once submitted."
-If a merchant never delivers, the buyer has no recourse.
-
-Competitors are moving into this gap: Circle's Refund Protocol (Apr 2025) adds contract-based escrow + arbiter for ERC-20;
-Stabledrop (live) offers 1%-flat buyer protection with escrow-by-payout-date (WordPress/Shopify plugin, open source); Settld
-(early access) is an embedded non-custodial escrow + dispute + reputation layer. All of them ask the buyer to do something
-extra — fund a smart-contract escrow, or pay through a platform.
-
-Tempo changed the shape of the problem in 2026: virtual addresses (T3) give each order its own deposit address, and receive
-policies (T6, June 2026) hold blocked inbound transfers in a protocol-level guard with claimable receipts, where only the
-designated recovery authority can claim them. Together they let a merchant accept protected payments from a **plain transfer**
-— no escrow contract, no approvals, no wallet connect. The buyer just sends. That path to protected checkout wasn't possible
-on any chain before this summer, and it's the lowest-friction path to it we've found.
-
-The arbiter contract is the safety rule: it can only release to the merchant or refund the original payer — never anyone else.
-So the held funds are non-custodial by construction.
+- **Testnet only** (Tempo Moderato). Mainnet comes after an external review of `HeldArbiter.sol`.
+- **Pay from your own wallet, not an exchange.** Only the wallet that paid can confirm or dispute, and refunds go back
+  to it; for an exchange withdrawal that's the exchange's wallet. Planned: a refund address the buyer registers per order.
+- **The resolver** is one fixed address per merchant, chosen at setup. It can only refund the buyer or pay the merchant.
+  A disputed payment waits for it (or for a merchant refund), so it should be a multisig or hardware wallet.
+- Claims are all-or-nothing per payment (no partial refunds).
+- Merchant setup mines a checkout address once, in the browser: seconds to about ten minutes.
+- Tempo only: buyers need Tempo stablecoins.

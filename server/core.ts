@@ -212,7 +212,11 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       return ok(pub)
     }
     if (lk && lk[2] && method === 'POST') {
-      // Opening the link twice in a row (double click, reload) shouldn't make two orders.
+      // Missing or turned-off links answer that first; then opening a link twice in a row (double click, reload)
+      // shouldn't make two orders.
+      const known = (await load()).links?.[lk[1]]
+      if (!known) return ok({ error: 'This checkout link does not exist.' }, 404)
+      if (!known.active) return ok({ error: 'This checkout link has been turned off by the merchant.' }, 410)
       if (!(await db.rateLimit(`link:${lk[1]}:${clientIp(headers)}`, 3000))) return ok({ error: 'One moment, your order is being created.' }, 429)
       const r = await mutate((s) => {
         const link = s.links?.[lk[1]]

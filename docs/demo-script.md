@@ -20,7 +20,9 @@ nothing in the recording waits on mining. Every step below has been run on the l
       `explore.testnet.tempo.xyz/address/0xf7d20fc2785d42bbfc08c2910903b27248ef7291`
 4. **Timing:** the sandbox protection window is **5 minutes**. Open the dispute (1:50) within 5 minutes of that order's
    payment. Recording straight through is fine.
-5. If a button says **"Tempo's testnet is busy"**, wait a few seconds and click again; cut the pause in editing.
+5. The buyer pages will show **"← Back to your orders"** at the top, because the recording browser is also signed in
+   as the Sandbox Shop merchant. Real buyers never see it. Leave it (it's handy for switching back) or crop it out.
+6. If a button says **"Tempo's testnet is busy"**, wait a few seconds and click again; cut the pause in editing.
    Transaction waits (1–3 s) can be cut too.
 
 ## Shot list

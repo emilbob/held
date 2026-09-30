@@ -2,69 +2,77 @@
 > held@0.1.0 e2e:metamask
 > node e2e/metamask.ts
 
-08:01:40 throwaway MetaMask account 0x5E1D46E3caFBc80A8a23Ff936D8e1925659c1B11
-08:02:01 PASS MetaMask onboarded with a fresh throwaway seed Your wallet is ready! Open wallet Manage default settings
-08:02:05 PASS "Connect browser wallet" shown when MetaMask is installed 
-08:02:05   metamask[connect+network] sidepanel.html: Account 1 0x5E1D4...c1B11 Fund your wallet Get your wallet ready to use web3 Add funds Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps De
-08:02:06   metamask[connect+network] sidepanel.html#connect: ALERT: Continue at your own risk This site shows signs of phishing or wallet-draining activity. It may request transactions designed to steal your funds. Connect anyway Cancel
-08:02:22   metamask[connect+network] sidepanel.html#connect: h held-lilac.vercel.app Connect this website with MetaMask Malicious—flagged as unsafe Account Account 1 Permissions See addresses, balances, and activity Send requests for transactions Cannot move funds without your per
-08:02:22   metamask[connect+network]: clicked confirm-btn
-08:02:25   metamask[connect+network] sidepanel.html#connect: ALERT: Continue at your own risk This site shows signs of phishing or wallet-draining activity. It may request transactions designed to steal your funds. Connect anyway Cancel
-08:02:43   metamask[connect+network] sidepanel.html#connect: Connecting H Only connect with sites you trust. Learn more Back
-08:02:44   metamask[connect+network] sidepanel.html#confirm-transaction: Add Tempo Moderato A site is suggesting additional network details. Request from held-lilac.vercel.app Network Tempo Moderato RPC rpc.moderato.tempo.xyz Beware of network scams and security risks. Cancel Review alert
-08:02:44   metamask[connect+network]: clicked confirm-footer-button
-08:02:47   metamask[connect+network] sidepanel.html#confirm-transaction: ALERT: 1 of 3 Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
-08:02:47   metamask[connect+network]: clicked alert: acknowledge checkbox
-08:02:50   metamask[connect+network] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alerts and still want to proceed Reject Confirm
-08:02:50   metamask[connect+network]: clicked alert: acknowledge checkbox
-08:02:53   metamask[connect+network] sidepanel.html#confirm-transaction: Add Tempo Moderato A site is suggesting additional network details. Request from held-lilac.vercel.app Network Tempo Moderato RPC rpc.moderato.tempo.xyz Beware of network scams and security risks. Cancel Confirm
-08:02:53   metamask[connect+network]: clicked confirm-footer-button
-08:02:56 PASS connect + add/switch to Tempo Moderato (chainId 42431) 
-08:02:56 PASS MetaMask is on Tempo Moderato 0xa5bf
-08:02:56   metamask[pay] sidepanel.html#/: Account 1 0x5E1D4...c1B11 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
-08:02:57   metamask[pay] sidepanel.html#confirm-transaction: Sending Unknown From Account 1 To 0x82BFcADafdFd…F600000419 Estimated changes Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x20C00...00000 Network fee Speed Market <1 sec Cancel Review alert
-08:02:57   metamask[pay]: clicked confirm-footer-button
-08:02:59   metamask[pay] sidepanel.html#confirm-transaction: ALERT: 1 of 2 Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
-08:02:59   metamask[pay]: clicked alert: acknowledge checkbox
-08:03:02   metamask[pay]: clicked alert: Got it
-08:03:05   metamask[pay] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alerts and still want to proceed Reject Confirm
-08:03:05   metamask[pay]: clicked alert: Confirm
-08:03:08   metamask[pay] sidepanel.html#confirm-transaction: Sending 2 Unknown ? From Account 1 To 0x82BFcADafdFd…F600000419 Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with PATHUSD Network fee 0.0116 pathUSD Speed Market <1 
-08:03:08   metamask[pay]: clicked confirm-footer-button
-08:03:11 PASS pay with MetaMask -> held 
-08:03:13   metamask[release] sidepanel.html#/: Account 1 0x5E1D4...c1B11 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
-08:03:14   metamask[release] sidepanel.html#confirm-transaction: Account 1 Transaction request Estimated changes Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x853DE...8CB2c Network fee Speed Market <1 sec Cancel Review alert
-08:03:14   metamask[release]: clicked confirm-footer-button
-08:03:16   metamask[release] sidepanel.html#confirm-transaction: ALERT: Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
-08:03:16   metamask[release]: clicked alert: Got it
-08:03:19   metamask[release] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alert and still want to proceed Reject Confirm
-08:03:19   metamask[release]: clicked alert: Confirm
-08:03:22   metamask[release] sidepanel.html#confirm-transaction: Account 1 Transaction request Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x853DE...8CB2c Network fee 0.0412 pathUSD Speed Market <1 sec Cancel Confirm
-08:03:22   metamask[release]: clicked confirm-footer-button
-08:03:25 PASS confirm delivery (arbiter.release) signed in MetaMask -> released released
-08:03:28   order 2 page before pay: Pay Held until delivery Settled Order #1050 MetaMask test: logo $1.00 pathUSD Awaiting payment Protected by Held. Your payment is held onchain until you confirm delivery. If something goes wrong, open
-08:03:28   metamask[reconnect] sidepanel.html#/: Account 1 0x5E1D4...c1B11 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
-08:03:29   metamask[pay2] sidepanel.html#/: Account 1 0x5E1D4...c1B11 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
-08:03:30   metamask[pay2] sidepanel.html#confirm-transaction: Sending Unknown ? From Account 1 To 0x82bfCADaFdfD…f60000041A Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with PATHUSD Network fee 0.0064 pathUSD Speed Market <1 se
-08:03:30   metamask[pay2]: clicked confirm-footer-button
-08:03:33   metamask[pay2] sidepanel.html#confirm-transaction: ALERT: Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
-08:03:33   metamask[pay2]: clicked alert: Got it
-08:03:36   metamask[pay2] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alert and still want to proceed Reject Confirm
-08:03:36   metamask[pay2]: clicked alert: Confirm
-08:03:39   metamask[pay2] sidepanel.html#confirm-transaction: Sending 1 Unknown ? From Account 1 To 0x82bfCADaFdfD…f60000041A Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with PATHUSD Network fee 0.0064 pathUSD Speed Market <1 
-08:03:39   metamask[pay2]: clicked confirm-footer-button
-08:03:42   order 2 page after pay: Pay Held until delivery Settled Order #1050 MetaMask test: logo $1.00 pathUSD Held: protected Payment held: you're protected. $1.00 is locked by the Tempo protocol, not by the merchant. Protection window: 4:58 left. Your wallet 0x5e1d…1b11 · $999,996.98 pathUSD (browser wallet) Switch I got it: rele
-08:03:44   metamask[dispute] sidepanel.html#/: Account 1 0x5E1D4...c1B11 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
-08:03:45   metamask[dispute] sidepanel.html#confirm-transaction: Account 1 Transaction request Estimated changes Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x853DE...8CB2c Network fee Speed Market <1 sec Cancel Review alert
-08:03:45   metamask[dispute]: clicked confirm-footer-button
-08:03:48   metamask[dispute] sidepanel.html#confirm-transaction: ALERT: Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
-08:03:48   metamask[dispute]: clicked alert: acknowledge checkbox
-08:03:51   metamask[dispute]: clicked alert: Got it
-08:03:54   metamask[dispute] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alert and still want to proceed Reject Confirm
-08:03:54   metamask[dispute]: clicked alert: acknowledge checkbox
-08:03:57   metamask[dispute]: clicked alert: Confirm
-08:03:59   metamask[dispute] sidepanel.html#confirm-transaction: Account 1 Transaction request Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x853DE...8CB2c Network fee 0.0412 pathUSD Speed Market <1 sec Cancel Confirm
-08:03:59   metamask[dispute]: clicked confirm-footer-button
-08:04:02 PASS open dispute (arbiter.dispute) signed in MetaMask -> disputed disputed
-08:04:03 orders 1049 1050
-08:04:03 7/7 checks passed
+15:36:06 throwaway MetaMask account 0xEd7476104497014f841f75Ab1356CCcD03DDB8DC
+15:36:27 PASS MetaMask onboarded with a fresh throwaway seed Your wallet is ready! Open wallet Manage default settings
+15:36:32 PASS "MetaMask" listed when MetaMask is installed 
+15:36:32   metamask[connect+network] sidepanel.html: Account 1 0xEd747...DB8DC Fund your wallet Get your wallet ready to use web3 Add funds Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps De
+15:36:33   metamask[connect+network] sidepanel.html#connect: ALERT: Continue at your own risk This site shows signs of phishing or wallet-draining activity. It may request transactions designed to steal your funds. Connect anyway Cancel
+15:36:33   metamask[connect+network]: clicked alert: Connect anyway
+15:36:36   metamask[connect+network] sidepanel.html#connect: h held-lilac.vercel.app Connect this website with MetaMask Malicious—flagged as unsafe Account Account 1 Permissions See addresses, balances, and activity Send requests for transactions Cannot move funds without your per
+15:36:36   metamask[connect+network]: clicked confirm-btn
+15:36:38   metamask[connect+network] sidepanel.html#connect: ALERT: Continue at your own risk This site shows signs of phishing or wallet-draining activity. It may request transactions designed to steal your funds. Connect anyway Cancel
+15:36:38   metamask[connect+network]: clicked alert: Connect anyway
+15:36:41   metamask[connect+network] sidepanel.html#confirm-transaction: Add Tempo Moderato A site is suggesting additional network details. Request from H held-lilac.vercel.app Network Tempo Moderato RPC rpc.moderato.tempo.xyz Beware of network scams and security risks. Cancel Review alert
+15:36:41   metamask[connect+network]: clicked confirm-footer-button
+15:36:44   metamask[connect+network] sidepanel.html#confirm-transaction: ALERT: 1 of 3 Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
+15:36:44   metamask[connect+network]: clicked alert: acknowledge checkbox
+15:36:47   metamask[connect+network]: clicked alert: Got it
+15:36:50   metamask[connect+network] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alerts and still want to proceed Reject Confirm
+15:36:50   metamask[connect+network]: clicked alert: acknowledge checkbox
+15:36:52   metamask[connect+network]: clicked alert: Confirm
+15:36:55   metamask[connect+network] sidepanel.html#confirm-transaction: Add Tempo Moderato A site is suggesting additional network details. Request from H held-lilac.vercel.app Network Tempo Moderato RPC rpc.moderato.tempo.xyz Beware of network scams and security risks. Cancel Confirm
+15:36:55   metamask[connect+network]: clicked confirm-footer-button
+15:36:58 PASS connect + add/switch to Tempo Moderato (chainId 42431) 
+15:36:58 PASS MetaMask is on Tempo Moderato 0xa5bf
+15:36:58   metamask[pay] sidepanel.html#/: Account 1 0xEd747...DB8DC 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
+15:36:59   metamask[pay] sidepanel.html#confirm-transaction: Sending Unknown ? From Account 1 To 0x95c825FBFdfD…a4000003F0 Estimated changes Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x20C00...00000 Network fee Speed Market <1 sec Cancel Review ale
+15:36:59   metamask[pay]: clicked confirm-footer-button
+15:37:02   metamask[pay] sidepanel.html#confirm-transaction: ALERT: 1 of 2 Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
+15:37:02   metamask[pay]: clicked alert: acknowledge checkbox
+15:37:05   metamask[pay]: clicked alert: Got it
+15:37:07   metamask[pay] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alerts and still want to proceed Reject Confirm
+15:37:07   metamask[pay]: clicked alert: acknowledge checkbox
+15:37:10   metamask[pay]: clicked alert: Confirm
+15:37:13   metamask[pay] sidepanel.html#confirm-transaction: Sending Unknown ? From Account 1 To 0x95c825FBFdfD…a4000003F0 Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with PATHUSD Network fee 0.0116 pathUSD Speed Market <1 se
+15:37:13   metamask[pay]: clicked confirm-footer-button
+15:37:16 PASS pay with MetaMask -> held 
+15:37:18   metamask[release] sidepanel.html#/: Account 1 0xEd747...DB8DC 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
+15:37:20   metamask[release] sidepanel.html#confirm-transaction: Account 1 Transaction request Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x13b37...6fC1C Network fee 0.0412 pathUSD Speed Market <1 sec Cancel Review alert
+15:37:20   metamask[release]: clicked confirm-footer-button
+15:37:22   metamask[release] sidepanel.html#confirm-transaction: ALERT: Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
+15:37:22   metamask[release]: clicked alert: acknowledge checkbox
+15:37:25   metamask[release]: clicked alert: Got it
+15:37:28   metamask[release] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alert and still want to proceed Reject Confirm
+15:37:28   metamask[release]: clicked alert: acknowledge checkbox
+15:37:31   metamask[release]: clicked alert: Confirm
+15:37:34   metamask[release] sidepanel.html#confirm-transaction: Account 1 Transaction request Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x13b37...6fC1C Network fee 0.0412 pathUSD Speed Market <1 sec Cancel Confirm
+15:37:34   metamask[release]: clicked confirm-footer-button
+15:37:37 PASS confirm delivery (arbiter.release) signed in MetaMask -> released released
+15:37:39   order 2 page before pay: Pay Held until delivery Settled E2E Test Shop · Order #1009 MetaMask test: logo $1.00 pathUSD Awaiting payment Protected by Held. Your payment is held onchain for 5 minutes or until you confirm delive
+15:37:39   metamask[reconnect] sidepanel.html#/: Account 1 0xEd747...DB8DC 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
+15:37:40   metamask[pay2] sidepanel.html#/: Account 1 0xEd747...DB8DC 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
+15:37:42   metamask[pay2] sidepanel.html#confirm-transaction: Sending Unknown ? From Account 1 To 0x95C825fBFdfD…a4000003f1 Estimated changes Network Tempo Moderato Request from held-lilac.vercel.app Interacting with PATHUSD Network fee Speed Market <1 sec Cancel Review alert
+15:37:42   metamask[pay2]: clicked confirm-footer-button
+15:37:45   metamask[pay2] sidepanel.html#confirm-transaction: ALERT: Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
+15:37:45   metamask[pay2]: clicked alert: acknowledge checkbox
+15:37:47   metamask[pay2]: clicked alert: Got it
+15:37:50   metamask[pay2] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alert and still want to proceed Reject Confirm
+15:37:50   metamask[pay2]: clicked alert: acknowledge checkbox
+15:37:53   metamask[pay2]: clicked alert: Confirm
+15:37:56   metamask[pay2] sidepanel.html#confirm-transaction: Sending Unknown ? From Account 1 To 0x95C825fBFdfD…a4000003f1 Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with PATHUSD Network fee 0.0064 pathUSD Speed Market <1 se
+15:37:56   metamask[pay2]: clicked confirm-footer-button
+15:37:59   order 2 page after pay: Pay Held until delivery Settled E2E Test Shop · Order #1009 MetaMask test: logo $1.00 pathUSD Held: protected Payment held: you're protected. $1.00 is locked by the Tempo protocol, not by the merchant. Protection window: 4:59 left. Your wallet 0xed74…b8dc · $999,997.98 pathUSD (MetaMask) Change wall
+15:38:01   metamask[dispute] sidepanel.html#/: Account 1 0xEd747...DB8DC 0 USD +$0.00 (+0.00%) Discover Buy Swap Send Receive ARB's run Up ~40% over the past 7 days Bitcoin moving Touches $86K, highest price since January Tokens Perps DeFi NFTs Activity Network: Temp
+15:38:03   metamask[dispute] sidepanel.html#confirm-transaction: Account 1 Transaction request Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x13b37...6fC1C Network fee 0.0412 pathUSD Speed Market <1 sec Cancel Review alert
+15:38:03   metamask[dispute]: clicked confirm-footer-button
+15:38:06   metamask[dispute] sidepanel.html#confirm-transaction: ALERT: Malicious site This has been identified as malicious. We recommend not interacting with this site. I have acknowledged the risk and still want to proceed Got it
+15:38:06   metamask[dispute]: clicked alert: acknowledge checkbox
+15:38:08   metamask[dispute]: clicked alert: Got it
+15:38:11   metamask[dispute] sidepanel.html#confirm-transaction: ALERT: High-risk request To protect your assets, we suggest you reject the request. Review all alerts I have acknowledged the alert and still want to proceed Reject Confirm
+15:38:11   metamask[dispute]: clicked alert: acknowledge checkbox
+15:38:14   metamask[dispute]: clicked alert: Confirm
+15:38:17   metamask[dispute] sidepanel.html#confirm-transaction: Account 1 Transaction request Estimated changes Unavailable Network Tempo Moderato Request from held-lilac.vercel.app Interacting with 0x13b37...6fC1C Network fee 0.0412 pathUSD Speed Market <1 sec Cancel Confirm
+15:38:17   metamask[dispute]: clicked confirm-footer-button
+15:38:20 PASS open dispute (arbiter.dispute) signed in MetaMask -> disputed disputed
+15:38:20 orders 1008 1009
+15:38:20 7/7 checks passed

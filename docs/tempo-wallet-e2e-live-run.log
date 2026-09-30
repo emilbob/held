@@ -2,48 +2,64 @@
 > held@0.1.0 e2e:tempo-wallet
 > node e2e/tempo-wallet.ts
 
-07:51:05   wallet popup: Sign in with Tempo Create an account or sign in with a passkey to held-lilac.vercel.app. Create account or Sign in with passkey By continuing, you agree to the Terms of Service and Privacy Policy.
-07:51:06   wallet: clicked "Create account"
-07:51:08   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:08 PASS Tempo Wallet connects (passkey account created) 
-07:51:11   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:11   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:12   wallet popup: Payment Request held-lilac.vercel.app is requesting a payment. Reject Pay held-e2e-munt3bit
-07:51:12   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:12   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:13   wallet popup: Payment Request held-lilac.vercel.app is requesting a payment. $2.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0007 Reject Pay $2.00 held-e2e-munt3bit $5,000,000.00
-07:51:13   wallet: clicked "Pay $2.00"
-07:51:15   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:15   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:16 PASS pay with Tempo Wallet -> held 
-07:51:18   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:18   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:19   wallet popup: Review Transaction Reject Confirm held-e2e-munt3bit $4,999,998.00
-07:51:19   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:19   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:19   wallet popup: Review Transaction Fee $0.002 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-munt3bit $4,999,998.00
-07:51:19   wallet: clicked "Confirm"
-07:51:21   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:21   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:23 PASS confirm delivery (arbiter.release) signed by Tempo Wallet -> released released 
-07:51:25   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:25   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:25   wallet popup: Payment Request held-lilac.vercel.app is requesting a payment. Reject Pay held-e2e-munt3bit $4,999,998.00
-07:51:25   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:25   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:26   wallet popup: Payment Request held-lilac.vercel.app is requesting a payment. $1.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0004 Reject Pay $1.00 held-e2e-munt3bit $4,999,998.00
-07:51:26   wallet: clicked "Pay $1.00"
-07:51:28   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:28   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:29   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:29   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:30   wallet popup: Review Transaction Reject Confirm held-e2e-munt3bit $4,999,997.00
-07:51:30   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:30   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:30   wallet popup: Review Transaction Fee $0.002 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-munt3bit $4,999,997.00
-07:51:30   wallet: clicked "Confirm"
-07:51:32   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
-07:51:32   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
-07:51:33 PASS open dispute (arbiter.dispute) signed by Tempo Wallet -> disputed disputed
-07:51:33 Tempo Wallet account 0xD72CC278dCB5bccfD8d35E9E14803045C82DefC1 | orders 1045 1046
-07:51:33 4/4 checks passed
+15:35:31   wallet popup: Sign in with Tempo Create an account or sign in with a passkey to held-lilac.vercel.app. Create account or Sign in with passkey By continuing, you agree to the Terms of Service and Privacy Policy.
+15:35:31   wallet: clicked "Create account"
+15:35:33   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:34 PASS Tempo Wallet connects (passkey account created) 
+15:35:38   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:38   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:39   wallet popup: Payment Request held-lilac.vercel.app is requesting a payment. Reject Pay held-e2e-muo9okqi
+15:35:39   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:39   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:39   wallet popup: Payment Request held-lilac.vercel.app is requesting a payment. $2.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0007 Reject Pay $2.00 held-e2e-muo9okqi $5,000,000.00
+15:35:39   wallet: clicked "Pay $2.00"
+15:35:41   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:41   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:42 PASS pay with Tempo Wallet -> held 
+15:35:42   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:42   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:43   wallet popup: Review Transaction Reject Confirm held-e2e-muo9okqi $5,000,000.00
+15:35:43   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:43   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:44   wallet popup: Review Transaction Reject Confirm held-e2e-muo9okqi $4,999,998.00
+15:35:44   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:44   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:44   wallet popup: Review Transaction Fee $0.002 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-muo9okqi $4,999,998.00
+15:35:44   wallet: clicked "Confirm"
+15:35:46   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:46   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:47 PASS confirm delivery (arbiter.release) signed by Tempo Wallet -> released released 
+15:35:50   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:50   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:50   wallet popup: Payment Request held-lilac.vercel.app is requesting a payment. Reject Pay held-e2e-muo9okqi $4,999,998.00
+15:35:50   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:50   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:51   wallet popup: Payment Request held-lilac.vercel.app is requesting a payment. Reject Pay held-e2e-muo9okqi $4,999,998.00
+15:35:51   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:51   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:52   wallet popup: Payment Request held-lilac.vercel.app is requesting a payment. $1.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0004 Reject Pay $1.00 held-e2e-muo9okqi $4,999,998.00
+15:35:52   wallet: clicked "Pay $1.00"
+15:35:54   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:54   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:57   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:57   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:58   wallet popup: Review Transaction Reject Confirm held-e2e-muo9okqi $4,999,997.00
+15:35:58   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:58   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:58   wallet popup: Review Transaction Reject Confirm held-e2e-muo9okqi $4,999,997.00
+15:35:58   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:58   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:35:59   wallet popup: Review Transaction Reject Confirm held-e2e-muo9okqi $4,999,997.00
+15:35:59   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:35:59   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:36:00   wallet popup: Review Transaction Fee $0.002 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-muo9okqi $4,999,997.00
+15:36:00   wallet: clicked "Confirm"
+15:36:02   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:36:02   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:36:02   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:36:02   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:36:03   wallet popup:  Continue in the popup windowClose dialog[data-tempo-wallet]::backdrop { background: transparent!important; } 
+15:36:03   wallet popup: !function(){var e=document.createElement("script");e.defer=!0,e.src="out-4.5.45.js",e.onload=function(){var e;window.StripeM&&(e=window.location.hash,/ping=false/.test(e)||(e=(e=e.match(/version=(4|6)/))?e[1]:"4",window.StripeM.p({t:!0,v:e})),e=function(e){if(window.opener||window.parent||window)try
+15:36:04 PASS open dispute (arbiter.dispute) signed by Tempo Wallet -> disputed disputed
+15:36:04 Tempo Wallet account 0x52141E0C7707a87CCe8198e863d91CcCe234dCd2 | orders 1006 1007
+15:36:04 4/4 checks passed

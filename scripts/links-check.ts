@@ -1,15 +1,15 @@
-// Checkout-link rules against a local server (npm run server), signed in as the sandbox merchant (public testnet key).
-// Usage: npm run test:links
+// Checkout-link rules against a Held server, signed in as the sandbox merchant (public testnet key).
+// Usage: npm run test:links   (APP=https://held-lilac.vercel.app npm run test:links for the live site)
 import { readFileSync } from 'node:fs'
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts'
 import { signInMessage } from '../shared/api.ts'
-const API = 'http://localhost:8787/api', n = JSON.parse(readFileSync('network.json', 'utf8'))
+const APP = process.env.APP || 'http://localhost:8787', API = `${APP}/api`, HOST = new URL(APP).host, n = JSON.parse(readFileSync('network.json', 'utf8'))
 const call = async (method: string, p: string, body?: unknown, token?: string, ip?: string) => {
   const r = await fetch(API + p, { method, headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }), ...(ip && { 'x-forwarded-for': ip }) }, body: body ? JSON.stringify(body) : undefined })
   return { status: r.status, body: await r.json() as any }
 }
 const signIn = async (key: `0x${string}`) => { const a = privateKeyToAccount(key); const issued = Math.floor(Date.now() / 1000)
-  return (await call('POST', '/auth', { address: a.address, issued, signature: await a.signMessage({ message: signInMessage(a.address, 'localhost:8787', issued) }) })).body.token as string }
+  return (await call('POST', '/auth', { address: a.address, issued, signature: await a.signMessage({ message: signInMessage(a.address, HOST, issued) }) })).body.token as string }
 const results: boolean[] = []; const check = (name: string, pass: boolean, d: unknown = '') => { results.push(pass); console.log(pass ? 'PASS' : 'FAIL', name, d) }
 
 const tok = await signIn(n.sandbox.merchantKey), stranger = await signIn(generatePrivateKey())
@@ -22,6 +22,8 @@ const pub = (await call('GET', `/links/${L.id}`)).body
 check('public link view: item, price, shop name', pub.item === 'Sandbox mug' && pub.amount === '12500000' && pub.merchantName === 'Sandbox Shop')
 const o1 = await call('POST', `/links/${L.id}/orders`, {}, undefined, '10.0.0.1')
 const dbl = await call('POST', `/links/${L.id}/orders`, {}, undefined, '10.0.0.1')
+// On Vercel x-forwarded-for is the caller's real IP (it can't be faked), so wait out the 3 s double-open guard.
+await new Promise((r) => setTimeout(r, 3200))
 const o2 = await call('POST', `/links/${L.id}/orders`, {}, undefined, '10.0.0.2')
 check('buyer opens link -> own order at the fixed price', o1.status === 201 && o1.body.amount === '12500000' && o1.body.linkId === L.id, `#${o1.body.id}`)
 check('same buyer double-opening -> no second order (429)', dbl.status === 429)

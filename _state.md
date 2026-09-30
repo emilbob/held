@@ -165,3 +165,17 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   a reusable test merchant, scripts/test-merchant.ts, key in .state/test-merchant.json); UI flows checked in Chrome.
 - Removed: scripts/day3-indexer-e2e.ts (old API), scripts/vercel-env.ts (pushed server keys), server/arbiter-abi.json.
 - To do before/after deploy: Vercel env MERCHANT_KEY / RESOLVER_KEY / HELD_ADMIN_TOKEN are unused now (delete them).
+
+## Sep 30 (evening): sandbox, checkout links, live regression
+- Sandbox (#/sandbox, testnet only): shared "Sandbox Shop" (merchant 0x170f…E892, arbiter 0xf7d2…7291, sandbox resolver
+  0x3E33…38bD, 5-min window) with PUBLIC testnet keys in network.json (scripts/sandbox-setup.ts restores it). Server
+  refuses re-registering the sandbox address with another arbiter.
+- Checkout links (#/buy/:id) + copy-paste "Pay with Held" button (plain HTML, no script). npm run test:links (APP=… for live).
+- Wallet: disconnect / account-switch events drop stale connections. Buyer page: "Back to your orders" in the
+  merchant's own browser.
+- Demo: docs/demo-script.md (3-min shot list on live, sandbox) + docs/demo/tote-co.html (button for live link hdlPKHJW).
+  Submission answers refreshed (research/submission-answers.md, colosseum-about.md).
+- Live regression: forge 33/33; Tempo Wallet 4/4 and MetaMask 7/7 against live (MetaMask/Blockaid still flags the
+  domain); demo path on live in Chrome (#1010 released, #1011 disputed -> sandbox resolver refund); links 14/14 locally.
+  Links on live pending the deploy of "turned-off check before the double-open guard" (Vercel sets x-forwarded-for).
+- Open for the user: Blockaid false-positive report; record demo; paste submission answers; 3–5 merchant conversations.

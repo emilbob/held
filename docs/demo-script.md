@@ -1,29 +1,62 @@
-# Held: 3-minute demo script (live product, Tempo Moderato testnet)
+# Held: 3-minute demo video script (live dApp, Tempo testnet)
 
-Setup before recording: `npm run setup` (already done; the merchant lives in .state/), `cd web && npm run build`,
-`npm run demo:reset` (clean dashboard, orders start at #1042), `npm run server`, then open http://localhost:8787 (merchant)
-and the buyer page in a second window. For the buyer, "Pay with Tempo Wallet" (Touch ID) looks best on camera. Use
-the demo wallet as a fallback.
-Protection window is 300 s so the "window closes" moment fits in the video. Create order #4 before you start
-recording so its window has already closed by the end.
+Everything runs on the live site, **held-lilac.vercel.app**, using the **sandbox** (a shop that's already set up), so
+nothing in the recording waits on mining. Every step below has been run on the live site.
 
-Every step below was run through the real UI on Sep 24 (see _state.md, "UI verification").
+## Before you record (10 minutes)
 
-| Time | Screen | Action | What the viewer sees |
+1. **Use a clean Chrome profile** (Chrome → profile icon → Add). No MetaMask in it: MetaMask currently flags the domain,
+   and the demo doesn't need it. Window about 1440×900, page zoom 110% so text is readable.
+2. **Tempo Wallet:** in that profile, open wallet.tempo.xyz and log in to your **buying** account
+   (`emilbob03@gmail.com`, the one with test funds), not the resolver account.
+3. **Open these tabs, in this order:**
+   1. `held-lilac.vercel.app/#/sandbox`: click **Open the Sandbox Shop** once, so the dashboard is signed in.
+   2. `docs/demo/tote-co.html` (open the file in Chrome: the merchant's own website with the "Pay with Held" button).
+      Its button uses a "Held tote bag, $18" link made in advance on the Sandbox Shop; the link you create on camera
+      at 0:25 is the same product, so the cut is seamless.
+   3. `held-lilac.vercel.app/#/sandbox`: click **Open the resolver console** once (signs in as the sandbox resolver),
+      then leave the tab on the console.
+   4. The explorer page for the Sandbox Shop's arbiter:
+      `explore.testnet.tempo.xyz/address/0xf7d20fc2785d42bbfc08c2910903b27248ef7291`
+4. **Timing:** the sandbox protection window is **5 minutes**. Open the dispute (1:50) within 5 minutes of that order's
+   payment. Recording straight through is fine.
+5. If a button says **"Tempo's testnet is busy"**, wait a few seconds and click again; cut the pause in editing.
+   Transaction waits (1–3 s) can be cut too.
+
+## Shot list
+
+| Time | Screen | Do | Say (voiceover) |
 |---|---|---|---|
-| 0:00 | Title | "Stripe says stablecoin payments have no disputes. Held adds buyer protection on Tempo, and the buyer just hits send." | |
-| 0:15 | Dashboard | Create order "Hand-bound notebook", $20 | Order gets its own pay-to address; no tx, no cost |
-| 0:25 | Buyer page | Show QR/address, then press "Pay $20.00" | A plain token transfer. Badge -> **Held: protected**, countdown starts |
-| 0:45 | Dashboard | "Held for buyers $20"; merchant balance unchanged | Money is not with the merchant |
-| 0:55 | Dashboard | Click **"Release to myself early"** and **"Take funds from the guard directly"** | Both 🔒 blocked (`NotAllowed`, `UnauthorizedClaimer`) |
-| 1:10 | Buyer page | "I got it: release payment" | Badge -> **Paid to merchant**; merchant balance +$20 |
-| 1:25 | Dashboard | Create order "Logo design", $15; buyer pays | Held |
-| 1:35 | Buyer page | "Something went wrong: open dispute" | Badge -> **Disputed** |
-| 1:45 | Buyer page (other wallet) | "Try to dispute from this wallet" | 🔒 "Only the wallet that paid can do this." |
-| 1:55 | Dashboard | Resolver panel: "the only two options the contract allows" → **Refund buyer** | Badge -> **Refunded to buyer** |
-| 2:10 | Buyer page | "Demo: pay with the wrong token" | ⚠ "held, not lost" → **Get it back** → returned |
-| 2:30 | Dashboard | Order #4 (paid earlier) shows **Window over: releasable** → Release | Paid to merchant; anyone can trigger this |
-| 2:40 | Explorer | Open the arbiter contract + a release tx | Onchain proof |
-| 2:50 | Close | "Buyer protection without custody. The chain holds the money; the contract can only pay the merchant or refund the buyer." | |
+| 0:00 | Title card, or Held landing page | — | "Stripe's stablecoin checkout lists 'Dispute support: No'. Once a buyer pays, the money's gone, even if the order never arrives. Held adds buyer protection, and the buyer just hits send." |
+| 0:15 | Tab 1: Sandbox Shop dashboard | Point at the summary row | "This is a merchant on Held. The shop has its own arbiter contract, deployed from the merchant's own wallet. Held's server holds no keys." |
+| 0:25 | Tab 1: **Checkout links** | Type "Held tote bag", "18" → **Create link**. Point at the button preview | "The merchant makes a checkout link, one product at a fixed price, and gets a 'Pay with Held' button for their own website." |
+| 0:40 | Tab 2: Tote Co. site | Point at the button, then click it | "Here it is on the merchant's site. It's plain HTML: it works on Shopify, WordPress, anywhere." |
+| 0:50 | Held buyer page (new tab) | Point at the price, the step bar and "Protected by Held" | "The buyer gets their own order at the merchant's price, with its own payment address." |
+| 1:00 | Buyer page | **Tempo Wallet** → passkey prompt (Touch ID) → **Pay $18.00** | "They pay from their own wallet: Tempo Wallet, a passkey, no extension. It's a plain transfer: no approvals, no escrow contract to deal with." |
+| 1:15 | Buyer page | Point at **Held: protected** and the countdown | "The payment is held by Tempo itself, not by the merchant, and not by us." |
+| 1:22 | Tab 1: dashboard | Point at "Held for buyers $18.00", then **Try to pay yourself early** | "Can the merchant grab it early? No: the contract refuses." (🔒 *This wallet is not allowed to do that.*) |
+| 1:35 | Buyer page | **I got it: release payment** | "The buyer got the bag and confirms. The merchant is paid instantly." (**Paid to merchant**, steps all ✓) |
+| 1:45 | Tab 2 → button again → buyer page (new tab) | **Tempo Wallet** (passkey again) → **Pay $18.00**: a second order | "Now a second buyer, and this time something goes wrong." |
+| 1:55 | Buyer page | **Something went wrong: open dispute** | "They open a dispute within the protection window." (middle step turns red: **Disputed**) |
+| 2:05 | Tab 3: resolver console | Point at the dispute and the two buttons | "The dispute goes to the resolver the merchant chose. The contract gives them exactly two options: refund the buyer or pay the merchant. Nothing else, so even a stolen resolver key can't take the money." |
+| 2:20 | Resolver console | **Refund buyer**, then back to the buyer page | "Refunded, straight back to the wallet that paid." (**Refunded. $18.00 was returned**) |
+| 2:30 | Tab 4: explorer | Scroll the arbiter's transactions | "Everything you saw is on-chain, on Tempo testnet: held, released, disputed, refunded." |
+| 2:40 | Held landing page | Point at **Try the sandbox (2 min)** | "It's only possible on Tempo: receive policies let the chain itself hold a plain payment. Merchants set up in minutes, buyers just hit send, and nobody but the buyer or the merchant can ever get the money. Try it yourself at held-lilac.vercel.app." |
+| 2:55 | End card | — | "Held: buyer protection for stablecoin payments." |
 
-Tip: keep the explorer tabs pre-opened. The recording can cut the 1–2 s wait for transaction confirmation.
+## Optional extras (if you have time, or for a longer cut)
+
+- **Merchant setup** (record separately, speed up 4×): `#/merchant` → connect a wallet → sign in → **Set up your shop**
+  → the four steps tick off. Say: "Setup is one time, from the merchant's own wallet. Held then verifies their contract
+  byte for byte before listing them."
+- **Wrong token:** on a buyer page, **Test: pay with the wrong token** → "held, not lost" → **Get it back**.
+- **Stranger can't dispute:** a different wallet on the same buyer page sees "Only the wallet that paid can confirm or
+  dispute."
+- **Window over:** a paid order left alone for 5 minutes shows **Window over: releasable**, and the merchant can release it.
+
+## Don't say
+- "First" stablecoin buyer protection (Stabledrop, Settld and Circle exist; say "lowest-friction").
+- "Pay from any wallet **or exchange**" (exchange payments aren't protected yet; say "from their own wallet").
+- Anything about mainnet being live (testnet only).
+
+For questions after the demo: `../research/advantage.md`.

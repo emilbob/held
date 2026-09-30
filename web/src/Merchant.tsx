@@ -207,7 +207,7 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
         <div className="item">{o.item}</div>
         <div className="amount">{usd(o.amount)}</div>
         <Badge status={status} />
-        <a className="buyerlink" href={`#/pay/${o.id}`} target="_blank">Buyer page ↗</a>
+        <a className="buyerlink" href={`#/pay/${o.id}`}>Buyer page →</a>
       </div>
       <div className="meta">
         Pay-to address <code title={o.address}>{short(o.address)}</code>

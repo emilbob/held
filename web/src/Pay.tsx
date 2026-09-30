@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { Hex } from 'viem'
 import QRCode from 'qrcode'
 import * as W from './wallet.ts'
-import { api, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Steps, Result, usd, short, countdown, duration, type Msg } from './ui.tsx'
+import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Steps, Result, usd, short, countdown, duration, type Msg } from './ui.tsx'
 import type { Order, OrderStatus } from '../../shared/api.ts'
 
 export default function Pay({ id }: { id: string }) {
@@ -40,10 +40,15 @@ export default function Pay({ id }: { id: string }) {
   // Paid out or refunded: nothing left for the buyer to do (unless a wrong-token payment still needs returning).
   const settled = (status === 'released' || status === 'refunded') && !wrong.some((p) => p.status === 'held')
   const arbiter = order.merchantInfo.arbiter
+  // This browser is signed in as the order's merchant (testing your own shop, or the sandbox): offer the way back.
+  // A real buyer never sees it.
+  const merchantHere = session.get()?.address.toLowerCase() === order.merchant.toLowerCase()
+  const back = <a className="back" href="#/merchant">← Back to your orders</a>
   const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => W.arbiter(wallet!, arbiter, fn, receipt)
 
   return (
     <div className="pay">
+      {merchantHere && back}
       <div className="card checkout">
         <Steps status={status} />
         <div className="merchant">{order.merchantInfo.name} · Order #{order.id}</div>
@@ -126,6 +131,8 @@ export default function Pay({ id }: { id: string }) {
         ))}
         <Result msg={msg} />
       </div>}
+      {/* After an action: the wallet box disappears once the order settles, so the way back lives out here. */}
+      {merchantHere && (msg?.ok || settled) && <p className="after">{back}</p>}
     </div>
   )
 }

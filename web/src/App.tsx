@@ -52,7 +52,7 @@ const countdown = (secs: number) => {
 
 const STATUS: Record<OrderStatus, [label: string, color: string]> = {
   awaiting_payment: ['Awaiting payment', 'grey'],
-  held: ['Held: protected', 'blue'],
+  held: ['Held: protected', 'lime'],
   releasable: ['Window over: releasable', 'amber'],
   disputed: ['Disputed', 'red'],
   released: ['Paid to merchant', 'green'],
@@ -73,7 +73,7 @@ export default function App() {
       <header>
         <a href="#/" className="logo"><Logo size={24} /></a>
         <span className="tag">Buyer protection for stablecoin payments · Tempo testnet</span>
-        <nav><a href="#/">How it works</a><a href="#/dashboard">Merchant dashboard</a></nav>
+        <nav><a href="#/">How it works</a><a href="#/dashboard"><span className="wide-only">Merchant dashboard</span><span className="narrow-only">Dashboard</span></a></nav>
       </header>
       <main>{page}</main>
       <footer>

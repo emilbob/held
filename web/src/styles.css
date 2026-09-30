@@ -177,3 +177,11 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 /* Buyer page: way back to the merchant's orders (only in the merchant's own browser) */
 .pay > .back { display: inline-block; margin: 0 0 10px; font-size: 13.5px }
 .pay > .after { margin: 4px 0 0; text-align: center }
+
+/* Checkout links */
+.links .neworder { margin: 10px 0 4px }
+.links .link { border-top: 1px solid var(--line); padding: 12px 0 4px; margin-top: 10px }
+.links .link .row { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap }
+.links .link.off .item, .links .link.off .amount { color: var(--muted) }
+.links .preview { margin-left: auto }
+@media (max-width: 480px) { .links .preview { margin-left: 0; flex-basis: 100% } }

@@ -52,7 +52,22 @@ export interface StoredOrder {
   amount: string // base units (6 decimals)
   address: Address
   createdAt: number
+  linkId?: string // created by a buyer opening this checkout link
 }
+
+// A reusable checkout link for one product at a fixed price. Each buyer who opens it gets a fresh order.
+export interface CheckoutLink {
+  id: string
+  merchant: Address
+  item: string
+  amount: string // base units (6 decimals)
+  active: boolean
+  createdAt: number
+}
+export interface CheckoutLinkView extends CheckoutLink { orders: number, paid: number }
+// Public view for the buyer (GET /api/links/:id).
+export interface PublicLink { id: string, item: string, amount: string, active: boolean, merchantName: string }
+
 // What the API returns: the order, its merchant, its payments and one derived status.
 export interface Order extends StoredOrder {
   merchantInfo: Pick<Merchant, 'name' | 'arbiter' | 'resolver' | 'window'>
@@ -68,6 +83,7 @@ export interface Db {
   orders: Record<string, StoredOrder>
   payments: Record<string, StoredPayment>
   sessions: Record<string, Session> // key: sha256(session token), hex
+  links?: Record<string, CheckoutLink> // absent in databases created before checkout links
   lastBlock: string
   nextOrderId: number
   tagPrefix: number // random per database (see orderTag), so databases sharing a merchant never share addresses

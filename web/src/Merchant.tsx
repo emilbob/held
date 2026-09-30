@@ -5,7 +5,7 @@ import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
 import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, usd, short, txUrl, addrUrl, countdown, duration, type Msg } from './ui.tsx'
-import { signInMessage, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
+import { signInMessage, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
 
 export default function MerchantPage() {
   const cfg = useConfig()
@@ -172,6 +172,8 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
         )}
       </form>
 
+      <Links />
+
       {err && <p className="err">{err}</p>}
       {orders.length === 0 && data && <p className="muted">No orders yet. Create one above and send the link to your buyer.</p>}
       {orders.map((o) => <OrderCard key={o.id} order={o} wallet={w.wallet} merchant={m} testnet={testnet} />)}
@@ -210,7 +212,7 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
         <a className="buyerlink" href={`#/pay/${o.id}`}>Buyer page →</a>
       </div>
       <div className="meta">
-        Pay-to address <code title={o.address}>{short(o.address)}</code>
+        {o.linkId && <>From checkout link · </>}Pay-to address <code title={o.address}>{short(o.address)}</code>
         {main && <> · paid by <a href={addrUrl(main.payer)} target="_blank">{short(main.payer)}</a> · <a href={txUrl(main.txHash)} target="_blank">payment tx</a></>}
         {o.underpaid && <span className="warn"> · underpaid ({usd(main!.amount)})</span>}
         {status === 'held' && <> · window closes in <b>{countdown(left)}</b></>}
@@ -248,5 +250,69 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
       )}
       <Result msg={msg} />
     </div>
+  )
+}
+
+// ---------------------------------------------------------------- checkout links + "Pay with Held" button
+const linkUrl = (id: string) => `${location.origin}/#/buy/${id}`
+// Plain HTML with inline styles and no script, so it works on any website builder. Only stable public paths.
+export const buttonHtml = (id: string, amount: string) =>
+  `<a href="${linkUrl(id)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:10px;padding:12px 20px;` +
+  `border-radius:10px;background:#0b0d10;border:1px solid #D5F94F;color:#fff;font:600 15px/1.2 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;` +
+  `text-decoration:none"><img src="${location.origin}/held-favicon.png" width="20" height="20" alt="" style="display:block">` +
+  `Pay ${usd(amount)} with Held<span style="font-weight:400;font-size:12px;color:#D5F94F">buyer protected</span></a>`
+
+function Links() {
+  const [data, err, refresh] = usePoll(() => api<{ links: CheckoutLinkView[] }>('/links'), 5000, [])
+  const [item, setItem] = useState('')
+  const [amount, setAmount] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [formErr, setFormErr] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
+  const copy = (key: string, text: string) => navigator.clipboard.writeText(text)
+    .then(() => { setCopied(key); setTimeout(() => setCopied(null), 1800) }, () => setCopied('failed'))
+
+  const create = async (e: FormEvent) => {
+    e.preventDefault(); setBusy(true); setFormErr(null)
+    try { await api('/links', { item, amount }); setItem(''); setAmount(''); refresh() } catch (x) { setFormErr((x as Error).message) }
+    setBusy(false)
+  }
+  const toggle = async (l: CheckoutLinkView) => { await api(`/links/${l.id}`, { active: !l.active }).catch(() => {}); refresh() }
+  const links = data?.links ?? []
+
+  return (
+    <section className="card links">
+      <h3>Checkout links</h3>
+      <p className="muted small">A reusable link for one product at a fixed price. Every buyer who opens it gets their own protected order.
+        Share it anywhere, or put the "Pay with Held" button on your website.</p>
+      <form className="neworder" onSubmit={create}>
+        <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Product" required />
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Price (USD)" className="amt" required />
+        <button disabled={busy}>{busy ? 'Creating…' : 'Create link'}</button>
+        {formErr && <span className="err">{formErr}</span>}
+      </form>
+      {err && <p className="err">{err}</p>}
+      {links.map((l) => (
+        <div key={l.id} className={`link ${l.active ? '' : 'off'}`}>
+          <div className="row">
+            <div className="item">{l.item}</div>
+            <div className="amount">{usd(l.amount)}</div>
+            <span className="muted small">{l.orders} order{l.orders === 1 ? '' : 's'} · {l.paid} paid</span>
+            <button className="ghost small" onClick={() => toggle(l)}>{l.active ? 'Turn off' : 'Turn on'}</button>
+          </div>
+          {l.active ? (
+            <>
+              <code className="addr">{linkUrl(l.id)}</code>
+              <div className="actions">
+                <button className="small" onClick={() => copy('url' + l.id, linkUrl(l.id))}>{copied === 'url' + l.id ? 'Copied ✓' : 'Copy link'}</button>
+                <button className="small" onClick={() => copy('btn' + l.id, buttonHtml(l.id, l.amount))}>{copied === 'btn' + l.id ? 'Copied ✓' : 'Copy button code'}</button>
+                <span className="preview" dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
+              </div>
+              {copied === 'failed' && <p className="muted small">Couldn't copy: select the link above instead.</p>}
+            </>
+          ) : <p className="muted small">Turned off: buyers who open it see that it's no longer available.</p>}
+        </div>
+      ))}
+    </section>
   )
 }

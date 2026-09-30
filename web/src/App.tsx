@@ -5,6 +5,7 @@ import Pay from './Pay.tsx'
 import MerchantPage from './Merchant.tsx'
 import Resolve from './Resolve.tsx'
 import Sandbox from './Sandbox.tsx'
+import Buy from './Buy.tsx'
 import { useConfig } from './ui.tsx'
 
 function useRoute() {
@@ -17,7 +18,9 @@ export default function App() {
   const route = useRoute()
   const cfg = useConfig()
   const pay = route.match(/^\/pay\/(\d+)/)
+  const buy = route.match(/^\/buy\/([\w-]{6,16})/)
   const page = pay ? <Pay id={pay[1]} />
+    : buy ? <Buy id={buy[1]} />
     : route.startsWith('/merchant') || route.startsWith('/dashboard') ? <MerchantPage />
     : route.startsWith('/resolve') ? <Resolve />
     : route.startsWith('/sandbox') ? <Sandbox />

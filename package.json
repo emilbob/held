@@ -15,7 +15,8 @@
     "e2e:tempo-wallet": "node e2e/tempo-wallet.ts",
     "e2e:metamask": "node e2e/metamask.ts",
     "typecheck": "tsc && npm --prefix web run typecheck",
-    "test:e2e": "node scripts/merchant-e2e.ts"
+    "test:e2e": "node scripts/merchant-e2e.ts",
+    "test:links": "node scripts/links-check.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.35.0",

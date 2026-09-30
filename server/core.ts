@@ -8,6 +8,11 @@
 //   GET  /api/orders                       the signed-in merchant's orders            -> syncs chain first
 //   POST /api/orders {amount, item}        signed-in merchant creates an order (per-order virtual address, no tx)
 //   GET  /api/orders/:id                   one order (buyer page, public)            -> syncs chain first
+//   GET  /api/links                        the signed-in merchant's checkout links (with order counts)
+//   POST /api/links {item, amount}         create a reusable checkout link for one product at a fixed price
+//   POST /api/links/:id {active}           turn a link on or off (its merchant only)
+//   GET  /api/links/:id                    public: what the link sells, for the buyer
+//   POST /api/links/:id/orders             public: a buyer opened the link -> a fresh order for them
 //   GET  /api/disputes?resolver=0x…        disputed payments a resolver decides (public: all of it is on-chain)
 //   POST /api/faucet {address}             testnet only: top-up for buyers and merchants
 //
@@ -19,12 +24,12 @@ import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
-import { signInMessage, type Db, type Network, type StoredOrder } from '../shared/api.ts'
+import { signInMessage, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
 // 1..65535, so no two databases (local, live, previews) hand out the same order addresses.
 export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
 export const emptyDb = (lastBlock: string, nextOrderId = 1001): Db =>
-  ({ merchants: {}, orders: {}, payments: {}, sessions: {}, lastBlock, nextOrderId, tagPrefix: newTagPrefix() })
+  ({ merchants: {}, orders: {}, payments: {}, sessions: {}, links: {}, lastBlock, nextOrderId, tagPrefix: newTagPrefix() })
 
 // Where the API keeps its state: a JSON file locally, Upstash Redis on Vercel.
 export interface DbAdapter {
@@ -42,6 +47,17 @@ const SIGN_IN_MAX_AGE = 5 * 60
 const sha256hex = (s: string) => createHash('sha256').update(s).digest('hex')
 const header = (h: Headers, name: string) => { const v = h[name]; return typeof v === 'string' ? v : '' }
 const now = () => Math.floor(Date.now() / 1000)
+const AMOUNT = /^\d+(\.\d{1,6})?$/
+const clientIp = (h: Headers) => header(h, 'x-forwarded-for').split(',')[0].trim() || 'local'
+
+// One order: its own virtual address under the merchant's master (no transaction, no cost).
+function newOrder(s: Db, merchant: Merchant, item: string, amount: string, linkId?: string): StoredOrder {
+  const id = s.nextOrderId++
+  const order: StoredOrder = { id, merchant: merchant.address, item: item.slice(0, 120) || `Order #${id}`, amount,
+    address: orderAddress(merchant.masterId, id, s.tagPrefix), createdAt: now(), ...(linkId && { linkId }) }
+  s.orders[id] = order
+  return order
+}
 
 // viem errors carry a short message.
 type ViemishError = { shortMessage?: string, message?: string }
@@ -125,16 +141,12 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
 
     if (path === '/api/orders' && method === 'POST') {
       const { amount, item } = body
-      if (!amount || !/^\d+(\.\d{1,6})?$/.test(String(amount))) return ok({ error: 'Amount must be a number like 20 or 12.50' }, 400)
+      if (!amount || !AMOUNT.test(String(amount))) return ok({ error: 'Amount must be a number like 20 or 12.50' }, 400)
       const r = await mutate((s) => {
         const address = sessionOf(s, headers)
         const merchant = address ? s.merchants[address.toLowerCase()] : undefined
         if (!merchant) return null
-        const id = s.nextOrderId++
-        const order: StoredOrder = { id, merchant: merchant.address, item: String(item || `Order #${id}`).slice(0, 120),
-          amount: parseUnits(String(amount), 6).toString(), address: orderAddress(merchant.masterId, id, s.tagPrefix), createdAt: now() }
-        s.orders[id] = order
-        return orderView(s, order)
+        return orderView(s, newOrder(s, merchant, String(item || ''), parseUnits(String(amount), 6).toString()))
       })
       return r ? ok(r, 201) : ok({ error: 'Only a signed-in, registered merchant can create orders.' }, 401)
     }
@@ -153,6 +165,65 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const o = s.orders[m[1]]
       return o ? ok(orderView(s, o)) : ok({ error: 'Order not found' }, 404)
     }
+    // ---------------------------------------------------------------- checkout links
+    if (path === '/api/links' && method === 'POST') {
+      const { amount, item } = body
+      if (!item || !String(item).trim()) return ok({ error: 'Name the product.' }, 400)
+      if (!amount || !AMOUNT.test(String(amount)) || Number(amount) <= 0) return ok({ error: 'Price must be a number like 20 or 12.50' }, 400)
+      const r = await mutate((s) => {
+        const address = sessionOf(s, headers)
+        const merchant = address ? s.merchants[address.toLowerCase()] : undefined
+        if (!merchant) return null
+        const link: CheckoutLink = { id: randomBytes(6).toString('base64url'), merchant: merchant.address, item: String(item).trim().slice(0, 120),
+          amount: parseUnits(String(amount), 6).toString(), active: true, createdAt: now() }
+        ;(s.links ??= {})[link.id] = link
+        return link
+      })
+      return r ? ok(r, 201) : ok({ error: 'Only a signed-in, registered merchant can create checkout links.' }, 401)
+    }
+    if (path === '/api/links') {
+      await sync()
+      const s = await load()
+      const address = sessionOf(s, headers)
+      if (!address) return ok({ error: 'Sign in with your merchant wallet.' }, 401)
+      const mine = Object.values(s.links ?? {}).filter((l) => l.merchant.toLowerCase() === address.toLowerCase())
+      const views: CheckoutLinkView[] = mine.sort((a, b) => b.createdAt - a.createdAt).map((l) => {
+        const orders = Object.values(s.orders).filter((o) => o.linkId === l.id).map((o) => orderView(s, o))
+        return { ...l, orders: orders.length, paid: orders.filter((o) => o.status !== 'awaiting_payment').length }
+      })
+      return ok({ links: views })
+    }
+    const lk = path.match(/^\/api\/links\/([\w-]{6,16})(\/orders)?$/)
+    if (lk && !lk[2] && method === 'POST') {
+      const r = await mutate((s) => {
+        const link = s.links?.[lk[1]]
+        const address = sessionOf(s, headers)
+        if (!link || !address || link.merchant.toLowerCase() !== address.toLowerCase()) return null
+        link.active = body.active === true
+        return link
+      })
+      return r ? ok(r) : ok({ error: 'Only the merchant who made this link can change it.' }, 401)
+    }
+    if (lk && !lk[2]) {
+      const s = await load()
+      const link = s.links?.[lk[1]]
+      if (!link) return ok({ error: 'This checkout link does not exist.' }, 404)
+      const pub: PublicLink = { id: link.id, item: link.item, amount: link.amount, active: link.active, merchantName: s.merchants[link.merchant.toLowerCase()]?.name ?? '' }
+      return ok(pub)
+    }
+    if (lk && lk[2] && method === 'POST') {
+      // Opening the link twice in a row (double click, reload) shouldn't make two orders.
+      if (!(await db.rateLimit(`link:${lk[1]}:${clientIp(headers)}`, 3000))) return ok({ error: 'One moment, your order is being created.' }, 429)
+      const r = await mutate((s) => {
+        const link = s.links?.[lk[1]]
+        const merchant = link && s.merchants[link.merchant.toLowerCase()]
+        if (!link || !merchant) return { error: 'This checkout link does not exist.', status: 404 }
+        if (!link.active) return { error: 'This checkout link has been turned off by the merchant.', status: 410 }
+        return orderView(s, newOrder(s, merchant, link.item, link.amount, link.id))
+      })
+      return 'error' in r ? ok({ error: r.error }, r.status) : ok(r, 201)
+    }
+
     if (path === '/api/disputes') {
       const resolver = query.get('resolver') || ''
       if (!isAddress(resolver)) return ok({ error: 'Add ?resolver=<address>.' }, 400)

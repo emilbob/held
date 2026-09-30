@@ -1,4 +1,4 @@
-// MetaMask end-to-end for Held's "Connect browser wallet" path, in a throwaway Chrome for Testing profile.
+// MetaMask end-to-end for Held's browser-wallet path ("Connect MetaMask", listed via EIP-6963), in a throwaway Chrome for Testing profile.
 //   - real MetaMask 13.49.0 (official GitHub release, SHA256 verified), loaded unpacked
 //   - a NEW 12-word testnet seed generated in memory for this run only (never printed, stored or reused)
 //   - tests: connect, add Tempo Moderato network, pay, confirm delivery (release), and on a 2nd order: dispute
@@ -114,12 +114,12 @@ try {
   const o1 = await api('/orders', { item: 'MetaMask test: notebook', amount: '2' })
   await held.goto(`${APP}/#/pay/${o1.id}`, { waitUntil: 'networkidle2' })
   await sleep(1000)
-  const hasBtn = await held.evaluate(() => [...document.querySelectorAll('button')].some((b) => /Connect browser wallet/.test(b.innerText)))
-  check('"Connect browser wallet" shown when MetaMask is installed', hasBtn)
-  await clickHeld(/^Connect browser wallet$/)
-  await approveMetaMask('connect+network', async () => /\(browser wallet\)/.test(await walletText()))
+  const hasBtn = await held.evaluate(() => [...document.querySelectorAll('button')].some((b) => /^Connect MetaMask$/.test(b.innerText.trim())))
+  check('"Connect MetaMask" listed when MetaMask is installed', hasBtn)
+  await clickHeld(/^Connect MetaMask$/)
+  await approveMetaMask('connect+network', async () => /\(MetaMask\)/.test(await walletText()))
   const wb = await walletText()
-  check('connect + add/switch to Tempo Moderato (chainId 42431)', /\(browser wallet\)/.test(wb) && wb.toLowerCase().includes(address.slice(2, 6).toLowerCase()), wb.split('\n')[1])
+  check('connect + add/switch to Tempo Moderato (chainId 42431)', /\(MetaMask\)/.test(wb) && wb.toLowerCase().includes(address.slice(2, 6).toLowerCase()), wb.split('\n')[1])
   const chainId = await held.evaluate(() => window.ethereum!.request({ method: 'eth_chainId' }))
   check('MetaMask is on Tempo Moderato', chainId === '0xa5bf', chainId)
   await held.screenshot({ path: join(here, 'shots/mm-1-connected.png') }).catch(() => {})
@@ -139,7 +139,7 @@ try {
   await held.goto(`${APP}/?o=${o2.id}#/pay/${o2.id}`, { waitUntil: 'networkidle2' })
   await sleep(1500)
   log('  order 2 page before pay:', (await payText()).replace(/\s+/g, ' ').slice(0, 200))
-  if (!/\(browser wallet\)/.test(await walletText())) { await clickHeld(/^Connect browser wallet$/); await approveMetaMask('reconnect', async () => /\(browser wallet\)/.test(await walletText())) }
+  if (!/\(MetaMask\)/.test(await walletText())) { await clickHeld(/^Connect MetaMask$/); await approveMetaMask('reconnect', async () => /\(MetaMask\)/.test(await walletText())) }
   await actInHeld('pay2', /^Pay \$/, /Payment held/)
   log('  order 2 page after pay:', (await payText()).replace(/\s+/g, ' ').slice(0, 300))
   await actInHeld('dispute', /open dispute/, /Dispute open/)

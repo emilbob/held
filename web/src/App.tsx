@@ -262,6 +262,8 @@ function PayPage({ id }: { id: string }) {
     // EIP-681 payment request: token transfer to the order's address.
     QRCode.toDataURL(`ethereum:${W.PATHUSD}@42431/transfer?address=${order.address}&uint256=${order.amount}`, { margin: 1, width: 220 }).then(setQr)
   }, [order?.address])
+  const [wallets, setWallets] = useState<W.InjectedWallet[]>([])
+  useEffect(() => W.watchWallets(setWallets), [])
   useEffect(() => {
     const k = localStorage.getItem('held.walletKind')
     if (k === 'demo') W.connect('demo').then(async (w) => {
@@ -280,8 +282,8 @@ function PayPage({ id }: { id: string }) {
     try { await fn(); if (done) setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
     setBusy(null)
   }
-  const connect = (kind: W.WalletKind) => run('connect', async () => {
-    const w = await W.connect(kind)
+  const connect = (kind: W.WalletKind, injected?: W.InjectedWallet) => run('connect', async () => {
+    const w = await W.connect(kind, injected)
     localStorage.setItem('held.walletKind', kind)
     setWallet(w)
     // Testnet: top up any freshly connected wallet so the demo never stalls on an empty balance.
@@ -295,6 +297,8 @@ function PayPage({ id }: { id: string }) {
   const left = main ? main.windowEndsAt - now : 0
   const status: OrderStatus = order.status === 'held' && main && left <= 0 ? 'releasable' : order.status
   const isPayer = wallet && main && wallet.address.toLowerCase() === main.payer.toLowerCase()
+  // Paid out or refunded: nothing left for the buyer to do (unless a wrong-token payment still needs returning).
+  const settled = (status === 'released' || status === 'refunded') && !wrong.some((p) => p.status === 'held')
   const arb = cfg?.arbiter
   // Buyer's own wallet signs every arbiter call; Held never signs for them.
   const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => {
@@ -342,21 +346,23 @@ function PayPage({ id }: { id: string }) {
         {order.underpaid && <p className="warn">This order was underpaid ({usd(main!.amount)} of {usd(order.amount)}).</p>}
       </div>
 
-      <div className="card walletbox">
+      {!settled && <div className="card walletbox">
         <h3>Your wallet</h3>
         {!wallet ? (
           <div className="actions">
             <button className="primary" onClick={() => connect('tempo')} disabled={!!busy}>{busy === 'connect' ? 'Connecting…' : 'Pay with Tempo Wallet'}</button>
             <button className="secondary" onClick={() => connect('demo')} disabled={!!busy}>Use demo wallet</button>
-            {W.hasInjected() && <button className="ghost" onClick={() => connect('injected')} disabled={!!busy}>Connect browser wallet</button>}
+            {wallets.map((iw) => (
+              <button key={iw.rdns} className="ghost" onClick={() => connect('injected', iw)} disabled={!!busy}>
+                {iw.icon && <img src={iw.icon} alt="" className="wicon" />}Connect {iw.name}
+              </button>
+            ))}
             <p className="muted small">Tempo Wallet signs with a passkey (Face ID / Touch ID). No extension, no seed phrase.</p>
           </div>
         ) : (
           <p><a href={addrUrl(wallet.address)} target="_blank">{short(wallet.address)}</a> · {bal === null ? '…' : usd(bal)} pathUSD
-            {wallet.kind === 'demo' && <span className="muted"> (demo wallet in this browser)</span>}
-            {wallet.kind === 'tempo' && <span className="muted"> (Tempo Wallet)</span>}
-            {wallet.kind === 'injected' && <span className="muted"> (browser wallet)</span>}
-            {' '}<button className="ghost small" onClick={() => { localStorage.removeItem('held.walletKind'); setWallet(null); setBal(null) }}>Switch</button></p>
+            <span className="muted"> ({wallet.name})</span>
+            {' '}<button className="secondary small" onClick={() => { localStorage.removeItem('held.walletKind'); setWallet(null); setBal(null) }}>Change wallet</button></p>
         )}
 
         {wallet && status === 'awaiting_payment' && (
@@ -405,7 +411,7 @@ function PayPage({ id }: { id: string }) {
           </div>
         ))}
         {msg && <div className={`result ${msg.ok ? 'ok' : 'blocked'}`}>{msg.ok || msg.text.startsWith("Tempo's testnet is busy") ? '' : '🔒 '}{msg.text}</div>}
-      </div>
+      </div>}
     </div>
   )
 }

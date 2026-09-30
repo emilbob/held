@@ -51,11 +51,34 @@ export const explain = (err: unknown): string => {
   return (name && errorText[name]) || name || e.shortMessage || e.message || String(err)
 }
 
-export const hasInjected = () => typeof window !== 'undefined' && !!window.ethereum
+// EIP-6963: each installed wallet extension announces itself, so buyers can pick theirs by name instead of getting
+// whichever one claimed window.ethereum.
+export interface InjectedWallet { name: string, icon?: string, rdns: string, provider: EIP1193Provider }
+type Announce = Event & { detail: { info: { name: string, icon: string, rdns: string, uuid: string }, provider: EIP1193Provider } }
+// Wallets may announce late (an extension that finishes loading after the page), so keep listening until
+// unsubscribed. Returns the unsubscribe function.
+export function watchWallets(onChange: (wallets: InjectedWallet[]) => void): () => void {
+  const found = new Map<string, InjectedWallet>()
+  const emit = () => onChange([...found.values()])
+  const onAnnounce = (e: Event) => {
+    const { info, provider } = (e as Announce).detail
+    found.delete('injected') // a real announcement replaces the generic fallback
+    found.set(info.rdns || info.uuid, { name: info.name, icon: info.icon, rdns: info.rdns, provider })
+    emit()
+  }
+  window.addEventListener('eip6963:announceProvider', onAnnounce)
+  window.dispatchEvent(new Event('eip6963:requestProvider'))
+  // Older extensions only set window.ethereum and never announce.
+  const fallback = setTimeout(() => {
+    if (!found.size && window.ethereum) { found.set('injected', { name: 'Browser wallet', rdns: 'injected', provider: window.ethereum }); emit() }
+  }, 600)
+  return () => { clearTimeout(fallback); window.removeEventListener('eip6963:announceProvider', onAnnounce) }
+}
 
 export type WalletKind = 'demo' | 'tempo' | 'injected'
 export interface Wallet {
   kind: WalletKind
+  name: string // shown next to the address
   address: Address
   client: WalletClient<Transport, Chain, Account>
 }
@@ -78,17 +101,17 @@ function demoAccount() {
   return privateKeyToAccount(k)
 }
 
-export async function connect(kind: WalletKind): Promise<Wallet> {
+export async function connect(kind: WalletKind, injected?: InjectedWallet): Promise<Wallet> {
   if (kind === 'demo') {
     const account = demoAccount()
-    return { kind, address: account.address, client: createWalletClient({ account, chain, transport: rpc() }) }
+    return { kind, name: 'demo wallet in this browser', address: account.address, client: createWalletClient({ account, chain, transport: rpc() }) }
   }
   if (kind === 'tempo') {
     const provider = await tempoWalletProvider()
     const [address] = await provider.request({ method: 'eth_requestAccounts' })
-    return { kind, address, client: createWalletClient({ account: address, chain, transport: custom(provider) }) }
+    return { kind, name: 'Tempo Wallet', address, client: createWalletClient({ account: address, chain, transport: custom(provider) }) }
   }
-  const eth = window.ethereum
+  const eth = injected?.provider ?? window.ethereum
   if (!eth) throw new Error('No browser wallet found.')
   const [address] = await eth.request({ method: 'eth_requestAccounts' })
   try {
@@ -97,7 +120,7 @@ export async function connect(kind: WalletKind): Promise<Wallet> {
     await eth.request({ method: 'wallet_addEthereumChain', params: [{ chainId: '0xa5bf', chainName: 'Tempo Moderato',
       nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 18 }, rpcUrls: ['https://rpc.moderato.tempo.xyz'], blockExplorerUrls: [explorer] }] })
   }
-  return { kind, address, client: createWalletClient({ account: address, chain, transport: custom(eth) }) }
+  return { kind, name: injected?.name ?? 'Browser wallet', address, client: createWalletClient({ account: address, chain, transport: custom(eth) }) }
 }
 
 export const tokenBalance = (address: Address, token: Address = PATHUSD) =>

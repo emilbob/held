@@ -108,6 +108,7 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 .walletbox .actions { flex-direction: column; gap: 8px }
 .walletbox .actions button { width: 100%; justify-content: center }
 .walletbox .actions button.ghost.small { width: auto }
+.wicon { width: 18px; height: 18px; vertical-align: -4px; margin-right: 8px; border-radius: 4px }
 
 
 .how { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px }

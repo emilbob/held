@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type DependencyList, type FormEvent } from 'react'
+import type { Address, Hex } from 'viem'
 import QRCode from 'qrcode'
 import * as W from './wallet.js'
-import Landing from './Landing.jsx'
-import Logo from './Logo.jsx'
+import Landing from './Landing.tsx'
+import Logo from './Logo.tsx'
+import type { AdminAction, AdminResult, Config, Order, OrderStatus, Payment } from './types.ts'
 
 // ---------------------------------------------------------------- helpers
-const api = async (path, body) => {
+const api = async <T,>(path: string, body?: unknown): Promise<T> => {
   const r = await fetch('/api' + path, body ? {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-held-admin': localStorage.getItem('held.admin') || 'demo' },
@@ -13,19 +15,19 @@ const api = async (path, body) => {
   } : undefined)
   const j = await r.json()
   if (!r.ok) throw new Error(j.error || r.statusText)
-  return j
+  return j as T
 }
-const usd = (base) => (Number(base) / 1e6).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-const short = (a) => (a ? a.slice(0, 6) + '…' + a.slice(-4) : '')
-const txUrl = (h) => `${W.explorer}/tx/${h}`
-const addrUrl = (a) => `${W.explorer}/address/${a}`
+const usd = (base: string | bigint | number) => (Number(base) / 1e6).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+const short = (a?: string) => (a ? a.slice(0, 6) + '…' + a.slice(-4) : '')
+const txUrl = (h: Hex) => `${W.explorer}/tx/${h}`
+const addrUrl = (a: Address) => `${W.explorer}/address/${a}`
 
-function usePoll(fn, ms, deps) {
-  const [data, setData] = useState(null)
-  const [error, setError] = useState(null)
+function usePoll<T>(fn: () => Promise<T>, ms: number, deps: DependencyList): [T | null, string | null] {
+  const [data, setData] = useState<T | null>(null)
+  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     let live = true
-    const tick = () => fn().then((d) => live && (setData(d), setError(null)), (e) => live && setError(e.message))
+    const tick = () => fn().then((d) => live && (setData(d), setError(null)), (e: Error) => live && setError(e.message))
     tick()
     const t = setInterval(tick, ms)
     return () => { live = false; clearInterval(t) }
@@ -42,13 +44,13 @@ function useRoute() {
   useEffect(() => { const f = () => setHash(location.hash); addEventListener('hashchange', f); return () => removeEventListener('hashchange', f) }, [])
   return hash.replace(/^#/, '') || '/'
 }
-const countdown = (secs) => {
+const countdown = (secs: number) => {
   if (secs <= 0) return '0:00'
   const d = Math.floor(secs / 86400), h = Math.floor((secs % 86400) / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60
   return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}:${String(s).padStart(2, '0')}`
 }
 
-const STATUS = {
+const STATUS: Record<OrderStatus, [label: string, color: string]> = {
   awaiting_payment: ['Awaiting payment', 'grey'],
   held: ['Held: protected', 'blue'],
   releasable: ['Window over: releasable', 'amber'],
@@ -56,8 +58,8 @@ const STATUS = {
   released: ['Paid to merchant', 'green'],
   refunded: ['Refunded to buyer', 'violet'],
 }
-const Badge = ({ status }) => {
-  const [label, color] = STATUS[status] || [status, 'grey']
+const Badge = ({ status }: { status: OrderStatus }) => {
+  const [label, color] = STATUS[status] ?? [status, 'grey']
   return <span className={`badge ${color}`}>{label}</span>
 }
 
@@ -83,13 +85,13 @@ export default function App() {
 
 // ---------------------------------------------------------------- merchant dashboard
 function Dashboard() {
-  const [cfg] = usePoll(() => api('/config'), 10000, [])
-  const [data, err] = usePoll(() => api('/orders'), 1500, [])
-  const [balance, setBalance] = useState(null)
+  const [cfg] = usePoll(() => api<Config>('/config'), 10000, [])
+  const [data, err] = usePoll(() => api<{ orders: Order[] }>('/orders'), 1500, [])
+  const [balance, setBalance] = useState<bigint | null>(null)
   const [item, setItem] = useState('Hand-bound notebook')
   const [amount, setAmount] = useState('20')
   const [busy, setBusy] = useState(false)
-  const [formErr, setFormErr] = useState(null)
+  const [formErr, setFormErr] = useState<string | null>(null)
 
   useEffect(() => {
     if (!cfg) return
@@ -97,9 +99,9 @@ function Dashboard() {
     f(); const t = setInterval(f, 3000); return () => clearInterval(t)
   }, [cfg?.merchant])
 
-  const create = async (e) => {
+  const create = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true); setFormErr(null)
-    try { await api('/orders', { item, amount }) } catch (x) { setFormErr(x.message) }
+    try { await api('/orders', { item, amount }) } catch (x) { setFormErr((x as Error).message) }
     setBusy(false)
   }
   const orders = data?.orders || []
@@ -131,27 +133,29 @@ function Dashboard() {
   )
 }
 
-function OrderCard({ order: o }) {
+type LogEntry = AdminResult & { label: string }
+
+function OrderCard({ order: o }: { order: Order }) {
   const now = useNow()
-  const [log, setLog] = useState([])
-  const [busy, setBusy] = useState(null)
+  const [log, setLog] = useState<LogEntry[]>([])
+  const [busy, setBusy] = useState<AdminAction | null>(null)
   const main = o.payments.find((p) => !p.wrongToken)
   const wrong = o.payments.filter((p) => p.wrongToken)
   const left = main ? main.windowEndsAt - now : 0
-  const status = o.status === 'held' && main && left <= 0 ? 'releasable' : o.status
+  const status: OrderStatus = o.status === 'held' && main && left <= 0 ? 'releasable' : o.status
 
-  const act = async (action, p, label) => {
+  const act = async (action: AdminAction, p: Payment, label: string) => {
     setBusy(action)
     try {
-      const r = await api(`/admin/${action}`, { paymentId: p.id })
+      const r = await api<AdminResult>(`/admin/${action}`, { paymentId: p.id })
       setLog((l) => [{ label, ...r }, ...l].slice(0, 4))
     } catch (e) {
       // 401/404 etc: server-auth or not-found, NOT a contract revert.
-      setLog((l) => [{ label, ok: false, error: e.message }, ...l])
+      setLog((l) => [{ label, ok: false, error: (e as Error).message }, ...l])
     }
     setBusy(null)
   }
-  const B = ({ action, p, label, kind = '' }) => (
+  const B = ({ action, p, label, kind = '' }: { action: AdminAction, p: Payment, label: string, kind?: string }) => (
     <button className={kind} disabled={!!busy} onClick={() => act(action, p, label)}>{busy === action ? '…' : label}</button>
   )
 
@@ -167,7 +171,7 @@ function OrderCard({ order: o }) {
       <div className="meta">
         Pay-to address <code title={o.address}>{short(o.address)}</code> (unique to this order)
         {main && <> · paid by <a href={addrUrl(main.payer)} target="_blank">{short(main.payer)}</a> · <a href={txUrl(main.txHash)} target="_blank">payment tx</a></>}
-        {o.underpaid && <span className="warn"> · underpaid ({usd(main.amount)})</span>}
+        {o.underpaid && <span className="warn"> · underpaid ({usd(main!.amount)})</span>}
         {status === 'held' && <> · window closes in <b>{countdown(left)}</b></>}
       </div>
 
@@ -214,15 +218,15 @@ function OrderCard({ order: o }) {
 }
 
 // ---------------------------------------------------------------- buyer page
-function PayPage({ id }) {
+function PayPage({ id }: { id: string }) {
   const now = useNow()
-  const [order, err] = usePoll(() => api(`/orders/${id}`), 1500, [id])
-  const [cfg] = usePoll(() => api('/config'), 30000, [])
-  const [wallet, setWallet] = useState(null)
-  const [bal, setBal] = useState(null)
-  const [qr, setQr] = useState(null)
-  const [busy, setBusy] = useState(null)
-  const [msg, setMsg] = useState(null)
+  const [order, err] = usePoll(() => api<Order>(`/orders/${id}`), 1500, [id])
+  const [cfg] = usePoll(() => api<Config>('/config'), 30000, [])
+  const [wallet, setWallet] = useState<W.Wallet | null>(null)
+  const [bal, setBal] = useState<bigint | null>(null)
+  const [qr, setQr] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [msg, setMsg] = useState<{ ok: boolean, text: string } | null>(null)
 
   useEffect(() => {
     if (!order) return
@@ -242,12 +246,12 @@ function PayPage({ id }) {
     f(); const t = setInterval(f, 3000); return () => clearInterval(t)
   }, [wallet?.address])
 
-  const run = async (key, fn, done) => {
+  const run = async (key: string, fn: () => Promise<unknown>, done?: string) => {
     setBusy(key); setMsg(null)
     try { await fn(); if (done) setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
     setBusy(null)
   }
-  const connect = (kind) => run('connect', async () => {
+  const connect = (kind: W.WalletKind) => run('connect', async () => {
     const w = await W.connect(kind)
     localStorage.setItem('held.walletKind', kind)
     setWallet(w)
@@ -260,9 +264,14 @@ function PayPage({ id }) {
   const main = order.payments.find((p) => !p.wrongToken)
   const wrong = order.payments.filter((p) => p.wrongToken)
   const left = main ? main.windowEndsAt - now : 0
-  const status = order.status === 'held' && main && left <= 0 ? 'releasable' : order.status
+  const status: OrderStatus = order.status === 'held' && main && left <= 0 ? 'releasable' : order.status
   const isPayer = wallet && main && wallet.address.toLowerCase() === main.payer.toLowerCase()
   const arb = cfg?.arbiter
+  // Buyer's own wallet signs every arbiter call; Held never signs for them.
+  const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => {
+    if (!wallet || !arb) throw new Error('Still loading the contract details. Try again in a second.')
+    return W.arbiter(wallet, arb, fn, receipt)
+  }
 
   return (
     <div className="pay">
@@ -291,14 +300,14 @@ function PayPage({ id }) {
 
         {(status === 'held' || status === 'releasable') && (
           <div className="protect held">
-            <b>Payment held: you're protected.</b> {usd(main.amount)} is locked by the Tempo protocol, not by the merchant.<br />
+            <b>Payment held: you're protected.</b> {usd(main!.amount)} is locked by the Tempo protocol, not by the merchant.<br />
             {status === 'held' ? <> Protection window: <b>{countdown(left)}</b> left.</> : <> The protection window is over; the merchant can now be paid.</>}
           </div>
         )}
         {status === 'disputed' && <div className="protect dispute"><b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.</div>}
         {status === 'released' && <div className="protect done"><b>Delivery confirmed.</b> The merchant has been paid.</div>}
-        {status === 'refunded' && <div className="protect done"><b>Refunded.</b> {usd(main.amount)} was returned to the wallet that paid.</div>}
-        {order.underpaid && <p className="warn">This order was underpaid ({usd(main.amount)} of {usd(order.amount)}).</p>}
+        {status === 'refunded' && <div className="protect done"><b>Refunded.</b> {usd(main!.amount)} was returned to the wallet that paid.</div>}
+        {order.underpaid && <p className="warn">This order was underpaid ({usd(main!.amount)} of {usd(order.amount)}).</p>}
       </div>
 
       <div className="card walletbox">
@@ -333,11 +342,11 @@ function PayPage({ id }) {
         {wallet && main && (status === 'held' || status === 'releasable') && (isPayer ? (
           <>
             <div className="actions">
-              <button className="primary" disabled={!!busy} onClick={() => run('release', () => W.arbiter(wallet, arb, 'release', main.receipt), 'Thanks! The merchant has been paid.')}>
+              <button className="primary" disabled={!!busy} onClick={() => run('release', callArbiter('release', main.receipt), 'Thanks! The merchant has been paid.')}>
                 {busy === 'release' ? 'Confirming…' : 'I got it: release payment'}
               </button>
               {status === 'held' && (
-                <button className="danger" disabled={!!busy} onClick={() => run('dispute', () => W.arbiter(wallet, arb, 'dispute', main.receipt), 'Dispute opened.')}>
+                <button className="danger" disabled={!!busy} onClick={() => run('dispute', callArbiter('dispute', main.receipt), 'Dispute opened.')}>
                   {busy === 'dispute' ? 'Opening…' : 'Something went wrong: open dispute'}
                 </button>
               )}
@@ -347,7 +356,7 @@ function PayPage({ id }) {
         ) : (
           <div className="actions">
             <p className="muted">Only the wallet that paid ({short(main.payer)}) can confirm or dispute.</p>
-            <button className="ghost small" disabled={!!busy} onClick={() => run('dispute', () => W.arbiter(wallet, arb, 'dispute', main.receipt))}>
+            <button className="ghost small" disabled={!!busy} onClick={() => run('dispute', callArbiter('dispute', main.receipt))}>
               Try to dispute from this wallet
             </button>
           </div>
@@ -358,7 +367,7 @@ function PayPage({ id }) {
             ⚠ You sent {usd(p.amount)} of a token this merchant doesn't accept. It's held, not lost.{' '}
             {p.status === 'held'
               ? (wallet.address.toLowerCase() === p.payer.toLowerCase()
-                ? <button disabled={!!busy} onClick={() => run('wrongrefund', () => W.arbiter(wallet, arb, 'refund', p.receipt), 'Wrong token returned to you.')}>Get it back</button>
+                ? <button disabled={!!busy} onClick={() => run('wrongrefund', callArbiter('refund', p.receipt), 'Wrong token returned to you.')}>Get it back</button>
                 : <span className="muted">Connect the sending wallet to get it back.</span>)
               : <b>Returned.</b>}
           </div>

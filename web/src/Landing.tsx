@@ -1,5 +1,5 @@
 // Landing / explainer at #/ (design direction, delta 4). The how-it-works strip lives here now.
-import Logo from './Logo.jsx'
+import Logo from './Logo.tsx'
 
 export default function Landing() {
   return (

@@ -46,6 +46,9 @@ type MaybeViemError = { cause?: { data?: { errorName?: string } }, data?: { erro
 export const explain = (err: unknown): string => {
   const e = (err ?? {}) as MaybeViemError
   const name = e.cause?.data?.errorName || e.data?.errorName
+  // EIP-1193 4900: the wallet no longer has this account connected (e.g. after logging out or switching accounts).
+  if (!name && /disconnected from all chains|No accounts connected|No active account/i.test(`${e.shortMessage} ${e.message}`))
+    return 'Your wallet disconnected (for example after switching accounts). Click "Change wallet" and connect it again.'
   if (!name && /rate limit|exceeds defined limit|too many requests/i.test(`${e.shortMessage} ${e.message}`))
     return "Tempo's testnet is busy right now (rate limited). Nothing was sent. Wait a few seconds and try again."
   return (name && errorText[name]) || name || e.shortMessage || e.message || String(err)
@@ -81,6 +84,7 @@ export interface Wallet {
   name: string // shown next to the address
   address: Address
   client: WalletClient<Transport, Chain, Account>
+  provider?: EIP1193Provider // external wallets: watched for disconnects and account switches
 }
 
 // Tempo Wallet (wallet.tempo.xyz): passkey account via Tempo's official Accounts SDK. Exposed as an EIP-1193
@@ -119,7 +123,7 @@ export async function connect(kind: WalletKind, injected?: InjectedWallet, role:
   if (kind === 'tempo') {
     const provider = await tempoWalletProvider()
     const [address] = await provider.request({ method: 'eth_requestAccounts' })
-    return { kind, name: 'Tempo Wallet', address, client: createWalletClient({ account: address, chain, transport: custom(provider) }) }
+    return { kind, name: 'Tempo Wallet', address, provider, client: createWalletClient({ account: address, chain, transport: custom(provider) }) }
   }
   const eth = injected?.provider ?? window.ethereum
   if (!eth) throw new Error('No browser wallet found.')
@@ -130,7 +134,7 @@ export async function connect(kind: WalletKind, injected?: InjectedWallet, role:
     await eth.request({ method: 'wallet_addEthereumChain', params: [{ chainId: '0xa5bf', chainName: 'Tempo Moderato',
       nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 18 }, rpcUrls: ['https://rpc.moderato.tempo.xyz'], blockExplorerUrls: [explorer] }] })
   }
-  return { kind, name: injected?.name ?? 'Browser wallet', address, client: createWalletClient({ account: address, chain, transport: custom(eth) }) }
+  return { kind, name: injected?.name ?? 'Browser wallet', address, provider: eth, client: createWalletClient({ account: address, chain, transport: custom(eth) }) }
 }
 
 export const tokenBalance = (address: Address, token: Address = PATHUSD) =>

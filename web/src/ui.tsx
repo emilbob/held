@@ -137,6 +137,21 @@ export function useWallet(role: W.Role) {
     setBusy(false)
   }
   const disconnect = () => { localStorage.removeItem(rememberKey); setWallet(null); setBalance(null) }
+  // External wallets: if the wallet disconnects or switches to another account, drop the stale connection so the
+  // page asks again instead of failing on the next action.
+  useEffect(() => {
+    const p = wallet?.provider
+    if (!p) return
+    const onAccounts = (accs: readonly string[]) => {
+      if (!accs.length || accs[0].toLowerCase() !== wallet.address.toLowerCase()) {
+        disconnect(); setError('Your wallet disconnected or switched accounts. Connect it again.')
+      }
+    }
+    const onDisconnect = () => { disconnect(); setError('Your wallet disconnected. Connect it again.') }
+    p.on('accountsChanged', onAccounts)
+    p.on('disconnect', onDisconnect)
+    return () => { p.removeListener('accountsChanged', onAccounts); p.removeListener('disconnect', onDisconnect) }
+  }, [wallet])
   const sandbox = !!cfg?.testnet && !!cfg.sandbox?.arbiter && role !== 'buyer'
   return { wallet, balance, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
 }

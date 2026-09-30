@@ -3,21 +3,19 @@
 // each read syncs new TransferBlocked + arbiter events since the stored block, under a Redis lock.
 import { Redis } from '@upstash/redis'
 import type { IncomingMessage } from 'node:http'
-import type { Abi, Hex } from 'viem'
 import { createApi, toJson, type DbAdapter } from '../server/core.ts'
-import type { Db, Deployment } from '../shared/api.ts'
-import deploymentJson from '../deployment.json' with { type: 'json' }
-import abiJson from '../server/arbiter-abi.json' with { type: 'json' }
+import type { Db, Network } from '../shared/api.ts'
+import networkJson from '../network.json' with { type: 'json' }
 
-const deployment = deploymentJson as Deployment
-const abi = abiJson as Abi
+const network = networkJson as Network
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
 })
-const KEY = 'held:db'
-const LOCK = 'held:lock'
+// v2: the multi-merchant store; the demo-era 'held:db' is left untouched.
+const KEY = 'held:v2:db'
+const LOCK = 'held:v2:lock'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const db: DbAdapter = {
@@ -38,11 +36,7 @@ const db: DbAdapter = {
   async rateLimit(key, ms) { return (await redis.set(`held:rl:${key}`, 1, { nx: true, px: ms })) === 'OK' },
 }
 
-const api = createApi({ deployment, abi, db, keys: {
-  merchantKey: process.env.MERCHANT_KEY as Hex | undefined,
-  resolverKey: process.env.RESOLVER_KEY as Hex | undefined,
-  adminToken: process.env.HELD_ADMIN_TOKEN || 'demo',
-} })
+const api = createApi({ network, db })
 
 // The parts of Vercel's Node request/response helpers this handler uses.
 type VercelRequest = IncomingMessage & { body?: unknown }
@@ -54,7 +48,7 @@ interface VercelResponse {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const path = new URL(req.url ?? '/', 'http://x').pathname
+  const url = new URL(req.url ?? '/', 'http://x'), path = url.pathname
   let body: unknown = {}
   if (req.method === 'POST') {
     body = req.body
@@ -62,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     body ??= {}
   }
   try {
-    const r = await api.handle(req.method ?? 'GET', path, req.headers, body as Record<string, unknown>)
+    const r = await api.handle(req.method ?? 'GET', path, req.headers, body as Record<string, unknown>, url.searchParams)
     res.setHeader('content-type', 'application/json')
     res.setHeader('cache-control', 'no-store')
     res.status(r.status).send(toJson(r.body))

@@ -4,14 +4,12 @@ import { createServer, type IncomingMessage } from 'node:http'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs'
 import { extname, join, normalize, dirname } from 'node:path'
 import { createApi, emptyDb, toJson, type DbAdapter } from './core.ts'
-import type { Hex } from 'viem'
-import type { Db } from '../shared/api.ts'
-import { loadState } from '../scripts/lib.ts'
+import type { Db, Network } from '../shared/api.ts'
 
 const root = new URL('../', import.meta.url).pathname
-const deployment = JSON.parse(readFileSync(join(root, 'deployment.json'), 'utf8'))
-const abi = JSON.parse(readFileSync(join(root, 'server/arbiter-abi.json'), 'utf8'))
-const DB = process.env.HELD_DB || join(root, '.state/db.json')
+const network: Network = JSON.parse(readFileSync(join(root, 'network.json'), 'utf8'))
+// db-v2: the multi-merchant store. The demo-era .state/db.json is left untouched.
+const DB = process.env.HELD_DB || join(root, '.state/db-v2.json')
 const PORT = Number(process.env.PORT || 8787)
 const STATIC = join(root, 'web/dist')
 
@@ -21,9 +19,7 @@ const seen = new Map<string, number>()
 const db: DbAdapter = {
   async read() {
     if (!existsSync(DB)) return null
-    const d: Db = JSON.parse(readFileSync(DB, 'utf8'))
-    if (process.env.HELD_ORDER_START && d.nextOrderId === undefined) d.nextOrderId = Number(process.env.HELD_ORDER_START)
-    return d
+    return JSON.parse(readFileSync(DB, 'utf8')) as Db
   },
   async write(d) { mkdirSync(dirname(DB), { recursive: true }); writeFileSync(DB + '.tmp', JSON.stringify(d, null, 2)); renameSync(DB + '.tmp', DB) },
   lock(fn, { wait }) {
@@ -40,21 +36,16 @@ if (process.env.HELD_ORDER_START && !existsSync(DB)) {
   await db.write(emptyDb((await pub.getBlockNumber()).toString(), Number(process.env.HELD_ORDER_START)))
 }
 
-const st = loadState()
-const api = createApi({ deployment, abi, db, keys: {
-  merchantKey: (process.env.MERCHANT_KEY as Hex | undefined) || st.merchantKey,
-  resolverKey: (process.env.RESOLVER_KEY as Hex | undefined) || st.resolverKey,
-  adminToken: process.env.HELD_ADMIN_TOKEN || 'demo',
-} })
+const api = createApi({ network, db })
 
 const readBody = (req: IncomingMessage) => new Promise<Record<string, unknown>>((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => { try { ok(b ? JSON.parse(b) : {}) } catch { ok({}) } }) })
 
 createServer(async (req, res) => {
-  const p = new URL(req.url ?? '/', 'http://x').pathname
+  const url = new URL(req.url ?? '/', 'http://x'), p = url.pathname
   try {
     if (p.startsWith('/api/')) {
-      const { status, body } = await api.handle(req.method ?? 'GET', p, req.headers, req.method === 'POST' ? await readBody(req) : {})
-      res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type, x-held-admin, x-held-order-key' })
+      const { status, body } = await api.handle(req.method ?? 'GET', p, req.headers, req.method === 'POST' ? await readBody(req) : {}, url.searchParams)
+      res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type, authorization' })
       return res.end(toJson(body))
     }
     let file = normalize(join(STATIC, p))
@@ -67,7 +58,7 @@ createServer(async (req, res) => {
     res.writeHead(500, { 'content-type': 'application/json' }); res.end(toJson({ error: (e as Error).message }))
   }
 }).listen(PORT, () => {
-  console.log(`Held API on http://localhost:${PORT} (arbiter ${deployment.arbiter})`)
+  console.log(`Held API on http://localhost:${PORT} (chain ${network.chainId}${network.testnet ? ', testnet' : ''})`)
   // Keep indexing in the background locally too, so the dashboard updates without being polled.
   const tick = () => api.sync().finally(() => setTimeout(tick, Number(process.env.POLL_MS || 1500)))
   tick()

@@ -6,6 +6,7 @@ import { readdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Order } from '../shared/api.ts'
+import { merchantSession } from '../scripts/test-merchant.ts'
 
 export const here = new URL('./', import.meta.url).pathname
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -16,8 +17,12 @@ export const chromeForTesting = () => find(join(here, '.cft'))
 
 // Held API client for the app under test (APP env, default the local server).
 export const APP = process.env.APP || 'http://localhost:8787'
-export const api = async <T = Order>(path: string, body?: unknown): Promise<T> =>
-  (await fetch(APP + '/api' + path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {})).json()
+export const api = async <T = Order>(path: string, body?: unknown, token?: string): Promise<T> =>
+  (await fetch(APP + '/api' + path, body ? { method: 'POST', headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }) }, body: JSON.stringify(body) } : {})).json()
+
+// Orders are created by a signed-in merchant, as in the real app (a reusable test merchant; see scripts/test-merchant.ts).
+let merchantToken: Promise<string> | undefined
+export const createOrder = async (item: string, amount: string) => api('/orders', { item, amount }, await (merchantToken ??= merchantSession(APP)))
 
 // PASS/FAIL log + tally; finish() prints the total and exits non-zero on any failure.
 export const results: boolean[] = []

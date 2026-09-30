@@ -1,0 +1,131 @@
+// Buyer page (#/pay/:id): pay the order's unique address, then confirm delivery or open a dispute.
+// Every action is signed by the buyer's own wallet against the merchant's HeldArbiter.
+import { useEffect, useState } from 'react'
+import type { Hex } from 'viem'
+import QRCode from 'qrcode'
+import * as W from './wallet.ts'
+import { api, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Steps, Result, usd, short, countdown, duration, type Msg } from './ui.tsx'
+import type { Order, OrderStatus } from '../../shared/api.ts'
+
+export default function Pay({ id }: { id: string }) {
+  const now = useNow()
+  const cfg = useConfig()
+  const [order, err] = usePoll(() => api<Order>(`/orders/${id}`), 2000, [id])
+  const w = useWallet('buyer')
+  const wallet = w.wallet
+  const [qr, setQr] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [msg, setMsg] = useState<Msg>(null)
+  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
+
+  useEffect(() => {
+    if (!order || !cfg) return
+    // EIP-681 payment request: token transfer to the order's address.
+    QRCode.toDataURL(`ethereum:${cfg.acceptedToken}@${cfg.chainId}/transfer?address=${order.address}&uint256=${order.amount}`, { margin: 1, width: 220 }).then(setQr)
+  }, [order?.address, cfg])
+
+  const run = async (key: string, fn: () => Promise<unknown>, done?: string) => {
+    setBusy(key); setMsg(null)
+    try { await fn(); if (done) setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
+    setBusy(null)
+  }
+
+  if (err) return <p className="err">{err}</p>
+  if (!order) return <p className="muted">Loading order…</p>
+  const main = order.payments.find((p) => !p.wrongToken)
+  const wrong = order.payments.filter((p) => p.wrongToken)
+  const left = main ? main.windowEndsAt - now : 0
+  const status: OrderStatus = order.status === 'held' && main && left <= 0 ? 'releasable' : order.status
+  const isPayer = wallet && main && wallet.address.toLowerCase() === main.payer.toLowerCase()
+  // Paid out or refunded: nothing left for the buyer to do (unless a wrong-token payment still needs returning).
+  const settled = (status === 'released' || status === 'refunded') && !wrong.some((p) => p.status === 'held')
+  const arbiter = order.merchantInfo.arbiter
+  const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => W.arbiter(wallet!, arbiter, fn, receipt)
+
+  return (
+    <div className="pay">
+      <div className="card checkout">
+        <Steps status={status} />
+        <div className="merchant">{order.merchantInfo.name} · Order #{order.id}</div>
+        <h2>{order.item}</h2>
+        <div className="big">{usd(order.amount)} <small>pathUSD</small></div>
+        <Badge status={status} />
+
+        {status === 'awaiting_payment' && (
+          <>
+            <p className="protect"><b>Protected by Held.</b> Your payment is held onchain for {duration(order.merchantInfo.window)} or until you
+              confirm delivery. If something goes wrong, open a dispute: the funds can only go back to you or to the merchant.</p>
+            <div className="payto">
+              {qr && <img src={qr} alt="Payment QR code" />}
+              <div>
+                <label>Send exactly {usd(order.amount)} pathUSD on Tempo to</label>
+                <code className="addr">{order.address}</code>
+                <button className="ghost" onClick={() => navigator.clipboard.writeText(order.address).then(() => setCopied('ok'), () => setCopied('failed'))
+                  .finally(() => setTimeout(() => setCopied(null), 2000))}>{copied === 'ok' ? 'Copied ✓' : 'Copy address'}</button>
+                {copied === 'failed' && <span className="muted small"> Couldn't copy: select the address above instead.</span>}
+                <p className="muted">Any wallet or exchange works: it's a plain token transfer. This address is unique to your order.</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {(status === 'held' || status === 'releasable') && (
+          <div className="protect held">
+            <b>Payment held: you're protected.</b> {usd(main!.amount)} is locked by the Tempo protocol, not by the merchant.<br />
+            {status === 'held' ? <> Protection window: <b>{countdown(left)}</b> left.</> : <> The protection window is over; the merchant can now be paid.</>}
+          </div>
+        )}
+        {status === 'disputed' && <div className="protect dispute"><b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.</div>}
+        {status === 'released' && <div className="protect done"><b>Delivery confirmed.</b> The merchant has been paid.</div>}
+        {status === 'refunded' && <div className="protect done"><b>Refunded.</b> {usd(main!.amount)} was returned to the wallet that paid.</div>}
+        {order.underpaid && <p className="warn">This order was underpaid ({usd(main!.amount)} of {usd(order.amount)}).</p>}
+      </div>
+
+      {!settled && <div className="card walletbox">
+        <h3>Your wallet</h3>
+        <WalletPicker w={w} />
+
+        {wallet && status === 'awaiting_payment' && (
+          <div className="actions">
+            <button className="primary" disabled={!!busy} onClick={() => run('pay', () => W.transfer(wallet, order.address, order.amount))}>
+              {busy === 'pay' ? 'Sending…' : `Pay ${usd(order.amount)}`}
+            </button>
+            {w.testnet && (
+              <button className="ghost small" disabled={!!busy} title="Testnet: send a token the merchant doesn't accept"
+                onClick={() => run('wrong', () => W.transfer(wallet, order.address, order.amount, W.WRONG_TOKEN))}>
+                {busy === 'wrong' ? 'Sending…' : 'Test: pay with the wrong token'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {wallet && main && (status === 'held' || status === 'releasable') && (isPayer ? (
+          <div className="actions">
+            <button className="primary" disabled={!!busy} onClick={() => run('release', callArbiter('release', main.receipt), 'Thanks! The merchant has been paid.')}>
+              {busy === 'release' ? 'Confirming…' : 'I got it: release payment'}
+            </button>
+            {status === 'held' && (
+              <button className="danger" disabled={!!busy} onClick={() => run('dispute', callArbiter('dispute', main.receipt), 'Dispute opened.')}>
+                {busy === 'dispute' ? 'Opening…' : 'Something went wrong: open dispute'}
+              </button>
+            )}
+          </div>
+        ) : (
+          <p className="muted">Only the wallet that paid ({short(main.payer)}) can confirm or dispute.</p>
+        ))}
+
+        {wallet && wrong.map((p) => (
+          <div className="wrongtoken" key={p.id}>
+            ⚠ You sent {usd(p.amount)} of a token this merchant doesn't accept. It's held, not lost.{' '}
+            {p.status === 'held'
+              ? (wallet.address.toLowerCase() === p.payer.toLowerCase()
+                ? <button disabled={!!busy} onClick={() => run('wrongrefund', callArbiter('refund', p.receipt), 'Wrong token returned to you.')}>Get it back</button>
+                : <span className="muted">Connect the sending wallet to get it back.</span>)
+              : <b>Returned.</b>}
+          </div>
+        ))}
+        <Result msg={msg} />
+      </div>}
+    </div>
+  )
+}

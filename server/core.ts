@@ -1,33 +1,30 @@
 // Held API core: storage-agnostic request handling + on-demand indexing.
 // Used by both the local node server (server/server.ts, JSON file) and the Vercel function (api/index.ts, Redis).
 //
-//   GET  /api/config                      public deployment info
-//   GET  /api/orders                      all orders (merchant dashboard)       -> syncs chain first
-//   GET  /api/orders/:id                  one order (buyer page)                -> syncs chain first
-//   POST /api/orders {amount, item}       create an order -> per-order virtual address (no tx)
-//   POST /api/faucet {address}            testnet top-up for demo/connected wallets
-//   POST /api/admin/<action> {paymentId}  merchant / resolver actions: the order's key (x-held-order-key, given to the
-//                                         browser that created the order) or the owner token (x-held-admin)
-//   POST /api/admin/reset                 fresh demo: no orders, next order #1042, index from the current block
+//   GET  /api/config                       network settings + indexer health
+//   POST /api/auth {address, issued, signature}   wallet sign-in (see signInMessage) -> session token
+//   GET  /api/me                           signed-in wallet + its merchant record, if registered
+//   POST /api/merchants {name, arbiter, masterId}  register the signed-in wallet as a merchant (verified on-chain)
+//   GET  /api/orders                       the signed-in merchant's orders            -> syncs chain first
+//   POST /api/orders {amount, item}        signed-in merchant creates an order (per-order virtual address, no tx)
+//   GET  /api/orders/:id                   one order (buyer page, public)            -> syncs chain first
+//   GET  /api/disputes?resolver=0x…        disputed payments a resolver decides (public: all of it is on-chain)
+//   POST /api/faucet {address}             testnet only: top-up for buyers and merchants
 //
-// Held never signs for buyers: buyer wallets call HeldArbiter directly. The merchant/resolver keys below are those
-// roles' own testnet keys, and the arbiter contract still limits every outcome to "merchant" or "original payer".
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
-import { parseUnits, type Abi, type Address, type Hex } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+// Held's server holds no keys and signs nothing: buyers, merchants and resolvers sign every action in their own
+// wallets, and HeldArbiter limits every outcome to "the merchant" or "the original payer".
+import { createHash, randomBytes } from 'node:crypto'
+import { isAddress, parseUnits, type Address, type Hex } from 'viem'
 import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
-import { orderAddress, walletFor, pub } from '../scripts/lib.ts'
-import type { AdminAction, AdminResult, Db, Deployment, StoredOrder, StoredPayment } from '../shared/api.ts'
+import { verifyMerchant } from './merchants.ts'
+import { orderAddress, pub } from '../scripts/lib.ts'
+import { signInMessage, type Db, type Network, type StoredOrder } from '../shared/api.ts'
 
-const GUARD = '0xB10C000000000000000000000000000000000000'
-const guardAbi = [{ name: 'claim', type: 'function', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'to' }, { type: 'bytes', name: 'receipt' }], outputs: [] },
-  { name: 'UnauthorizedClaimer', type: 'error', inputs: [] }, { name: 'InvalidClaimAddress', type: 'error', inputs: [] }, { name: 'InvalidReceipt', type: 'error', inputs: [] }] as const
-
-// 1..65535; 0 is the prefix of addresses from before per-database prefixes.
+// 1..65535, so no two databases (local, live, previews) hand out the same order addresses.
 export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
-export const emptyDb = (lastBlock: string, nextOrderId = 1042): Db =>
-  ({ orders: {}, payments: {}, lastBlock, nextOrderId, tagPrefix: newTagPrefix() })
+export const emptyDb = (lastBlock: string, nextOrderId = 1001): Db =>
+  ({ merchants: {}, orders: {}, payments: {}, sessions: {}, lastBlock, nextOrderId, tagPrefix: newTagPrefix() })
 
 // Where the API keeps its state: a JSON file locally, Upstash Redis on Vercel.
 export interface DbAdapter {
@@ -37,23 +34,20 @@ export interface DbAdapter {
   lock<T>(fn: () => Promise<T>, opts: { wait: boolean }): Promise<T | undefined>
   rateLimit(key: string, ms: number): Promise<boolean>
 }
-export interface Keys { merchantKey?: Hex, resolverKey?: Hex, adminToken: string }
 export interface ApiResponse { status: number, body: unknown }
 type Headers = Record<string, string | string[] | undefined>
 
-const sha256 = (s: string) => createHash('sha256').update(s).digest()
+const SESSION_DAYS = 7
+const SIGN_IN_MAX_AGE = 5 * 60
+const sha256hex = (s: string) => createHash('sha256').update(s).digest('hex')
 const header = (h: Headers, name: string) => { const v = h[name]; return typeof v === 'string' ? v : '' }
-// Constant-time check of a presented order key against the stored hash.
-const keyMatches = (key: string, keyHash?: string) =>
-  !!key && keyHash?.length === 64 && timingSafeEqual(sha256(key), Buffer.from(keyHash, 'hex'))
+const now = () => Math.floor(Date.now() / 1000)
 
-// viem errors nest the decoded revert under cause.data.
-type ViemishError = { cause?: { data?: { errorName?: string } }, shortMessage?: string, message?: string }
+// viem errors carry a short message.
+type ViemishError = { shortMessage?: string, message?: string }
 const errText = (e: unknown) => (e as ViemishError).shortMessage || (e as ViemishError).message || String(e)
 
-export function createApi({ deployment, abi, db, keys }: { deployment: Deployment, abi: Abi, db: DbAdapter, keys: Keys }) {
-  const merchantW = keys.merchantKey && walletFor(privateKeyToAccount(keys.merchantKey))
-  const resolverW = keys.resolverKey && walletFor(privateKeyToAccount(keys.resolverKey))
+export function createApi({ network, db }: { network: Network, db: DbAdapter }) {
   let head = 0n, lastErr: string | null = null, lastSync = 0
 
   async function load(): Promise<Db> {
@@ -70,59 +64,82 @@ export function createApi({ deployment, abi, db, keys }: { deployment: Deploymen
       // If another invocation is already syncing, just read what it wrote.
       await db.lock(async () => {
         const s = await load()
-        head = await createIndexer({ store: s, deployment }).sync()
+        head = await createIndexer({ store: s }).sync()
         await db.write(s)
       }, { wait: false })
       lastErr = null
     } catch (e) { lastErr = errText(e) }
   }
 
-  async function adminAction(action: AdminAction, pay: StoredPayment): Promise<AdminResult> {
-    const wallet = action.startsWith('resolve') ? resolverW : merchantW
-    if (!wallet) return { ok: false, error: 'role key not configured' }
-    try {
-      if (action === 'try-grab') {
-        // Demo proof: the merchant tries to pull held funds straight from the protocol guard. Must revert.
-        await pub.simulateContract({ account: wallet.account, address: GUARD, abi: guardAbi, functionName: 'claim', args: [deployment.merchant, pay.receipt] })
-        return { ok: true, grabbed: true, note: 'UNEXPECTED: claim would succeed' }
-      }
-      const fn = ({ refund: 'refund', release: 'release', 'resolve-release': 'release', 'resolve-refund': 'refund' } as const)[action]
-      await pub.simulateContract({ account: wallet.account, address: deployment.arbiter, abi, functionName: fn, args: [pay.receipt] })
-      const hash = await wallet.writeContract({ address: deployment.arbiter, abi, functionName: fn, args: [pay.receipt], gas: 2_000_000n })
-      const rc = await pub.waitForTransactionReceipt({ hash })
-      await sync(true)
-      return { ok: rc.status === 'success', tx: hash }
-    } catch (e) {
-      return { ok: false, reverted: true, error: (e as ViemishError).cause?.data?.errorName || errText(e) }
-    }
+  // The wallet behind "Authorization: Bearer <session>", or null.
+  function sessionOf(s: Db, headers: Headers): Address | null {
+    const token = header(headers, 'authorization').replace(/^Bearer /, '')
+    const sess = token ? s.sessions[sha256hex(token)] : undefined
+    return sess && sess.exp > now() ? sess.address : null
   }
 
-  async function handle(method: string, path: string, headers: Headers, body: Record<string, unknown> = {}): Promise<ApiResponse> {
+  async function handle(method: string, path: string, headers: Headers, body: Record<string, unknown> = {}, query: URLSearchParams = new URLSearchParams()): Promise<ApiResponse> {
     const ok = (b: unknown, status = 200): ApiResponse => ({ status, body: b })
     if (method === 'OPTIONS') return ok({}, 204)
-    if (path === '/api/config') return ok({ ...deployment, openAdmin: keys.adminToken === 'demo', head: head.toString(), indexerError: lastErr, now: Math.floor(Date.now() / 1000) })
+    if (path === '/api/config') return ok({ ...network, head: head.toString(), indexerError: lastErr, now: now() })
+
+    if (path === '/api/auth' && method === 'POST') {
+      const { address, issued, signature } = body
+      if (typeof address !== 'string' || !isAddress(address) || typeof issued !== 'number' || typeof signature !== 'string')
+        return ok({ error: 'Bad sign-in request.' }, 400)
+      if (Math.abs(now() - issued) > SIGN_IN_MAX_AGE) return ok({ error: 'Sign-in expired. Please sign again.' }, 401)
+      const message = signInMessage(address, header(headers, 'host'), issued)
+      const valid = await pub.verifyMessage({ address, message, signature: signature as Hex }).catch(() => false)
+      if (!valid) return ok({ error: "Signature doesn't match this wallet." }, 401)
+      const token = randomBytes(24).toString('base64url')
+      await mutate((s) => {
+        for (const [k, v] of Object.entries(s.sessions)) if (v.exp <= now()) delete s.sessions[k] // prune
+        s.sessions[sha256hex(token)] = { address, exp: now() + SESSION_DAYS * 86400 }
+      })
+      return ok({ token, address })
+    }
+    if (path === '/api/me') {
+      const s = await load()
+      const address = sessionOf(s, headers)
+      if (!address) return ok({ error: 'Not signed in.' }, 401)
+      return ok({ address, merchant: s.merchants[address.toLowerCase()] ?? null })
+    }
+
+    if (path === '/api/merchants' && method === 'POST') {
+      const address = sessionOf(await load(), headers)
+      if (!address) return ok({ error: 'Sign in with your wallet first.' }, 401)
+      const { name, arbiter, masterId } = body
+      if (typeof arbiter !== 'string' || !isAddress(arbiter) || typeof masterId !== 'string' || !/^0x[0-9a-fA-F]{8}$/.test(masterId))
+        return ok({ error: 'Bad registration request.' }, 400)
+      const v = await verifyMerchant(address, arbiter, masterId as Hex, network)
+      if (!v.ok) return ok({ error: v.error }, 422)
+      const merchant = { ...v.merchant, name: String(name || 'Merchant').slice(0, 60), registeredAt: now() }
+      await mutate((s) => { s.merchants[address.toLowerCase()] = merchant })
+      return ok({ merchant }, 201)
+    }
 
     if (path === '/api/orders' && method === 'POST') {
       const { amount, item } = body
       if (!amount || !/^\d+(\.\d{1,6})?$/.test(String(amount))) return ok({ error: 'Amount must be a number like 20 or 12.50' }, 400)
-      // The creating browser gets a key for this order's merchant/resolver actions; only its hash is stored.
-      const orderKey = randomBytes(18).toString('base64url')
-      const view = await mutate((s) => {
+      const r = await mutate((s) => {
+        const address = sessionOf(s, headers)
+        const merchant = address ? s.merchants[address.toLowerCase()] : undefined
+        if (!merchant) return null
         const id = s.nextOrderId++
-        s.tagPrefix ??= newTagPrefix() // databases created before prefixes get one on their next order
-        const order: StoredOrder = { id, item: String(item || `Order #${id}`).slice(0, 120), amount: parseUnits(String(amount), 6).toString(),
-          address: orderAddress(deployment.masterId, id, s.tagPrefix), createdAt: Math.floor(Date.now() / 1000),
-          keyHash: sha256(orderKey).toString('hex') }
+        const order: StoredOrder = { id, merchant: merchant.address, item: String(item || `Order #${id}`).slice(0, 120),
+          amount: parseUnits(String(amount), 6).toString(), address: orderAddress(merchant.masterId, id, s.tagPrefix), createdAt: now() }
         s.orders[id] = order
         return orderView(s, order)
       })
-      return ok({ ...view, orderKey }, 201)
+      return r ? ok(r, 201) : ok({ error: 'Only a signed-in, registered merchant can create orders.' }, 401)
     }
     if (path === '/api/orders') {
       await sync()
       const s = await load()
-      const list = Object.values(s.orders).sort((a, b) => b.id - a.id).map((o) => orderView(s, o))
-      return ok({ orders: list })
+      const address = sessionOf(s, headers)
+      if (!address) return ok({ error: 'Sign in with your merchant wallet.' }, 401)
+      const mine = Object.values(s.orders).filter((o) => o.merchant.toLowerCase() === address.toLowerCase())
+      return ok({ orders: mine.sort((a, b) => b.id - a.id).map((o) => orderView(s, o)) })
     }
     const m = path.match(/^\/api\/orders\/(\d+)$/)
     if (m) {
@@ -131,29 +148,22 @@ export function createApi({ deployment, abi, db, keys }: { deployment: Deploymen
       const o = s.orders[m[1]]
       return o ? ok(orderView(s, o)) : ok({ error: 'Order not found' }, 404)
     }
-    if (path === '/api/faucet' && method === 'POST') {
-      const address = typeof body.address === 'string' ? body.address : ''
-      if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return ok({ error: 'bad address' }, 400)
-      if (!(await db.rateLimit(`faucet:${address.toLowerCase()}`, 60_000))) return ok({ error: 'wait a minute' }, 429)
-      await Actions.faucet.fundSync(pub, { account: address as Address })
-      return ok({ ok: true })
-    }
-    const a = path.match(/^\/api\/admin\/(refund|release|resolve-release|resolve-refund|try-grab|reset)$/)
-    if (a && method === 'POST') {
-      const owner = header(headers, 'x-held-admin') === keys.adminToken
-      if (a[1] === 'reset') {
-        if (!owner) return ok({ error: 'Only the site owner can reset the demo.' }, 401)
-        const fresh = emptyDb((await pub.getBlockNumber()).toString())
-        await db.lock(() => db.write(fresh), { wait: true })
-        return ok({ ok: true, nextOrderId: fresh.nextOrderId, fromBlock: fresh.lastBlock })
-      }
+    if (path === '/api/disputes') {
+      const resolver = query.get('resolver') || ''
+      if (!isAddress(resolver)) return ok({ error: 'Add ?resolver=<address>.' }, 400)
+      await sync()
       const s = await load()
-      const pay = s.payments[String(body.paymentId)]
-      if (!pay) return ok({ error: 'payment not found' }, 404)
-      const order = Object.values(s.orders).find((o) => o.address.toLowerCase() === pay.recipient.toLowerCase())
-      if (!owner && !keyMatches(header(headers, 'x-held-order-key'), order?.keyHash))
-        return ok({ error: 'Merchant and resolver actions work in the browser that created this order.' }, 401)
-      return ok(await adminAction(a[1] as AdminAction, pay))
+      const theirs = new Set(Object.values(s.merchants).filter((mm) => mm.resolver.toLowerCase() === resolver.toLowerCase()).map((mm) => mm.address.toLowerCase()))
+      const orders = Object.values(s.orders).filter((o) => theirs.has(o.merchant.toLowerCase())).map((o) => orderView(s, o))
+      return ok({ orders: orders.filter((o) => o.payments.some((p) => p.status === 'disputed')).sort((a, b) => b.id - a.id) })
+    }
+    if (path === '/api/faucet' && method === 'POST') {
+      if (!network.testnet) return ok({ error: 'No faucet on mainnet.' }, 404)
+      const address = typeof body.address === 'string' ? body.address : ''
+      if (!isAddress(address)) return ok({ error: 'bad address' }, 400)
+      if (!(await db.rateLimit(`faucet:${address.toLowerCase()}`, 60_000))) return ok({ error: 'wait a minute' }, 429)
+      await Actions.faucet.fundSync(pub, { account: address })
+      return ok({ ok: true })
     }
     return ok({ error: 'not found' }, 404)
   }

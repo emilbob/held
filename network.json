@@ -1,0 +1,7 @@
+{
+  "chainId": 42431,
+  "testnet": true,
+  "acceptedToken": "0x20c0000000000000000000000000000000000000",
+  "defaultResolver": "0x3a7E18E039B555e9A8eD2036ef13865147C1EDfF",
+  "defaultWindow": 604800
+}

@@ -6,7 +6,7 @@ import puppeteer, { type CDPSession, type Frame, type Page, type Protocol, type 
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { here, APP, api, check, results, finish, log, sleep, chromeForTesting } from './lib.ts'
+import { here, APP, api, createOrder, check, results, finish, log, sleep, chromeForTesting } from './lib.ts'
 
 const executablePath = chromeForTesting()
 mkdirSync(join(here, 'shots'), { recursive: true })
@@ -90,9 +90,9 @@ const page = await browser.newPage()
 await addAuthenticator(page.target())
 try {
   // ORDER 1: connect Tempo Wallet -> pay -> confirm delivery
-  const o1 = await api('/orders', { item: 'Tempo Wallet test: notebook', amount: '2' })
+  const o1 = await createOrder('Tempo Wallet test: notebook', '2')
   await page.goto(`${APP}/#/pay/${o1.id}`, { waitUntil: 'networkidle2' })
-  await clickText(page, /Pay with Tempo Wallet/)
+  await clickText(page, /^Tempo Wallet$/)
   const connected = { done: async () => /Tempo Wallet\)/.test(await text(page, '.walletbox')), toString: () => 'connect' }
   await approveWallet(page, connected, 90000)
   await page.screenshot({ path: join(here, 'shots/tw-1-connected.png') }).catch(() => {})
@@ -114,11 +114,11 @@ try {
   check('confirm delivery (arbiter.release) signed by Tempo Wallet -> released', o.status === 'released', o.status + ' ' + (await text(page, '.result')))
 
   // ORDER 2: same wallet -> pay -> dispute
-  const o2 = await api('/orders', { item: 'Tempo Wallet test: logo', amount: '1' })
+  const o2 = await createOrder('Tempo Wallet test: logo', '1')
   await page.goto(`${APP}/#/pay/${o2.id}`, { waitUntil: 'networkidle2' })
   await sleep(1500)
   if (!/Tempo Wallet\)/.test(await text(page, '.walletbox'))) {
-    await clickText(page, /Pay with Tempo Wallet/)
+    await clickText(page, /^Tempo Wallet$/)
     await approveWallet(page, connected, 60000)
   }
   await clickText(page, /^Pay \$/)

@@ -145,3 +145,23 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Live after deploy (Sep 30, no owner token, a judge's view): flow 1 cheats blocked + release (#1058), flow 2
   dispute + resolver refund (#1059), flow 5 window expiry + release (#1060), orders without a key show the note.
   A tab left open across a deploy keeps the old bundle until reloaded.
+
+## Sep 30: demo -> real dApp (testnet)
+- Direction (user, Sep 30): real dApp, fully tested on testnet, then mainnet. Solo builder. Merchants: any, self-serve.
+- Server holds NO keys: merchant/resolver keys, admin token, order keys and /api/admin are gone. Every release, refund,
+  dispute and resolution is signed in that party's own wallet.
+- Merchants: #/merchant -> connect -> sign in (signInMessage, verified with pub.verifyMessage; Tempo passkeys supported)
+  -> one-time setup from their wallet (web/src/setup.ts: browser mining, registerMaster, deploy own HeldArbiter, receive
+  policy) -> POST /api/merchants, which verifies on-chain (server/merchants.ts): genuine bytecode (simulated deploy
+  compared byte for byte), merchant/token/window, master owner, receive policy -> dashboard.
+- Resolver console #/resolve (disputes for merchants who chose that resolver). network.json defaultResolver is still the
+  old testnet resolver address: REPLACE with the user's own resolver wallet before real use.
+- Storage: fresh .state/db-v2.json and Redis key held:v2:db (demo data untouched). Orders start at #1001.
+- ox 0.14.45 bug: browser mining workers can miss 'start' (handler set after WASM loads) -> search never finishes.
+  Fixed by a build-time patch in web/vite.config.ts (fails the build if ox changes) + a stall watchdog in setup.ts.
+  Mining time varies a lot (seconds to ~10 min); memoryless, so restarts lose nothing.
+- Tests (testnet): forge 33/33; npm run test:e2e 24/24 (new merchant setup, sign-in, fake + 1-byte-tampered arbiter
+  refused, orders, release, merchant refund, dispute -> resolver); Tempo Wallet 4/4; MetaMask 7/7 (e2e orders come from
+  a reusable test merchant, scripts/test-merchant.ts, key in .state/test-merchant.json); UI flows checked in Chrome.
+- Removed: scripts/day3-indexer-e2e.ts (old API), scripts/vercel-env.ts (pushed server keys), server/arbiter-abi.json.
+- To do before/after deploy: Vercel env MERCHANT_KEY / RESOLVER_KEY / HELD_ADMIN_TOKEN are unused now (delete them).

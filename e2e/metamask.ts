@@ -7,10 +7,8 @@ import { generateMnemonic, english, mnemonicToAccount } from 'viem/accounts'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import type { Target } from 'puppeteer-core'
-import type { EIP1193Provider } from 'viem'
-import { launchWithMetaMask, screen, sleep, log, clickTestId, clickText, here, APP, api, check, results, finish } from './lib.ts'
+import { launchWithMetaMask, screen, sleep, log, clickTestId, clickText, here, APP, api, createOrder, check, results, finish } from './lib.ts'
 
-declare global { interface Window { ethereum?: EIP1193Provider } }
 const mnemonic = generateMnemonic(english)
 const address = mnemonicToAccount(mnemonic).address
 const PASSWORD = 'HeldE2E-throwaway-' + Math.random().toString(36).slice(2)
@@ -60,7 +58,7 @@ const approveScript = `(() => {
     const alertTxt = 'ALERT: ' + (dlg.innerText || '').replace(/\\s+/g, ' ').slice(0, 700)
     const cb = [...dlg.querySelectorAll('input[type=checkbox]')].find((c) => !c.checked)
     if (cb) { cb.click(); return { txt: alertTxt, clicked: 'alert: acknowledge checkbox' } }
-    const b = [...dlg.querySelectorAll('button')].find((b) => /^(Confirm|Got it|Acknowledge|I understand|Continue)$/i.test((b.innerText || '').trim()) && !b.disabled)
+    const b = [...dlg.querySelectorAll('button')].find((b) => /^(Confirm|Got it|Acknowledge|I understand|Continue|Connect anyway)$/i.test((b.innerText || '').trim()) && !b.disabled)
     if (b) { b.click(); return { txt: alertTxt, clicked: 'alert: ' + b.innerText.trim() } }
     return { txt: alertTxt }
   }
@@ -111,16 +109,16 @@ try {
 
   // Fund the throwaway account on testnet (pathUSD pays gas on Tempo).
   await api('/faucet', { address })
-  const o1 = await api('/orders', { item: 'MetaMask test: notebook', amount: '2' })
+  const o1 = await createOrder('MetaMask test: notebook', '2')
   await held.goto(`${APP}/#/pay/${o1.id}`, { waitUntil: 'networkidle2' })
   await sleep(1000)
-  const hasBtn = await held.evaluate(() => [...document.querySelectorAll('button')].some((b) => /^Connect MetaMask$/.test(b.innerText.trim())))
-  check('"Connect MetaMask" listed when MetaMask is installed', hasBtn)
-  await clickHeld(/^Connect MetaMask$/)
+  const hasBtn = await held.evaluate(() => [...document.querySelectorAll('button')].some((b) => /^MetaMask$/.test(b.innerText.trim())))
+  check('"MetaMask" listed when MetaMask is installed', hasBtn)
+  await clickHeld(/^MetaMask$/)
   await approveMetaMask('connect+network', async () => /\(MetaMask\)/.test(await walletText()))
   const wb = await walletText()
   check('connect + add/switch to Tempo Moderato (chainId 42431)', /\(MetaMask\)/.test(wb) && wb.toLowerCase().includes(address.slice(2, 6).toLowerCase()), wb.split('\n')[1])
-  const chainId = await held.evaluate(() => window.ethereum!.request({ method: 'eth_chainId' }))
+  const chainId = await held.evaluate(() => (window as unknown as { ethereum: { request(a: { method: string }): Promise<string> } }).ethereum.request({ method: 'eth_chainId' }))
   check('MetaMask is on Tempo Moderato', chainId === '0xa5bf', chainId)
   await held.screenshot({ path: join(here, 'shots/mm-1-connected.png') }).catch(() => {})
 
@@ -134,12 +132,12 @@ try {
   check('confirm delivery (arbiter.release) signed in MetaMask -> released', o.status === 'released', o.status)
   await held.screenshot({ path: join(here, 'shots/mm-3-released.png') }).catch(() => {})
 
-  const o2 = await api('/orders', { item: 'MetaMask test: logo', amount: '1' })
+  const o2 = await createOrder('MetaMask test: logo', '1')
   // Full reload (hash-only navigation keeps React state from order 1).
   await held.goto(`${APP}/?o=${o2.id}#/pay/${o2.id}`, { waitUntil: 'networkidle2' })
   await sleep(1500)
   log('  order 2 page before pay:', (await payText()).replace(/\s+/g, ' ').slice(0, 200))
-  if (!/\(MetaMask\)/.test(await walletText())) { await clickHeld(/^Connect MetaMask$/); await approveMetaMask('reconnect', async () => /\(MetaMask\)/.test(await walletText())) }
+  if (!/\(MetaMask\)/.test(await walletText())) { await clickHeld(/^MetaMask$/); await approveMetaMask('reconnect', async () => /\(MetaMask\)/.test(await walletText())) }
   await actInHeld('pay2', /^Pay \$/, /Payment held/)
   log('  order 2 page after pay:', (await payText()).replace(/\s+/g, ' ').slice(0, 300))
   await actInHeld('dispute', /open dispute/, /Dispute open/)

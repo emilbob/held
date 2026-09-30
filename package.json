@@ -11,11 +11,11 @@
     "server": "node server/server.ts",
     "spike:day1": "node scripts/day1-contract-authority.ts",
     "test:virtual": "node scripts/day2-virtual-address.ts",
-    "test:indexer": "node scripts/day3-indexer-e2e.ts",
     "demo:reset": "node scripts/demo-reset.ts",
     "e2e:tempo-wallet": "node e2e/tempo-wallet.ts",
     "e2e:metamask": "node e2e/metamask.ts",
-    "typecheck": "tsc && npm --prefix web run typecheck"
+    "typecheck": "tsc && npm --prefix web run typecheck",
+    "test:e2e": "node scripts/merchant-e2e.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.35.0",

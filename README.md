@@ -25,24 +25,35 @@ Built for the Colosseum Crypto World's Fair, Tempo track.
 
 Every payment gets exactly one decision. No party can send held funds anywhere else, including the merchant, the resolver and Held.
 
+## How the dApp works
+
+- **Merchants** open `#/merchant`, connect the wallet that will be their checkout address, sign in (a signed message,
+  no transaction) and run a one-time setup from that wallet: mine the checkout address's TIP-1022 salt in the browser,
+  register it, deploy their own `HeldArbiter`, and set the receive policy. Held's server then verifies the setup
+  on-chain before listing the merchant, including a byte-for-byte check that the arbiter is the genuine contract.
+- **Buyers** open the checkout link (`#/pay/:id`), pay from any wallet, then confirm delivery or open a dispute.
+- **Resolvers** decide disputes at `#/resolve`: refund the buyer or pay the merchant, nothing else.
+
+Held's server holds no keys and signs nothing. Every release, refund, dispute and resolution is signed by that
+party's own wallet, and the arbiter contract enforces who may do what.
+
 ## Layout
 
 ```
-contracts/HeldArbiter.sol   the arbiter (recovery authority)
-scripts/setup-merchant.ts   one-time merchant setup: salt mining, virtual master, arbiter deploy, receive policy
-server/                     indexer (TransferBlocked + arbiter events -> order states) and JSON API
-web/                        React app: merchant dashboard (#/) and buyer pay / confirm / dispute page (#/pay/:id)
-deployment.json             current testnet deployment (public info)
-docs/                       testnet run logs, demo script
+contracts/HeldArbiter.sol   the arbiter (one per merchant; recovery authority for that merchant's payments)
+shared/                     data types shared by server and web; HeldArbiter.json (ABI + bytecode)
+server/                     API, sign-in, on-chain merchant verification (merchants.ts), multi-merchant indexer
+web/                        React app: landing, merchant setup + dashboard, buyer page, resolver console
+network.json                network settings: chain, accepted stablecoin, default resolver, default window
+docs/                       test run logs
 ```
 
 ## Run it
 
 ```bash
 npm install && npm run compile
-npm run setup                       # one-time, ~3 min (salt mining); creates .state/merchant.json (testnet keys)
 (cd web && npm install && npm run build)
-npm run server                      # http://localhost:8787
+npm run server                      # http://localhost:8787, then open #/merchant to set up a shop
 ```
 
 ## Tests
@@ -73,7 +84,7 @@ makes 3 fail. Log: [`docs/forge-test-run.log`](docs/forge-test-run.log).
 |---|---|---|
 | `npm run spike:day1` | contract as recovery authority: all rules + negative tests | 29/29 ([log](docs/day1-testnet-run.log)) |
 | `npm run test:virtual` | per-order virtual-address payments through the arbiter | 12/12 ([log](docs/day2-virtual-address-run.log)) |
-| `npm run test:indexer` | API + indexer: order states for release, dispute, wrong token, underpayment | 12/12 ([log](docs/day3-indexer-run.log)) |
+| `npm run test:e2e` | the real dApp: a new merchant sets up from its own wallet, sign-in, on-chain registration (fake and 1-byte-tampered arbiters refused), orders, release, merchant refund, dispute decided by the resolver's wallet | 24/24 ([log](docs/merchant-e2e-run.log)) |
 
 ### Wallets (browser end-to-end)
 

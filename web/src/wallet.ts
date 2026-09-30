@@ -95,16 +95,20 @@ async function tempoWalletProvider(): Promise<EIP1193Provider> {
 }
 
 // Demo wallet: a throwaway testnet key kept in this browser, so anyone can try Held without an extension.
-function demoAccount() {
-  let k = localStorage.getItem('held.demoKey') as Hex | null
-  if (!k) { k = generatePrivateKey(); localStorage.setItem('held.demoKey', k) }
+// One test wallet per role, so a merchant's checkout address (which holds every incoming payment) is never also the
+// buyer's wallet. Testnet only.
+export type Role = 'buyer' | 'merchant' | 'resolver'
+const demoKeyName = (role: Role) => (role === 'buyer' ? 'held.demoKey' : `held.demoKey.${role}`)
+function demoAccount(role: Role) {
+  let k = localStorage.getItem(demoKeyName(role)) as Hex | null
+  if (!k) { k = generatePrivateKey(); localStorage.setItem(demoKeyName(role), k) }
   return privateKeyToAccount(k)
 }
 
-export async function connect(kind: WalletKind, injected?: InjectedWallet): Promise<Wallet> {
+export async function connect(kind: WalletKind, injected?: InjectedWallet, role: Role = 'buyer'): Promise<Wallet> {
   if (kind === 'demo') {
-    const account = demoAccount()
-    return { kind, name: 'demo wallet in this browser', address: account.address, client: createWalletClient({ account, chain, transport: rpc() }) }
+    const account = demoAccount(role)
+    return { kind, name: 'test wallet in this browser', address: account.address, client: createWalletClient({ account, chain, transport: rpc() }) }
   }
   if (kind === 'tempo') {
     const provider = await tempoWalletProvider()
@@ -150,3 +154,6 @@ export async function arbiter(wallet: Wallet, address: Address, functionName: Ar
   if (rc.status !== 'success') throw new Error('Transaction reverted')
   return rc
 }
+
+// Sign-in: the wallet signs a plain message (no transaction, no funds).
+export const signMessage = (wallet: Wallet, message: string) => wallet.client.signMessage({ message })

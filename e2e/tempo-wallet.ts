@@ -107,7 +107,7 @@ try {
   check('pay with Tempo Wallet -> held', /Payment held/.test(await text(page, '.pay')))
 
   await clickText(page, /I got it/)
-  await approveWallet(page, { done: async () => /merchant has been paid/i.test(await text(page, '.pay')) || /🔒/.test(await text(page, '.pay')) }, 90000)
+  await approveWallet(page, { done: async () => /merchant has been paid/i.test(await text(page, '.pay')) || /🔒|testnet is busy/.test(await text(page, '.pay')) }, 90000)
   await page.screenshot({ path: join(here, 'shots/tw-3-released.png') }).catch(() => {})
   let o = await api(`/orders/${o1.id}`)
   for (let i = 0; i < 15 && o.status !== 'released'; i++) { await sleep(1000); o = await api(`/orders/${o1.id}`) }
@@ -124,7 +124,7 @@ try {
   await clickText(page, /^Pay \$/)
   await approveWallet(page, { done: async () => /Payment held/.test(await text(page, '.pay')) }, 90000)
   await clickText(page, /open dispute/)
-  await approveWallet(page, { done: async () => /Dispute open/.test(await text(page, '.pay')) || /🔒/.test(await text(page, '.pay')) }, 90000)
+  await approveWallet(page, { done: async () => /Dispute open/.test(await text(page, '.pay')) || /🔒|testnet is busy/.test(await text(page, '.pay')) }, 90000)
   await page.screenshot({ path: join(here, 'shots/tw-4-disputed.png') }).catch(() => {})
   o = await api(`/orders/${o2.id}`)
   for (let i = 0; i < 15 && o.status !== 'disputed'; i++) { await sleep(1000); o = await api(`/orders/${o2.id}`) }

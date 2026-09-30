@@ -83,6 +83,17 @@ const held = await browser.newPage()
 const clickHeld = async (re: RegExp, timeout = 30000) => { const t = Date.now(); while (Date.now() - t < timeout) { const r = await clickText(held, re); if (r) return r; await sleep(500) } return null }
 const walletText = () => held.$eval('.walletbox', (e) => (e as HTMLElement).innerText).catch(() => '')
 const payText = () => held.$eval('.pay', (e) => (e as HTMLElement).innerText).catch(() => '')
+// Click a Held button and approve in MetaMask. If the page says the testnet is busy (RPC rate limit, nothing sent),
+// do what the message tells a buyer to do: wait a few seconds and try again.
+async function actInHeld(what: string, button: RegExp, done: RegExp) {
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    await clickHeld(button)
+    await approveMetaMask(what, async () => done.test(await payText()) || /🔒|testnet is busy/.test(await payText()))
+    if (!/testnet is busy/.test(await payText())) return
+    log(`  ${what}: testnet busy (rate limited), retrying in ${5 * attempt}s`)
+    await sleep(5000 * attempt)
+  }
+}
 try {
   const ob = await onboard()
   check('MetaMask onboarded with a fresh throwaway seed', true, (ob.text || '').slice(0, 60))
@@ -102,13 +113,11 @@ try {
   check('MetaMask is on Tempo Moderato', chainId === '0xa5bf', chainId)
   await held.screenshot({ path: join(here, 'shots/mm-1-connected.png') }).catch(() => {})
 
-  await clickHeld(/^Pay \$/)
-  await approveMetaMask('pay', async () => /Payment held/.test(await payText()) || /🔒/.test(await payText()))
-  check('pay with MetaMask -> held', /Payment held/.test(await payText()), (await payText()).match(/🔒.*/)?.[0] || '')
+  await actInHeld('pay', /^Pay \$/, /Payment held/)
+  check('pay with MetaMask -> held', /Payment held/.test(await payText()), (await payText()).match(/(🔒|Tempo's testnet is busy).*/)?.[0] || '')
   await held.screenshot({ path: join(here, 'shots/mm-2-held.png') }).catch(() => {})
 
-  await clickHeld(/^I got it/)
-  await approveMetaMask('release', async () => /merchant has been paid/i.test(await payText()) || /🔒/.test(await payText()))
+  await actInHeld('release', /^I got it/, /merchant has been paid/i)
   let o = await api(`/orders/${o1.id}`)
   for (let i = 0; i < 15 && o.status !== 'released'; i++) { await sleep(1000); o = await api(`/orders/${o1.id}`) }
   check('confirm delivery (arbiter.release) signed in MetaMask -> released', o.status === 'released', o.status)
@@ -120,11 +129,9 @@ try {
   await sleep(1500)
   log('  order 2 page before pay:', (await payText()).replace(/\s+/g, ' ').slice(0, 200))
   if (!/\(browser wallet\)/.test(await walletText())) { await clickHeld(/^Connect browser wallet$/); await approveMetaMask('reconnect', async () => /\(browser wallet\)/.test(await walletText())) }
-  await clickHeld(/^Pay \$/)
-  await approveMetaMask('pay2', async () => /Payment held/.test(await payText()) || /🔒/.test(await payText()))
+  await actInHeld('pay2', /^Pay \$/, /Payment held/)
   log('  order 2 page after pay:', (await payText()).replace(/\s+/g, ' ').slice(0, 300))
-  log('  clicked:', await clickHeld(/open dispute/))
-  await approveMetaMask('dispute', async () => /Dispute open/.test(await payText()) || /🔒/.test(await payText()))
+  await actInHeld('dispute', /open dispute/, /Dispute open/)
   o = await api(`/orders/${o2.id}`)
   for (let i = 0; i < 15 && o.status !== 'disputed'; i++) { await sleep(1000); o = await api(`/orders/${o2.id}`) }
   check('open dispute (arbiter.dispute) signed in MetaMask -> disputed', o.status === 'disputed', o.status)

@@ -9,9 +9,15 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 export const PATHUSD: Address = '0x20c0000000000000000000000000000000000000'
 export const WRONG_TOKEN: Address = '0x20c0000000000000000000000000000000000001'
 export const chain = tempoModerato.extend({ feeToken: PATHUSD })
-export const pub = createPublicClient({ chain, transport: http() })
+// Tempo's public testnet RPC rate-limits in bursts ("Request exceeds defined limit", -32005). viem retries that
+// code, but its default (3 tries, ~2 s) gives up too early; back off for up to ~18 s instead.
+export const rpc = () => http(undefined, { retryCount: 5, retryDelay: 300 })
+// True for RPC rate-limit rejections, so a check that expects a contract revert never passes on one.
+export const isRpcLimit = (e: unknown) => /exceeds defined limit|rate limit|too many requests/i.test(String((e as Error)?.message ?? e))
+
+export const pub = createPublicClient({ chain, transport: rpc() })
 export const walletFor = (account: Account) =>
-  createClient({ account, chain, transport: http() }).extend(publicActions).extend(walletActions)
+  createClient({ account, chain, transport: rpc() }).extend(publicActions).extend(walletActions)
 
 export const root = new URL('../', import.meta.url)
 export const artifact = () => JSON.parse(readFileSync(new URL('out/HeldArbiter.json', root), 'utf8'))
@@ -41,8 +47,14 @@ export const bal = async (account: Address, token: Address = PATHUSD) =>
 export const fmt = (x: bigint) => formatUnits(x, 6)
 
 // Order id -> 6-byte userTag -> per-order virtual address. No tx, no cost.
-export const orderTag = (orderId: number | bigint): Hex => `0x${BigInt(orderId).toString(16).padStart(12, '0')}`
-export const orderAddress = (masterId: Hex, orderId: number | bigint): Address => VirtualAddress.from({ masterId, userTag: orderTag(orderId) })
+// userTag = prefix (high 16 bits) | order id (low 32 bits). Each order database picks a random prefix, so databases
+// that share the merchant (local, live, previews, and each demo reset) never hand out the same address twice.
+export const orderTag = (orderId: number | bigint, prefix = 0): Hex => {
+  if (BigInt(orderId) >= 1n << 32n) throw new Error(`order id ${orderId} does not fit in 32 bits`)
+  return `0x${((BigInt(prefix) << 32n) | BigInt(orderId)).toString(16).padStart(12, '0')}`
+}
+export const orderAddress = (masterId: Hex, orderId: number | bigint, prefix = 0): Address =>
+  VirtualAddress.from({ masterId, userTag: orderTag(orderId, prefix) })
 export const orderIdOf = (addr: Address): number | null =>
   VirtualAddress.isVirtual(addr) ? Number(BigInt(VirtualAddress.parse(addr).userTag)) : null
 

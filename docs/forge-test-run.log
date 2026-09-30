@@ -1,12 +1,10 @@
-Compiling 1 files with Solc 0.8.28
-Solc 0.8.28 finished in 56.68ms
-Compiler run successful!
+No files changed, compilation skipped
 
 Ran 33 tests for test/HeldArbiter.t.sol:HeldArbiterTest
-[PASS] testFuzz_FundsOnlyReachMerchantOrPayer(uint8[6],uint32[6]) (runs: 512, μ: 1385892, ~: 1421541)
-[PASS] testFuzz_RandomCallerPowerless(address) (runs: 512, μ: 933883, ~: 934821)
-[PASS] testFuzz_ReleaseAndRefundMoveExactAmount(uint256,bool) (runs: 512, μ: 1178053, ~: 1179594)
-[PASS] testFuzz_WindowBoundary(uint64) (runs: 512, μ: 1160319, ~: 1152147)
+[PASS] testFuzz_FundsOnlyReachMerchantOrPayer(uint8[6],uint32[6]) (runs: 512, μ: 1371691, ~: 1421600)
+[PASS] testFuzz_RandomCallerPowerless(address) (runs: 512, μ: 934484, ~: 934821)
+[PASS] testFuzz_ReleaseAndRefundMoveExactAmount(uint256,bool) (runs: 512, μ: 1174293, ~: 1179484)
+[PASS] testFuzz_WindowBoundary(uint64) (runs: 512, μ: 1161462, ~: 1152832)
 [PASS] test_AnyoneCanReleaseAfterWindow() (gas: 1173407)
 [PASS] test_BuyerCannotSelfRefundAcceptedToken() (gas: 860308)
 [PASS] test_BuyerConfirmsDelivery_ReleasesToMerchant() (gas: 1189019)
@@ -36,6 +34,6 @@ Ran 33 tests for test/HeldArbiter.t.sol:HeldArbiterTest
 [PASS] test_WrongToken_PayerCanSelfRefund() (gas: 1173359)
 [PASS] test_WrongToken_RefundAlwaysGoesToOriginator() (gas: 1187661)
 [PASS] test_WrongToken_StrangerCannotRefund() (gas: 862252)
-Suite result: ok. 33 passed; 0 failed; 0 skipped; finished in 42.88ms (166.66ms CPU time)
+Suite result: ok. 33 passed; 0 failed; 0 skipped; finished in 52.75ms (164.82ms CPU time)
 
-Ran 1 test suite in 43.23ms (42.88ms CPU time): 33 tests passed, 0 failed, 0 skipped (33 total tests)
+Ran 1 test suite in 57.85ms (52.75ms CPU time): 33 tests passed, 0 failed, 0 skipped (33 total tests)

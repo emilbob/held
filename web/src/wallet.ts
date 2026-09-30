@@ -20,7 +20,9 @@ export const chain = defineChain({
   rpcUrls: { default: { http: ['https://rpc.moderato.tempo.xyz'] } },
   blockExplorers: { default: { name: 'Tempo Explorer', url: explorer } },
 })
-export const pub = createPublicClient({ chain, transport: http() })
+// Tempo's public testnet RPC rate-limits in bursts; back off for longer than viem's default before giving up.
+const rpc = () => http(undefined, { retryCount: 5, retryDelay: 300 })
+export const pub = createPublicClient({ chain, transport: rpc() })
 
 const receiptFn = (name: 'dispute' | 'release' | 'refund') =>
   ({ name, type: 'function', stateMutability: 'nonpayable', inputs: [{ type: 'bytes', name: 'receipt' }], outputs: [] }) as const
@@ -44,6 +46,8 @@ type MaybeViemError = { cause?: { data?: { errorName?: string } }, data?: { erro
 export const explain = (err: unknown): string => {
   const e = (err ?? {}) as MaybeViemError
   const name = e.cause?.data?.errorName || e.data?.errorName
+  if (!name && /rate limit|exceeds defined limit|too many requests/i.test(`${e.shortMessage} ${e.message}`))
+    return "Tempo's testnet is busy right now (rate limited). Nothing was sent. Wait a few seconds and try again."
   return (name && errorText[name]) || name || e.shortMessage || e.message || String(err)
 }
 
@@ -77,7 +81,7 @@ function demoAccount() {
 export async function connect(kind: WalletKind): Promise<Wallet> {
   if (kind === 'demo') {
     const account = demoAccount()
-    return { kind, address: account.address, client: createWalletClient({ account, chain, transport: http() }) }
+    return { kind, address: account.address, client: createWalletClient({ account, chain, transport: rpc() }) }
   }
   if (kind === 'tempo') {
     const provider = await tempoWalletProvider()

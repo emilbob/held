@@ -2,21 +2,22 @@
 // ReceivePolicyGuard.claim for both resume (-> merchant) and reroute (-> originator)?
 // Deploys HeldArbiter on Tempo Moderato with a short window and runs the full rule set, incl. negative tests.
 // Fresh random keys + faucet funds only.
-import { createClient, createPublicClient, http, parseUnits, formatUnits, publicActions, walletActions, type Address, type Hex } from 'viem'
+import { createClient, createPublicClient, parseUnits, formatUnits, publicActions, walletActions, type Address, type Hex } from 'viem'
 import { tempoModerato } from 'viem/chains'
 import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { ReceivePolicyReceipt } from 'ox/tempo'
 import { readFileSync } from 'node:fs'
+import { rpc, isRpcLimit } from './lib.ts'
 
 const { abi, bytecode } = JSON.parse(readFileSync(new URL('../out/HeldArbiter.json', import.meta.url), 'utf8'))
 const PATHUSD: Address = '0x20c0000000000000000000000000000000000000'
 const WRONG: Address = '0x20c0000000000000000000000000000000000001'
 const WINDOW = Number(process.env.WINDOW || 45)
 const chain = tempoModerato.extend({ feeToken: PATHUSD })
-const pub = createPublicClient({ chain, transport: http() })
+const pub = createPublicClient({ chain, transport: rpc() })
 const walletClientFor = (account: ReturnType<typeof privateKeyToAccount>) =>
-  createClient({ account, chain, transport: http() }).extend(publicActions).extend(walletActions)
+  createClient({ account, chain, transport: rpc() }).extend(publicActions).extend(walletActions)
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a)
 const bal = async (a: Address, token: Address = PATHUSD) => BigInt((await Actions.token.getBalance(pub, { account: a, token })).amount)
 const f = (x: bigint) => formatUnits(x, 6)
@@ -49,16 +50,17 @@ async function pay(amount: string, token: Address = PATHUSD) {
   const [r] = ReceivePolicyReceipt.fromTransactionReceipt(rc)
   return r as Hex
 }
-type Result = { ok: boolean, err?: string }
+// rpcLimit: the RPC rejected the request (rate limit), so it says nothing about the contract.
+type Result = { ok: boolean, err?: string, rpcLimit?: boolean }
 async function call(who: Who, fn: 'release' | 'refund' | 'dispute', receipt: Hex): Promise<Result> {
   try {
     const h = await cl[who].writeContract({ address: arbiter, abi, functionName: fn, args: [receipt], gas: 2_000_000n })
     const rc = await pub.waitForTransactionReceipt({ hash: h })
     return rc.status === 'success' ? { ok: true } : { ok: false, err: 'reverted' }
-  } catch (e) { const x = e as { shortMessage?: string, message: string }; return { ok: false, err: (x.shortMessage || x.message).split('\n')[0] } }
+  } catch (e) { const x = e as { shortMessage?: string, message: string }; return { ok: false, err: (x.shortMessage || x.message).split('\n')[0], rpcLimit: isRpcLimit(e) } }
 }
 const expectOk = async (name: string, who: Who, fn: 'release' | 'refund' | 'dispute', r: Hex) => { const x = await call(who, fn, r); check(name, x.ok, x.err || '') }
-const expectFail = async (name: string, who: Who, fn: 'release' | 'refund' | 'dispute', r: Hex) => { const x = await call(who, fn, r); check(name + ' (expect revert)', !x.ok, x.err || 'UNEXPECTEDLY SUCCEEDED') }
+const expectFail = async (name: string, who: Who, fn: 'release' | 'refund' | 'dispute', r: Hex) => { const x = await call(who, fn, r); check(name + ' (expect revert)', !x.ok && !x.rpcLimit, x.rpcLimit ? `RPC LIMIT, not a revert: ${x.err}` : x.err || 'UNEXPECTEDLY SUCCEEDED') }
 
 // ORDER A: delivered, buyer confirms -> contract RESUME claim to merchant
 let m0 = await bal(acct.merchant.address)
@@ -89,8 +91,8 @@ check('buyer refunded 15 (reroute by contract)', (await bal(acct.buyer.address))
 // Direct guard claims by humans must fail (only the arbiter contract is recovery authority)
 const rC = await pay('5')
 for (const who of ['merchant', 'buyer', 'resolver'] as const) {
-  const x = await Actions.receivePolicy.claimSync(cl[who], { receipt: rC, to: acct[who].address }).then((): Result => ({ ok: true }), (e): Result => ({ ok: false, err: e.shortMessage }))
-  check(`${who} direct guard.claim on C (expect revert)`, !x.ok, x.err || 'UNEXPECTEDLY SUCCEEDED')
+  const x = await Actions.receivePolicy.claimSync(cl[who], { receipt: rC, to: acct[who].address }).then((): Result => ({ ok: true }), (e): Result => ({ ok: false, err: e.shortMessage, rpcLimit: isRpcLimit(e) }))
+  check(`${who} direct guard.claim on C (expect revert)`, !x.ok && !x.rpcLimit, x.rpcLimit ? `RPC LIMIT, not a revert: ${x.err}` : x.err || 'UNEXPECTEDLY SUCCEEDED')
 }
 
 // ORDER D: merchant refunds voluntarily

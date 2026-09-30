@@ -1,13 +1,17 @@
-07:39:52 PASS create order returns a virtual address 0x82bfcadafdfdfdfdfdfdfdfdfdfd00000bab1b04
-07:39:55 PASS order A -> held (indexer matched payment to order) held
-07:39:55 PASS order A exposes receipt + window end 
-07:39:57 PASS order A -> released 
-07:40:02 PASS order B -> disputed 
-07:40:05 PASS order B -> refunded 
-07:40:09 PASS order C wrong token flagged, order still awaiting payment [[true,"held"]]
-07:40:14 PASS order C wrong-token payment -> refunded 
-07:40:17 PASS order D underpaid flag 
-07:40:20 PASS order D merchant voluntary refund -> refunded 
-07:40:23 PASS stranger early release rejected, order E stays held 
-07:40:23 PASS GET /orders lists all 5 5
-07:40:23 12/12 checks passed
+
+> held@0.1.0 test:indexer
+> node scripts/day3-indexer-e2e.ts
+
+07:07:49 PASS create order returns a virtual address 0x82bfcadafdfdfdfdfdfdfdfdfdfd0000368d9dd5
+07:07:52 PASS order A -> held (indexer matched payment to order) held
+07:07:52 PASS order A exposes receipt + window end 
+07:07:54 PASS order A -> released 
+07:07:59 PASS order B -> disputed 
+07:08:02 PASS order B -> refunded 
+07:08:07 PASS order C wrong token flagged, order still awaiting payment [[true,"held"]]
+07:08:12 PASS order C wrong-token payment -> refunded 
+07:08:15 PASS order D underpaid flag 
+07:08:18 PASS order D merchant voluntary refund -> refunded 
+07:08:21 PASS stranger early release rejected, order E stays held reverted
+07:08:21 PASS GET /orders lists all 5 5
+07:08:21 12/12 checks passed

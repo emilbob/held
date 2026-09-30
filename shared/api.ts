@@ -16,7 +16,7 @@ export interface HistoryEntry {
 export interface StoredPayment {
   id: Hex
   receipt: Hex
-  orderId: number | null // null if the recipient is not one of our virtual addresses
+  userTag: number | null // recipient's virtual-address tag (prefix + order id); null if not a virtual address
   payer: Address
   recipient: Address
   token: Address
@@ -51,6 +51,7 @@ export interface Db {
   payments: Record<string, StoredPayment>
   lastBlock: string
   nextOrderId: number
+  tagPrefix?: number // random per database (see orderTag); absent in databases created before Sep 30
 }
 
 export interface Deployment {

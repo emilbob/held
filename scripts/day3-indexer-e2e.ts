@@ -7,7 +7,7 @@ import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { ReceivePolicyReceipt } from 'ox/tempo'
 import { parseUnits, type Address, type Hex } from 'viem'
-import { pub, walletFor, artifact, requireState, log, PATHUSD, WRONG_TOKEN } from './lib.ts'
+import { pub, walletFor, artifact, requireState, log, isRpcLimit, PATHUSD, WRONG_TOKEN } from './lib.ts'
 import type { Order } from '../shared/api.ts'
 
 const PORT = 8799, DB = '/tmp/held-e2e-db.json', API = `http://localhost:${PORT}/api`
@@ -88,9 +88,9 @@ try {
   const E = await api('/orders', { amount: '3', item: 'Coffee' })
   const rE = await pay(E.address, '3')
   await waitStatus(E.id, 'held')
-  const x = await act(walletFor(stranger), 'release', rE).catch(() => 'reverted')
+  const x = await act(walletFor(stranger), 'release', rE).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
   o = await api(`/orders/${E.id}`)
-  check('stranger early release rejected, order E stays held', x !== 'success' && o.status === 'held')
+  check('stranger early release rejected, order E stays held', x === 'reverted' && o.status === 'held', x)
 
   const list = await api<{ orders: Order[] }>('/orders')
   check('GET /orders lists all 5', list.orders.length === 5, String(list.orders.length))

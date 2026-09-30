@@ -3,7 +3,7 @@
 import { createServer, type IncomingMessage } from 'node:http'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs'
 import { extname, join, normalize, dirname } from 'node:path'
-import { createApi, toJson, type DbAdapter } from './core.ts'
+import { createApi, emptyDb, toJson, type DbAdapter } from './core.ts'
 import type { Hex } from 'viem'
 import type { Db } from '../shared/api.ts'
 import { loadState } from '../scripts/lib.ts'
@@ -37,7 +37,7 @@ const db: DbAdapter = {
 // First run with HELD_ORDER_START (used by the e2e scripts): seed an empty DB with that order number.
 if (process.env.HELD_ORDER_START && !existsSync(DB)) {
   const { pub } = await import('../scripts/lib.ts')
-  await db.write({ orders: {}, payments: {}, lastBlock: (await pub.getBlockNumber()).toString(), nextOrderId: Number(process.env.HELD_ORDER_START) })
+  await db.write(emptyDb((await pub.getBlockNumber()).toString(), Number(process.env.HELD_ORDER_START)))
 }
 
 const st = loadState()

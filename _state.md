@@ -113,3 +113,20 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Verified: typecheck; local TS server returns identical orders to the old JS server (13/13); Vercel preview + prod
   serve the API from Redis; compile/export-abi output byte-identical. MetaMask e2e is 5/7 but the old JS build
   failed the same way (Tempo RPC "Request is being rate limited"); rerun when the testnet is calm.
+
+## Sep 30: UI fine-tuning + full testnet regression (all pass)
+- UI: new transparent logo (#D5F94F) and matching accent; phone layout (no overflow 320-1440px); buyer step bar
+  (Pay > Held until delivery > Paid to merchant / Refunded, red "Disputed"); Copy address feedback; dashboard
+  result list capped at 4; a rate-limited RPC now shows "Tempo's testnet is busy... Nothing was sent" (no 🔒).
+- FIX (would have broken the live demo): order addresses depended only on the order number, and the local
+  server, live site and previews all share one merchant and number from #1042. A new order inherited on-chain
+  payments made to another environment's order with the same number (seen: local #1059/#1060 showed Sep 26 live
+  payments). Now each order DB has a random 16-bit tagPrefix (userTag = prefix<<32 | id) and payments match orders
+  by address. Old DBs get a prefix on their next order; existing orders keep their addresses.
+- RPC: Tempo's public RPC rate-limits in bursts ("Request exceeds defined limit" / "Request is being rate
+  limited"). Clients back off longer (5 retries); day1/day3 expected-revert checks no longer pass on an RPC error
+  (they did before: a false pass); the MetaMask e2e retries like a user when the page says the testnet is busy.
+- Regression, all on Moderato against the TS server: forge 33/33, day1 29/29, day2 12/12, day3 12/12,
+  MetaMask 7/7, Tempo Wallet 4/4, UI flows 1-5 in the browser (release + both merchant cheats blocked;
+  dispute -> resolver refund; wrong token flagged + returned; stranger dispute blocked; window expiry -> release).
+  Logs in docs/*-run.log.

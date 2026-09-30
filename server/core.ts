@@ -22,7 +22,10 @@ const GUARD = '0xB10C000000000000000000000000000000000000'
 const guardAbi = [{ name: 'claim', type: 'function', stateMutability: 'nonpayable', inputs: [{ type: 'address', name: 'to' }, { type: 'bytes', name: 'receipt' }], outputs: [] },
   { name: 'UnauthorizedClaimer', type: 'error', inputs: [] }, { name: 'InvalidClaimAddress', type: 'error', inputs: [] }, { name: 'InvalidReceipt', type: 'error', inputs: [] }] as const
 
-export const emptyDb = (lastBlock: string): Db => ({ orders: {}, payments: {}, lastBlock, nextOrderId: 1042 })
+// 1..65535; 0 is the prefix of addresses from before per-database prefixes.
+export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
+export const emptyDb = (lastBlock: string, nextOrderId = 1042): Db =>
+  ({ orders: {}, payments: {}, lastBlock, nextOrderId, tagPrefix: newTagPrefix() })
 
 // Where the API keeps its state: a JSON file locally, Upstash Redis on Vercel.
 export interface DbAdapter {
@@ -96,8 +99,9 @@ export function createApi({ deployment, abi, db, keys }: { deployment: Deploymen
       if (!amount || !/^\d+(\.\d{1,6})?$/.test(String(amount))) return ok({ error: 'Amount must be a number like 20 or 12.50' }, 400)
       const view = await mutate((s) => {
         const id = s.nextOrderId++
+        s.tagPrefix ??= newTagPrefix() // databases created before prefixes get one on their next order
         const order: StoredOrder = { id, item: String(item || `Order #${id}`).slice(0, 120), amount: parseUnits(String(amount), 6).toString(),
-          address: orderAddress(deployment.masterId, id), createdAt: Math.floor(Date.now() / 1000) }
+          address: orderAddress(deployment.masterId, id, s.tagPrefix), createdAt: Math.floor(Date.now() / 1000) }
         s.orders[id] = order
         return orderView(s, order)
       })

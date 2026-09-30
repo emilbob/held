@@ -37,7 +37,7 @@ export function createIndexer({ store, deployment }: { store: Db, deployment: De
       if (store.payments[id]) continue
       store.payments[id] = {
         id, receipt,
-        orderId: orderIdOf(d.recipient),
+        userTag: orderIdOf(d.recipient),
         payer: d.originator,
         recipient: d.recipient,
         token: d.token,
@@ -77,8 +77,10 @@ export function createIndexer({ store, deployment }: { store: Db, deployment: De
 }
 
 // Order view = order + its payments, with a single derived status for the UI.
+// Payments match by address, so payments to another database's orders (same merchant) never show up here.
 export function orderView(store: Db, order: StoredOrder, now = Math.floor(Date.now() / 1000)): Order {
-  const payments = Object.values(store.payments).filter((p) => p.orderId === order.id)
+  const address = order.address.toLowerCase()
+  const payments = Object.values(store.payments).filter((p) => p.recipient.toLowerCase() === address)
   const main = payments.find((p) => !p.wrongToken)
   let status: Order['status'] = 'awaiting_payment'
   if (main) {

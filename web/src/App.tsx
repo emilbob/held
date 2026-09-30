@@ -63,6 +63,21 @@ const Badge = ({ status }: { status: OrderStatus }) => {
   return <span className={`badge ${color}`}>{label}</span>
 }
 
+// Buyer progress: pay -> held until delivery -> settled (paid to merchant or refunded).
+function Steps({ status }: { status: OrderStatus }) {
+  const at = status === 'awaiting_payment' ? 0 : status === 'released' || status === 'refunded' ? 3 : 1
+  const labels = ['Pay', status === 'disputed' ? 'Disputed' : 'Held until delivery',
+    status === 'refunded' ? 'Refunded' : status === 'released' ? 'Paid to merchant' : 'Settled']
+  return (
+    <ol className="steps" aria-label="Payment progress">
+      {labels.map((l, i) => (
+        <li key={i} className={`${i < at ? 'done' : i === at ? 'now' : ''} ${i === 1 && status === 'disputed' ? 'dispute' : ''}`}
+          aria-current={i === at ? 'step' : undefined}>{l}</li>
+      ))}
+    </ol>
+  )
+}
+
 // ---------------------------------------------------------------- app
 export default function App() {
   const route = useRoute()
@@ -151,7 +166,7 @@ function OrderCard({ order: o }: { order: Order }) {
       setLog((l) => [{ label, ...r }, ...l].slice(0, 4))
     } catch (e) {
       // 401/404 etc: server-auth or not-found, NOT a contract revert.
-      setLog((l) => [{ label, ok: false, error: (e as Error).message }, ...l])
+      setLog((l) => [{ label, ok: false, error: (e as Error).message }, ...l].slice(0, 4))
     }
     setBusy(null)
   }
@@ -227,6 +242,7 @@ function PayPage({ id }: { id: string }) {
   const [qr, setQr] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean, text: string } | null>(null)
+  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
 
   useEffect(() => {
     if (!order) return
@@ -276,6 +292,7 @@ function PayPage({ id }: { id: string }) {
   return (
     <div className="pay">
       <div className="card checkout">
+        <Steps status={status} />
         <div className="merchant">Order #{order.id}</div>
         <h2>{order.item}</h2>
         <div className="big">{usd(order.amount)} <small>pathUSD</small></div>
@@ -290,7 +307,9 @@ function PayPage({ id }: { id: string }) {
               <div>
                 <label>Send exactly {usd(order.amount)} pathUSD on Tempo to</label>
                 <code className="addr">{order.address}</code>
-                <button className="ghost" onClick={() => navigator.clipboard.writeText(order.address)}>Copy address</button>
+                <button className="ghost" onClick={() => navigator.clipboard.writeText(order.address).then(() => setCopied('ok'), () => setCopied('failed'))
+                  .finally(() => setTimeout(() => setCopied(null), 2000))}>{copied === 'ok' ? 'Copied ✓' : 'Copy address'}</button>
+                {copied === 'failed' && <span className="muted small"> Couldn't copy: select the address above instead.</span>}
                 <p className="muted">Any wallet or exchange works: it's a plain token transfer. This address is unique to your order.</p>
                 <p className="vault-note">Your payment goes into Tempo's protection vault until you confirm delivery. If your wallet shows 0xB10C0000… as the recipient instead of the address above, that's Tempo's vault, not a mistake.</p>
               </div>
@@ -372,7 +391,7 @@ function PayPage({ id }: { id: string }) {
               : <b>Returned.</b>}
           </div>
         ))}
-        {msg && <div className={`result ${msg.ok ? 'ok' : 'blocked'}`}>{msg.ok ? '' : '🔒 '}{msg.text}</div>}
+        {msg && <div className={`result ${msg.ok ? 'ok' : 'blocked'}`}>{msg.ok || msg.text.startsWith("Tempo's testnet is busy") ? '' : '🔒 '}{msg.text}</div>}
       </div>
     </div>
   )

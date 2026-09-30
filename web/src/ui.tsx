@@ -106,7 +106,7 @@ export function Steps({ status }: { status: OrderStatus }) {
 // Result line under an action. A busy testnet RPC is not a rule violation, so it gets no lock.
 export type Msg = { ok: boolean, text: string } | null
 export const Result = ({ msg }: { msg: Msg }) => msg &&
-  <div className={`result ${msg.ok ? 'ok' : 'blocked'}`}>{msg.ok || msg.text.startsWith("Tempo's testnet is busy") ? '' : '🔒 '}{msg.text}</div>
+  <div className={`result ${msg.ok ? 'ok' : 'blocked'}`} role="status" aria-live="polite">{msg.ok || msg.text.startsWith("Tempo's testnet is busy") ? '' : '🔒 '}{msg.text}</div>
 
 // ---------------------------------------------------------------- wallet
 // One wallet per role and page. A remembered test wallet reconnects by itself; other wallets ask again.

@@ -68,7 +68,7 @@ export default function Pay({ id }: { id: string }) {
       <div className="card checkout">
         <Steps status={status} />
         <div className="merchant">{order.merchantInfo.name} · Order #{order.id}</div>
-        <h2>{order.item}</h2>
+        <h1>{order.item}</h1>
         <div className="big">{usd(order.amount)} <small>pathUSD</small></div>
         <Badge status={status} />
 
@@ -103,7 +103,7 @@ export default function Pay({ id }: { id: string }) {
       </div>
 
       {!settled && <div className="card walletbox">
-        <h3>Your wallet</h3>
+        <h2>Your wallet</h2>
         <WalletPicker w={w} />
 
         {wallet && status === 'awaiting_payment' && (

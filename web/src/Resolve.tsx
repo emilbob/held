@@ -24,7 +24,7 @@ export default function Resolve() {
   return (
     <div className="dash">
       <div className="card">
-        <h2>Resolve disputes</h2>
+        <h1>Resolve disputes</h1>
         <p className="muted">Connect the resolver wallet. You'll see open disputes for every merchant who chose it. The contract lets you do only
           two things: refund the buyer, or pay the merchant.</p>
         <WalletPicker w={w} note="Use the wallet merchants set as their resolver." />

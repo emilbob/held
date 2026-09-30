@@ -13,7 +13,7 @@ export default function Sandbox() {
   return (
     <div className="narrow">
       <div className="card sandbox">
-        <h2>Try Held in 2 minutes</h2>
+        <h1>Try Held in 2 minutes</h1>
         <p>A shared <b>Sandbox Shop</b> is already set up on Tempo testnet, so you can play every role without installing
           anything. Test funds are free and added automatically.</p>
         <ol className="roles">

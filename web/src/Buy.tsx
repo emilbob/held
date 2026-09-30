@@ -20,7 +20,8 @@ export default function Buy({ id }: { id: string }) {
   return (
     <div className="narrow">
       <div className="card">
-        {link && <><div className="muted">{link.merchantName}</div><h2>{link.item}</h2><div className="big">{usd(link.amount)} <small>pathUSD</small></div></>}
+        {!link && <h1>Checkout</h1>}
+        {link && <><div className="muted">{link.merchantName}</div><h1>{link.item}</h1><div className="big">{usd(link.amount)} <small>pathUSD</small></div></>}
         {error ? <p className="err">{error}</p> : <p className="muted">Creating your protected order…</p>}
       </div>
     </div>

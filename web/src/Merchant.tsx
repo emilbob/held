@@ -36,7 +36,7 @@ export default function MerchantPage() {
   if (!w.wallet) return (
     <div className="narrow">
       <div className="card">
-        <h2>Accept stablecoin payments with buyer protection</h2>
+        <h1>Accept stablecoin payments with buyer protection</h1>
         <p>Connect the wallet that will be your shop's checkout address. Buyers pay it; every payment is held until they
           confirm delivery or the protection window ends. You can refund anytime, and only you and the buyer's wallet ever receive the money.</p>
         <WalletPicker w={w} note="Use a wallet dedicated to your shop: after setup, every payment sent to it is held until released or refunded." />
@@ -46,7 +46,7 @@ export default function MerchantPage() {
   if (!signedIn || !me) return (
     <div className="narrow">
       <div className="card">
-        <h2>Sign in</h2>
+        <h1>Sign in</h1>
         <WalletPicker w={w} />
         <p className="muted">Sign a message to prove this wallet is yours. It's free and moves no funds.</p>
         <button className="primary" disabled={signing} onClick={signIn}>{signing ? 'Waiting for signature…' : 'Sign in with this wallet'}</button>
@@ -97,18 +97,18 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
   return (
     <div className="narrow">
       <form className="card setup" onSubmit={start}>
-        <h2>Set up your shop</h2>
+        <h1>Set up your shop</h1>
         <p className="muted">One time, from your wallet ({short(wallet.address)}). Your checkout address and your own arbiter contract: Held's server never holds your keys or your funds.</p>
-        <label>Shop name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My shop" maxLength={60} disabled={!!step} />
-        <label>Protection window (how long buyers can dispute)</label>
-        <div className="choices">
-          {windows.map((s) => <button type="button" key={s} className={window === s ? 'primary' : 'ghost'} disabled={!!step} onClick={() => setWindow(s)}>{duration(s)}</button>)}
+        <label htmlFor="shopname">Shop name</label>
+        <input id="shopname" value={name} onChange={(e) => setName(e.target.value)} placeholder="My shop" maxLength={60} disabled={!!step} />
+        <label id="windowlabel">Protection window (how long buyers can dispute)</label>
+        <div className="choices" role="group" aria-labelledby="windowlabel">
+          {windows.map((s) => <button type="button" key={s} aria-pressed={window === s} className={window === s ? 'primary' : 'ghost'} disabled={!!step} onClick={() => setWindow(s)}>{duration(s)}</button>)}
         </div>
         <details>
           <summary>Resolver (who decides disputes)</summary>
           <p className="muted small">Held's resolver by default. It can only refund the buyer or pay you, never anything else.</p>
-          <input value={resolver} onChange={(e) => setResolver(e.target.value.trim())} disabled={!!step} />
+          <input value={resolver} onChange={(e) => setResolver(e.target.value.trim())} aria-label="Resolver address" disabled={!!step} />
         </details>
         <ol className="setupsteps">
           {STEPS.map(([s, label], i) => (
@@ -149,6 +149,7 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
 
   return (
     <div className="dash">
+      <h1 className="sr-only">{m.name} dashboard</h1>
       <section className="summary">
         <div><label>{m.name}</label><a href={addrUrl(m.address)} target="_blank">{short(m.address)}</a></div>
         <div><label>Balance</label><b>{w.balance === null ? '…' : usd(w.balance)}</b></div>
@@ -158,9 +159,9 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
       </section>
 
       <form className="card neworder" onSubmit={create}>
-        <h3>New order</h3>
-        <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item" required />
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (USD)" className="amt" required />
+        <h2>New order</h2>
+        <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item" aria-label="Item" required />
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (USD)" aria-label="Amount in USD" inputMode="decimal" className="amt" required />
         <button disabled={busy}>{busy ? 'Creating…' : 'Create order'}</button>
         {formErr && <span className="err">{formErr}</span>}
         {created && (
@@ -291,12 +292,12 @@ function Links() {
 
   return (
     <section className="card links">
-      <h3>Checkout links</h3>
+      <h2>Checkout links</h2>
       <p className="muted small">A reusable link for one product at a fixed price. Every buyer who opens it gets their own protected order.
         Share it anywhere, or put the "Pay with Held" button on your website.</p>
       <form className="neworder" onSubmit={create}>
-        <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Product" required />
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Price (USD)" className="amt" required />
+        <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Product" aria-label="Product" required />
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Price (USD)" aria-label="Price in USD" inputMode="decimal" className="amt" required />
         <button disabled={busy}>{busy ? 'Creating…' : 'Create link'}</button>
         {formErr && <span className="err">{formErr}</span>}
       </form>

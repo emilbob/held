@@ -31,7 +31,7 @@ Every payment gets exactly one decision. No party can send held funds anywhere e
   no transaction) and run a one-time setup from that wallet: mine the checkout address's TIP-1022 salt in the browser,
   register it, deploy their own `HeldArbiter`, and set the receive policy. Held's server then verifies the setup
   on-chain before listing the merchant, including a byte-for-byte check that the arbiter is the genuine contract.
-- **Buyers** open the checkout link (`#/pay/:id`), pay from any wallet, then confirm delivery or open a dispute.
+- **Buyers** open the checkout link (`#/pay/:id`), pay from their own wallet, then confirm delivery or open a dispute.
 - **Checkout links** (`#/buy/:id`): a merchant makes a reusable link for one product at a fixed price; every buyer who
   opens it gets their own protected order. The dashboard also gives a copy-paste **"Pay with Held" button** (plain HTML,
   inline styles, no script) that works on any website builder.

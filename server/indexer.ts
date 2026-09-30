@@ -88,8 +88,9 @@ export function orderView(store: Db, order: StoredOrder, now = Math.floor(Date.n
     if (status === 'held' && now >= main.windowEndsAt) status = 'releasable' // window over, anyone can release
   }
   const paid = payments.filter((p) => !p.wrongToken).reduce((a, p) => a + BigInt(p.amount), 0n)
+  const { keyHash: _secret, ...visible } = order
   return {
-    ...order,
+    ...visible,
     status,
     underpaid: main ? paid < BigInt(order.amount) : false,
     payments: payments.map(({ history, ...p }) => ({ ...p, history,

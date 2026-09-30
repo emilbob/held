@@ -4,19 +4,25 @@ import QRCode from 'qrcode'
 import * as W from './wallet.js'
 import Landing from './Landing.tsx'
 import Logo from './Logo.tsx'
-import type { AdminAction, AdminResult, Config, Order, OrderStatus, Payment } from '../../shared/api.ts'
+import type { AdminAction, AdminResult, Config, CreatedOrder, Order, OrderStatus, Payment } from '../../shared/api.ts'
 
 // ---------------------------------------------------------------- helpers
-const api = async <T,>(path: string, body?: unknown): Promise<T> => {
+// Owner token: only the site owner sets held.admin (locally the server accepts 'demo').
+const ownerToken = () => { try { return localStorage.getItem('held.admin') } catch { return null } }
+const api = async <T,>(path: string, body?: unknown, orderKey?: string): Promise<T> => {
   const r = await fetch('/api' + path, body ? {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-held-admin': localStorage.getItem('held.admin') || 'demo' },
+    headers: { 'content-type': 'application/json', 'x-held-admin': ownerToken() || 'demo', ...(orderKey && { 'x-held-order-key': orderKey }) },
     body: JSON.stringify(body),
   } : undefined)
   const j = await r.json()
   if (!r.ok) throw new Error(j.error || r.statusText)
   return j as T
 }
+// Keys for orders created in this browser: they unlock merchant/resolver actions for those orders only.
+const ORDER_KEYS = 'held.orderKeys'
+const orderKeys = (): Record<string, string> => { try { return JSON.parse(localStorage.getItem(ORDER_KEYS) || '{}') } catch { return {} } }
+const saveOrderKey = (id: number, key: string) => { try { localStorage.setItem(ORDER_KEYS, JSON.stringify({ ...orderKeys(), [id]: key })) } catch {} }
 const usd = (base: string | bigint | number) => (Number(base) / 1e6).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 const short = (a?: string) => (a ? a.slice(0, 6) + '…' + a.slice(-4) : '')
 const txUrl = (h: Hex) => `${W.explorer}/tx/${h}`
@@ -116,7 +122,7 @@ function Dashboard() {
 
   const create = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true); setFormErr(null)
-    try { await api('/orders', { item, amount }) } catch (x) { setFormErr((x as Error).message) }
+    try { const o = await api<CreatedOrder>('/orders', { item, amount }); saveOrderKey(o.id, o.orderKey) } catch (x) { setFormErr((x as Error).message) }
     setBusy(false)
   }
   const orders = data?.orders || []
@@ -143,14 +149,14 @@ function Dashboard() {
       {err && <p className="err">API: {err}</p>}
       {cfg?.indexerError && <p className="err">Indexer: {cfg.indexerError}</p>}
       {orders.length === 0 && data && <p className="muted">No orders yet. Create one above, then open its buyer page.</p>}
-      {orders.map((o) => <OrderCard key={o.id} order={o} />)}
+      {orders.map((o) => <OrderCard key={o.id} order={o} owner={!!cfg?.openAdmin || !!ownerToken()} />)}
     </div>
   )
 }
 
 type LogEntry = AdminResult & { label: string }
 
-function OrderCard({ order: o }: { order: Order }) {
+function OrderCard({ order: o, owner }: { order: Order, owner: boolean }) {
   const now = useNow()
   const [log, setLog] = useState<LogEntry[]>([])
   const [busy, setBusy] = useState<AdminAction | null>(null)
@@ -159,10 +165,14 @@ function OrderCard({ order: o }: { order: Order }) {
   const left = main ? main.windowEndsAt - now : 0
   const status: OrderStatus = o.status === 'held' && main && left <= 0 ? 'releasable' : o.status
 
+  // Merchant/resolver buttons: for orders this browser created (it holds their key), or for the site owner.
+  const key = orderKeys()[o.id]
+  const canAct = !!key || owner
+  const needsDecision = (!!main && ['held', 'releasable', 'disputed'].includes(status)) || wrong.some((p) => p.status === 'held')
   const act = async (action: AdminAction, p: Payment, label: string) => {
     setBusy(action)
     try {
-      const r = await api<AdminResult>(`/admin/${action}`, { paymentId: p.id })
+      const r = await api<AdminResult>(`/admin/${action}`, { paymentId: p.id }, key)
       setLog((l) => [{ label, ...r }, ...l].slice(0, 4))
     } catch (e) {
       // 401/404 etc: server-auth or not-found, NOT a contract revert.
@@ -190,7 +200,10 @@ function OrderCard({ order: o }: { order: Order }) {
         {status === 'held' && <> · window closes in <b>{countdown(left)}</b></>}
       </div>
 
-      {main && (status === 'held') && (
+      {!canAct && needsDecision && (
+        <p className="muted small notmine">Created in another browser. Merchant and resolver actions for this order are only available there.</p>
+      )}
+      {canAct && main && (status === 'held') && (
         <div className="actions">
           <B action="refund" p={main} label="Refund buyer" />
           <span className="sep">Try to cheat:</span>
@@ -198,13 +211,13 @@ function OrderCard({ order: o }: { order: Order }) {
           <B action="try-grab" p={main} label="Take funds from the guard directly" kind="ghost" />
         </div>
       )}
-      {main && status === 'releasable' && (
+      {canAct && main && status === 'releasable' && (
         <div className="actions">
           <B action="release" p={main} label="Release to merchant (window over: anyone can)" kind="primary" />
           <B action="refund" p={main} label="Refund buyer" />
         </div>
       )}
-      {main && status === 'disputed' && (
+      {canAct && main && status === 'disputed' && (
         <div className="actions resolver">
           <span className="sep">Resolver decision:</span>
           <B action="resolve-release" p={main} label="Pay merchant" />
@@ -215,7 +228,7 @@ function OrderCard({ order: o }: { order: Order }) {
       {wrong.map((p) => (
         <div className="wrongtoken" key={p.id}>
           ⚠ Wrong token received: {usd(p.amount)} of <code>{short(p.token)}</code> from {short(p.payer)}. Held, not accepted.{' '}
-          {p.status === 'held' ? <B action="refund" p={p} label="Return to sender" /> : <b>{p.status === 'refunded' ? 'Returned to sender' : p.status}</b>}
+          {p.status === 'held' ? (canAct && <B action="refund" p={p} label="Return to sender" />) : <b>{p.status === 'refunded' ? 'Returned to sender' : p.status}</b>}
         </div>
       ))}
       {main && main.history.length > 1 && (

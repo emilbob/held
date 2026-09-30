@@ -64,6 +64,7 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 .meta { font-size: 13px; color: var(--muted); margin-top: 8px }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px }
 .sep { font-size: 12.5px; color: var(--muted); margin-left: 8px }
+.notmine { margin: 10px 0 0 }
 .history { margin-top: 10px; font-size: 12.5px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap }
 .result { margin-top: 8px; font-size: 13px; padding: 7px 10px; border-radius: 8px }
 .result.ok { background: #1c2b20; color: var(--green) }

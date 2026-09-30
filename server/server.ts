@@ -54,7 +54,7 @@ createServer(async (req, res) => {
   try {
     if (p.startsWith('/api/')) {
       const { status, body } = await api.handle(req.method ?? 'GET', p, req.headers, req.method === 'POST' ? await readBody(req) : {})
-      res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type, x-held-admin' })
+      res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type, x-held-admin, x-held-order-key' })
       return res.end(toJson(body))
     }
     let file = normalize(join(STATIC, p))

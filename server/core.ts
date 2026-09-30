@@ -6,11 +6,13 @@
 //   GET  /api/orders/:id                  one order (buyer page)                -> syncs chain first
 //   POST /api/orders {amount, item}       create an order -> per-order virtual address (no tx)
 //   POST /api/faucet {address}            testnet top-up for demo/connected wallets
-//   POST /api/admin/<action> {paymentId}  merchant / resolver actions (x-held-admin token)
+//   POST /api/admin/<action> {paymentId}  merchant / resolver actions: the order's key (x-held-order-key, given to the
+//                                         browser that created the order) or the owner token (x-held-admin)
 //   POST /api/admin/reset                 fresh demo: no orders, next order #1042, index from the current block
 //
 // Held never signs for buyers: buyer wallets call HeldArbiter directly. The merchant/resolver keys below are those
 // roles' own testnet keys, and the arbiter contract still limits every outcome to "merchant" or "original payer".
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { parseUnits, type Abi, type Address, type Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { Actions } from 'viem/tempo'
@@ -38,6 +40,12 @@ export interface DbAdapter {
 export interface Keys { merchantKey?: Hex, resolverKey?: Hex, adminToken: string }
 export interface ApiResponse { status: number, body: unknown }
 type Headers = Record<string, string | string[] | undefined>
+
+const sha256 = (s: string) => createHash('sha256').update(s).digest()
+const header = (h: Headers, name: string) => { const v = h[name]; return typeof v === 'string' ? v : '' }
+// Constant-time check of a presented order key against the stored hash.
+const keyMatches = (key: string, keyHash?: string) =>
+  !!key && keyHash?.length === 64 && timingSafeEqual(sha256(key), Buffer.from(keyHash, 'hex'))
 
 // viem errors nest the decoded revert under cause.data.
 type ViemishError = { cause?: { data?: { errorName?: string } }, shortMessage?: string, message?: string }
@@ -92,20 +100,23 @@ export function createApi({ deployment, abi, db, keys }: { deployment: Deploymen
   async function handle(method: string, path: string, headers: Headers, body: Record<string, unknown> = {}): Promise<ApiResponse> {
     const ok = (b: unknown, status = 200): ApiResponse => ({ status, body: b })
     if (method === 'OPTIONS') return ok({}, 204)
-    if (path === '/api/config') return ok({ ...deployment, head: head.toString(), indexerError: lastErr, now: Math.floor(Date.now() / 1000) })
+    if (path === '/api/config') return ok({ ...deployment, openAdmin: keys.adminToken === 'demo', head: head.toString(), indexerError: lastErr, now: Math.floor(Date.now() / 1000) })
 
     if (path === '/api/orders' && method === 'POST') {
       const { amount, item } = body
       if (!amount || !/^\d+(\.\d{1,6})?$/.test(String(amount))) return ok({ error: 'Amount must be a number like 20 or 12.50' }, 400)
+      // The creating browser gets a key for this order's merchant/resolver actions; only its hash is stored.
+      const orderKey = randomBytes(18).toString('base64url')
       const view = await mutate((s) => {
         const id = s.nextOrderId++
         s.tagPrefix ??= newTagPrefix() // databases created before prefixes get one on their next order
         const order: StoredOrder = { id, item: String(item || `Order #${id}`).slice(0, 120), amount: parseUnits(String(amount), 6).toString(),
-          address: orderAddress(deployment.masterId, id, s.tagPrefix), createdAt: Math.floor(Date.now() / 1000) }
+          address: orderAddress(deployment.masterId, id, s.tagPrefix), createdAt: Math.floor(Date.now() / 1000),
+          keyHash: sha256(orderKey).toString('hex') }
         s.orders[id] = order
         return orderView(s, order)
       })
-      return ok(view, 201)
+      return ok({ ...view, orderKey }, 201)
     }
     if (path === '/api/orders') {
       await sync()
@@ -129,8 +140,9 @@ export function createApi({ deployment, abi, db, keys }: { deployment: Deploymen
     }
     const a = path.match(/^\/api\/admin\/(refund|release|resolve-release|resolve-refund|try-grab|reset)$/)
     if (a && method === 'POST') {
-      if ((headers['x-held-admin'] || '') !== keys.adminToken) return ok({ error: 'Merchant and resolver actions need the demo admin token.' }, 401)
+      const owner = header(headers, 'x-held-admin') === keys.adminToken
       if (a[1] === 'reset') {
+        if (!owner) return ok({ error: 'Only the site owner can reset the demo.' }, 401)
         const fresh = emptyDb((await pub.getBlockNumber()).toString())
         await db.lock(() => db.write(fresh), { wait: true })
         return ok({ ok: true, nextOrderId: fresh.nextOrderId, fromBlock: fresh.lastBlock })
@@ -138,6 +150,9 @@ export function createApi({ deployment, abi, db, keys }: { deployment: Deploymen
       const s = await load()
       const pay = s.payments[String(body.paymentId)]
       if (!pay) return ok({ error: 'payment not found' }, 404)
+      const order = Object.values(s.orders).find((o) => o.address.toLowerCase() === pay.recipient.toLowerCase())
+      if (!owner && !keyMatches(header(headers, 'x-held-order-key'), order?.keyHash))
+        return ok({ error: 'Merchant and resolver actions work in the browser that created this order.' }, 401)
       return ok(await adminAction(a[1] as AdminAction, pay))
     }
     return ok({ error: 'not found' }, 404)

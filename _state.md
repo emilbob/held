@@ -130,3 +130,15 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   MetaMask 7/7, Tempo Wallet 4/4, UI flows 1-5 in the browser (release + both merchant cheats blocked;
   dispute -> resolver refund; wrong token flagged + returned; stranger dispute blocked; window expiry -> release).
   Logs in docs/*-run.log.
+
+## Sep 30: merchant/resolver actions without pasting a token (option A)
+- POST /api/orders returns a per-order key once (server stores sha256 only, never listed). The dashboard saves it
+  (localStorage held.orderKeys) and sends it as x-held-order-key; that order's merchant/resolver buttons then work
+  in the browser that created it. Other orders show a note instead of buttons. The owner token (x-held-admin,
+  HELD_ADMIN_TOKEN) still unlocks everything; demo reset is owner-only. Orders from before this have no key.
+- Verified (test server with a non-default owner token + a real testnet payment): 13/13 auth checks, plus the UI.
+- Live findings (Sep 30): Tempo Wallet 4/4 on held-lilac with no warnings; MetaMask 7/7 but MetaMask/Blockaid flags
+  held-lilac.vercel.app as malicious (connect + every tx). Not on MetaMask's public blocklist. Report a false
+  positive to Blockaid; record the demo with Tempo Wallet.
+- .state/admin-token no longer holds the token (the live site rejects it). The real one is HELD_ADMIN_TOKEN in
+  Vercel. Don't run scripts/vercel-env.ts until that file is fixed: it would push the file's contents as the token.

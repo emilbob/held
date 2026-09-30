@@ -38,9 +38,12 @@ export interface StoredOrder {
   amount: string // base units (6 decimals)
   address: Address
   createdAt: number
+  // sha256 of the order key handed to the browser that created the order; that key unlocks merchant/resolver
+  // actions for this order only. Absent on orders created before Sep 30. Never sent to clients.
+  keyHash?: string
 }
 // What the API returns: the order plus its payments and one derived status.
-export interface Order extends StoredOrder {
+export interface Order extends Omit<StoredOrder, 'keyHash'> {
   status: OrderStatus
   underpaid: boolean
   payments: Payment[]
@@ -65,10 +68,14 @@ export interface Deployment {
   acceptedToken: Address
 }
 export interface Config extends Deployment {
+  openAdmin: boolean // true when the server runs with the default local token, so every order's actions work
   head: string
   indexerError: string | null
   now: number
 }
+
+// POST /api/orders response: the new order plus its key, returned only this once.
+export type CreatedOrder = Order & { orderKey: string }
 
 export type AdminAction = 'refund' | 'release' | 'resolve-release' | 'resolve-refund' | 'try-grab'
 

@@ -5,11 +5,10 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import type { Address, Hex } from 'viem'
-import { pub, walletFor, log, PATHUSD } from './lib.ts'
+import type { Hex } from 'viem'
+import { pub, walletFor, log, requireState, PATHUSD } from './lib.ts'
 import { runSetup, type SetupState } from '../web/src/setup.ts'
 import { signInMessage } from '../shared/api.ts'
-import network from '../network.json' with { type: 'json' }
 
 const FILE = new URL('../.state/test-merchant.json', import.meta.url)
 type Saved = SetupState & { key: Hex }
@@ -25,7 +24,8 @@ export async function merchantSession(app: string, name = 'E2E Test Shop'): Prom
     await Actions.faucet.fundSync(pub, { account: acct.address }) // before the receive policy holds incoming funds
   }
   const r = await runSetup({ wallet: { kind: 'demo', name, address: acct.address, client: walletFor(acct) } as never, pub: pub as never,
-    resolver: network.defaultResolver as Address, token: PATHUSD, window: 300, state: saved, save, onStep: () => {} })
+    // The testnet test resolver (key in .state), never the real default resolver.
+    resolver: requireState().resolver, token: PATHUSD, window: 300, state: saved, save, onStep: () => {} })
 
   const host = new URL(app).host, issued = Math.floor(Date.now() / 1000)
   const signature = await acct.signMessage({ message: signInMessage(acct.address, host, issued) })

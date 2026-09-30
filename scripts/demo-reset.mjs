@@ -2,7 +2,7 @@
 // the current block, so the dashboard opens with zero orders and order numbers start at 1042.
 // Usage: node scripts/demo-reset.mjs   then restart `npm run server`.
 import { existsSync, renameSync, writeFileSync, mkdirSync } from 'node:fs'
-import { pub } from './lib.mjs'
+import { pub } from './lib.ts'
 
 const db = new URL('../.state/db.json', import.meta.url).pathname
 mkdirSync(new URL('../.state/', import.meta.url).pathname, { recursive: true })

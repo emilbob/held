@@ -5,7 +5,8 @@
 // A payment is matched to an order by the receipt's recipient: a virtual address whose userTag is the order id.
 import { parseAbiItem, keccak256 } from 'viem'
 import { ReceivePolicyReceipt } from 'ox/tempo'
-import { pub, orderIdOf, PATHUSD } from '../scripts/lib.mjs'
+import { pub, orderIdOf, PATHUSD } from '../scripts/lib.ts'
+import type { Db, Deployment, Order, PaymentStatus, StoredOrder } from '../shared/api.ts'
 
 const GUARD = '0xB10C000000000000000000000000000000000000'
 const TransferBlocked = parseAbiItem('event TransferBlocked(address indexed token, address indexed receiver, uint64 indexed blockedNonce, uint256 amount, uint8 receiptVersion, bytes receipt)')
@@ -13,18 +14,20 @@ const arbiterEvents = [
   parseAbiItem('event Disputed(bytes32 indexed id, address indexed originator)'),
   parseAbiItem('event Released(bytes32 indexed id, address indexed caller, uint256 amount)'),
   parseAbiItem('event Refunded(bytes32 indexed id, address indexed caller, address indexed originator, uint256 amount)'),
-]
+] as const
+const decisionStatus = { Disputed: 'disputed', Released: 'released', Refunded: 'refunded' } as const satisfies Record<string, PaymentStatus>
 const MAX_RANGE = 50_000n
 
-export function createIndexer({ store, deployment }) {
+export function createIndexer({ store, deployment }: { store: Db, deployment: Deployment }) {
   const merchant = deployment.merchant
   const arbiter = deployment.arbiter
   const window = BigInt(deployment.window)
 
-  async function scanRange(fromBlock, toBlock) {
+  async function scanRange(fromBlock: bigint, toBlock: bigint) {
+    // strict: only logs whose args decode fully (all of ours do), so every field below is present.
     const [blocked, decisions] = await Promise.all([
-      pub.getLogs({ address: GUARD, event: TransferBlocked, args: { receiver: merchant }, fromBlock, toBlock }),
-      pub.getLogs({ address: arbiter, events: arbiterEvents, fromBlock, toBlock }),
+      pub.getLogs({ address: GUARD, event: TransferBlocked, args: { receiver: merchant }, fromBlock, toBlock, strict: true }),
+      pub.getLogs({ address: arbiter, events: arbiterEvents, fromBlock, toBlock, strict: true }),
     ])
     for (const l of blocked) {
       const receipt = l.args.receipt
@@ -51,10 +54,10 @@ export function createIndexer({ store, deployment }) {
     for (const l of decisions) {
       const p = store.payments[l.args.id]
       if (!p) continue
-      const status = { Disputed: 'disputed', Released: 'released', Refunded: 'refunded' }[l.eventName]
+      const status = decisionStatus[l.eventName]
       if (p.history.some((h) => h.tx === l.transactionHash && h.status === status)) continue
       p.status = status
-      p.history.push({ status, tx: l.transactionHash, by: l.args.caller ?? l.args.originator, block: Number(l.blockNumber) })
+      p.history.push({ status, tx: l.transactionHash, by: 'caller' in l.args ? l.args.caller : l.args.originator, block: Number(l.blockNumber) })
     }
   }
 
@@ -67,7 +70,6 @@ export function createIndexer({ store, deployment }) {
       store.lastBlock = (to + 1n).toString()
       from = to + 1n
     }
-    store.save?.()
     return head
   }
 
@@ -75,10 +77,10 @@ export function createIndexer({ store, deployment }) {
 }
 
 // Order view = order + its payments, with a single derived status for the UI.
-export function orderView(store, order, now = Math.floor(Date.now() / 1000)) {
+export function orderView(store: Db, order: StoredOrder, now = Math.floor(Date.now() / 1000)): Order {
   const payments = Object.values(store.payments).filter((p) => p.orderId === order.id)
   const main = payments.find((p) => !p.wrongToken)
-  let status = 'awaiting_payment'
+  let status: Order['status'] = 'awaiting_payment'
   if (main) {
     status = main.status
     if (status === 'held' && now >= main.windowEndsAt) status = 'releasable' // window over, anyone can release

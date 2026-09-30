@@ -1,4 +1,4 @@
-// API shapes served by server/core.mjs (orders come from orderView in server/indexer.mjs).
+// Held's data shapes, shared by the server (server/core.ts, server/indexer.ts) and the frontend (web/src).
 import type { Address, Hex } from 'viem'
 
 export type PaymentStatus = 'held' | 'disputed' | 'released' | 'refunded'
@@ -12,10 +12,11 @@ export interface HistoryEntry {
   block?: number
 }
 
-export interface Payment {
+// A payment as stored by the indexer (one per TransferBlocked receipt).
+export interface StoredPayment {
   id: Hex
   receipt: Hex
-  orderId: number
+  orderId: number | null // null if the recipient is not one of our virtual addresses
   payer: Address
   recipient: Address
   token: Address
@@ -26,21 +27,33 @@ export interface Payment {
   txHash: Hex
   status: PaymentStatus
   history: HistoryEntry[]
+}
+export interface Payment extends StoredPayment {
   releasable: boolean
 }
 
-export interface Order {
+export interface StoredOrder {
   id: number
   item: string
   amount: string // base units (6 decimals)
   address: Address
   createdAt: number
+}
+// What the API returns: the order plus its payments and one derived status.
+export interface Order extends StoredOrder {
   status: OrderStatus
   underpaid: boolean
   payments: Payment[]
 }
 
-export interface Config {
+export interface Db {
+  orders: Record<string, StoredOrder>
+  payments: Record<string, StoredPayment>
+  lastBlock: string
+  nextOrderId: number
+}
+
+export interface Deployment {
   chainId: number
   merchant: Address
   resolver: Address
@@ -49,6 +62,8 @@ export interface Config {
   arbiterBlock: string
   window: string
   acceptedToken: Address
+}
+export interface Config extends Deployment {
   head: string
   indexerError: string | null
   now: number
@@ -61,4 +76,6 @@ export interface AdminResult {
   tx?: Hex
   reverted?: boolean
   error?: string
+  grabbed?: boolean
+  note?: string
 }

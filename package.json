@@ -8,13 +8,14 @@
     "test": "forge test",
     "compile": "node scripts/compile.mjs",
     "setup": "node scripts/setup-merchant.mjs",
-    "server": "node server/server.mjs",
+    "server": "node server/server.ts",
     "spike:day1": "node scripts/day1-contract-authority.mjs",
     "test:virtual": "node scripts/day2-virtual-address.mjs",
     "test:indexer": "node scripts/day3-indexer-e2e.mjs",
     "demo:reset": "node scripts/demo-reset.mjs",
     "e2e:tempo-wallet": "node e2e/tempo-wallet.mjs",
-    "e2e:metamask": "node e2e/metamask.mjs"
+    "e2e:metamask": "node e2e/metamask.mjs",
+    "typecheck": "tsc && npm --prefix web run typecheck"
   },
   "dependencies": {
     "@upstash/redis": "^1.35.0",
@@ -22,8 +23,12 @@
     "viem": "^2.56.8"
   },
   "devDependencies": {
+    "@types/node": "^26.6.3",
     "solc": "0.8.28",
+    "typescript": "^7.0.2",
     "vercel": "^50.0.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

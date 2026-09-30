@@ -4,7 +4,7 @@ import QRCode from 'qrcode'
 import * as W from './wallet.js'
 import Landing from './Landing.tsx'
 import Logo from './Logo.tsx'
-import type { AdminAction, AdminResult, Config, Order, OrderStatus, Payment } from './types.ts'
+import type { AdminAction, AdminResult, Config, Order, OrderStatus, Payment } from '../../shared/api.ts'
 
 // ---------------------------------------------------------------- helpers
 const api = async <T,>(path: string, body?: unknown): Promise<T> => {

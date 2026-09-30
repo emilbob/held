@@ -7,11 +7,11 @@ import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { ReceivePolicyReceipt } from 'ox/tempo'
 import { parseUnits } from 'viem'
-import { pub, walletFor, artifact, loadState, log, PATHUSD, WRONG_TOKEN } from './lib.mjs'
+import { pub, walletFor, artifact, loadState, log, PATHUSD, WRONG_TOKEN } from './lib.ts'
 
 const PORT = 8799, DB = '/tmp/held-e2e-db.json', API = `http://localhost:${PORT}/api`
 rmSync(DB, { force: true })
-const srv = spawn('node', ['server/server.mjs'], { env: { ...process.env, PORT, HELD_DB: DB, POLL_MS: '800',
+const srv = spawn('node', ['server/server.ts'], { env: { ...process.env, PORT, HELD_DB: DB, POLL_MS: '800',
   HELD_ORDER_START: String(10_000_000 + Math.floor(Math.random() * 1e9)) }, stdio: ['ignore', 'pipe', 'inherit'] })
 await new Promise((ok) => srv.stdout.on('data', (d) => d.toString().includes('Held API') && ok()))
 

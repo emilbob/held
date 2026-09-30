@@ -9,7 +9,7 @@
 import { Actions } from 'viem/tempo'
 import { generatePrivateKey } from 'viem/accounts'
 import { VirtualMaster } from 'ox/tempo'
-import { pub, walletFor, artifact, loadState, saveState, log, PATHUSD, accountOf, bal, fmt } from './lib.mjs'
+import { pub, walletFor, artifact, loadState, saveState, log, PATHUSD, accountOf, bal, fmt } from './lib.ts'
 
 const s = loadState()
 const WINDOW = BigInt(process.env.WINDOW || s.window || 300)

@@ -6,7 +6,7 @@ import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { ReceivePolicyReceipt } from 'ox/tempo'
 import { parseUnits } from 'viem'
-import { pub, walletFor, artifact, loadState, log, PATHUSD, bal, fmt, orderAddress, orderIdOf } from './lib.mjs'
+import { pub, walletFor, artifact, loadState, log, PATHUSD, bal, fmt, orderAddress, orderIdOf } from './lib.ts'
 
 const s = loadState()
 if (!s.arbiter) throw new Error('run scripts/setup-merchant.mjs first')

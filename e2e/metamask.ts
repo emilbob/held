@@ -53,6 +53,17 @@ const APPROVE_TIDS = ['confirm-btn', 'confirmation-submit-button', 'confirm-foot
 const APPROVE_TEXT = '^(Connect|Approve|Confirm|Switch network|Add network|Next|Got it|Continue)$'
 const approveScript = `(() => {
   const txt = (document.body?.innerText || '').replace(/\\s+/g, ' ').slice(0, 220)
+  // MetaMask security alerts (e.g. "Review alert" when a public site suggests a network) open a modal that must be
+  // acknowledged. Log its full text so the warning a real user sees is on record, then acknowledge it.
+  const dlg = document.querySelector('[role=dialog], .mm-modal-content')
+  if (dlg) {
+    const alertTxt = 'ALERT: ' + (dlg.innerText || '').replace(/\\s+/g, ' ').slice(0, 700)
+    const cb = [...dlg.querySelectorAll('input[type=checkbox]')].find((c) => !c.checked)
+    if (cb) { cb.click(); return { txt: alertTxt, clicked: 'alert: acknowledge checkbox' } }
+    const b = [...dlg.querySelectorAll('button')].find((b) => /^(Confirm|Got it|Acknowledge|I understand|Continue)$/i.test((b.innerText || '').trim()) && !b.disabled)
+    if (b) { b.click(); return { txt: alertTxt, clicked: 'alert: ' + b.innerText.trim() } }
+    return { txt: alertTxt }
+  }
   const tids = ${JSON.stringify(APPROVE_TIDS)}
   let el = tids.map((t) => document.querySelector('[data-testid="' + t + '"]')).find((e) => e && !e.disabled)
   if (!el) el = [...document.querySelectorAll('button')].find((b) => new RegExp(${JSON.stringify(APPROVE_TEXT)}, 'i').test((b.innerText || '').trim()) && !b.disabled)

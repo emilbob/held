@@ -179,3 +179,15 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   domain); demo path on live in Chrome (#1010 released, #1011 disputed -> sandbox resolver refund); links 14/14 locally.
   Links on live pending the deploy of "turned-off check before the double-open guard" (Vercel sets x-forwarded-for).
 - Open for the user: Blockaid false-positive report; record demo; paste submission answers; 3–5 merchant conversations.
+
+## Sep 30 (late): dispute notes, previews, accessibility, UI polish (all live)
+- Dispute notes: buyer's reason signed by the paying wallet (noteMessage), merchant replies with its session, resolver
+  console signs in (per-role sessions: held.session / held.session.resolver) to read them; never on public pages.
+  test:e2e 32/32 (8 note checks), Tempo Wallet 4/4, MetaMask 7/7; checked by eye on live.
+- Link previews: OG/Twitter tags + web/public/og.png (e2e/og-image.ts renders it).
+- Accessibility: axe zero violations on every page (h1 per page, labelled fields, underlined inline links, role=status).
+- UI polish: footer one row; landing widths aligned + balanced headline; dashboard arbiter/resolver tiles, "Orders"
+  filters (Needs action / Awaiting payment / Settled / All), aligned order columns, turned-off links folded; resolver
+  empty state. Copy: "from their/your own wallet" everywhere (no "any wallet").
+- Pushed through f0e7f74. Next session: more UI polish on request; user-side: Blockaid report, record demo
+  (docs/demo-script.md), submission form (opens Oct 6, deadline Oct 12), merchant conversations.

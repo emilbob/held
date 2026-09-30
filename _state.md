@@ -142,3 +142,6 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   positive to Blockaid; record the demo with Tempo Wallet.
 - .state/admin-token no longer holds the token (the live site rejects it). The real one is HELD_ADMIN_TOKEN in
   Vercel. Don't run scripts/vercel-env.ts until that file is fixed: it would push the file's contents as the token.
+- Live after deploy (Sep 30, no owner token, a judge's view): flow 1 cheats blocked + release (#1058), flow 2
+  dispute + resolver refund (#1059), flow 5 window expiry + release (#1060), orders without a key show the note.
+  A tab left open across a deploy keeps the old bundle until reloaded.

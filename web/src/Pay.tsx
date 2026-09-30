@@ -63,7 +63,7 @@ export default function Pay({ id }: { id: string }) {
                 <button className="ghost" onClick={() => navigator.clipboard.writeText(order.address).then(() => setCopied('ok'), () => setCopied('failed'))
                   .finally(() => setTimeout(() => setCopied(null), 2000))}>{copied === 'ok' ? 'Copied ✓' : 'Copy address'}</button>
                 {copied === 'failed' && <span className="muted small"> Couldn't copy: select the address above instead.</span>}
-                <p className="muted">Any wallet or exchange works: it's a plain token transfer. This address is unique to your order.</p>
+                <p className="muted">Send it from your own wallet, not from an exchange: only the wallet that pays can confirm delivery, open a dispute and receive a refund. It's a plain token transfer, and this address is unique to your order.</p>
               </div>
             </div>
           </>

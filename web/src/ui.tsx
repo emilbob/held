@@ -2,17 +2,28 @@
 import { useEffect, useState, type DependencyList } from 'react'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
-import type { Config, OrderStatus } from '../../shared/api.ts'
+import { signInMessage, type Config, type Note, type OrderStatus } from '../../shared/api.ts'
 
 // ---------------------------------------------------------------- session + API
-// Merchant session from wallet sign-in (see Merchant.tsx). Buyers and resolvers never need one.
+// Sessions from wallet sign-in, one per role, so one browser can be a shop's merchant and its resolver at once
+// (the sandbox). Buyers never need one.
 export interface StoredSession { token: string, address: Address }
+export type SessionRole = 'merchant' | 'resolver'
+const sessionKey = (role: SessionRole) => (role === 'merchant' ? 'held.session' : `held.session.${role}`)
 export const session = {
-  get(): StoredSession | null { try { return JSON.parse(localStorage.getItem('held.session') || 'null') } catch { return null } },
-  set(s: StoredSession | null) { try { s ? localStorage.setItem('held.session', JSON.stringify(s)) : localStorage.removeItem('held.session') } catch {} },
+  get(role: SessionRole = 'merchant'): StoredSession | null { try { return JSON.parse(localStorage.getItem(sessionKey(role)) || 'null') } catch { return null } },
+  set(s: StoredSession | null, role: SessionRole = 'merchant') { try { s ? localStorage.setItem(sessionKey(role), JSON.stringify(s)) : localStorage.removeItem(sessionKey(role)) } catch {} },
 }
-export const api = async <T,>(path: string, body?: unknown): Promise<T> => {
-  const token = session.get()?.token
+// Sign in a wallet for a role: it signs a plain message (no transaction, no funds).
+export async function signInWallet(wallet: W.Wallet, role: SessionRole) {
+  const issued = Math.floor(Date.now() / 1000)
+  const signature = await W.signMessage(wallet, signInMessage(wallet.address, location.host, issued))
+  const r = await api<StoredSession>('/auth', { address: wallet.address, issued, signature })
+  session.set(r, role)
+  return r
+}
+export const api = async <T,>(path: string, body?: unknown, role: SessionRole = 'merchant'): Promise<T> => {
+  const token = session.get(role)?.token
   const r = await fetch('/api' + path, {
     method: body ? 'POST' : 'GET',
     headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
@@ -177,3 +188,10 @@ export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, not
     </div>
   )
 }
+
+// Dispute notes (merchant dashboard and resolver console).
+export const Notes = ({ notes }: { notes?: Note[] }) => notes?.length ? (
+  <div className="notes">
+    {notes.map((n, i) => <p key={i} className={`note ${n.by}`}><b>{n.by === 'buyer' ? 'Buyer' : 'Merchant'}:</b> {n.text}</p>)}
+  </div>
+) : null

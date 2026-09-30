@@ -140,7 +140,8 @@ try {
   if (!/\(MetaMask\)/.test(await walletText())) { await clickHeld(/^MetaMask$/); await approveMetaMask('reconnect', async () => /\(MetaMask\)/.test(await walletText())) }
   await actInHeld('pay2', /^Pay \$/, /Payment held/)
   log('  order 2 page after pay:', (await payText()).replace(/\s+/g, ' ').slice(0, 300))
-  await actInHeld('dispute', /open dispute/, /Dispute open/)
+  await clickHeld(/open dispute$/) // reveals the dispute form (the note is optional)
+  await actInHeld('dispute', /^Send dispute$/, /Dispute open/)
   o = await api(`/orders/${o2.id}`)
   for (let i = 0; i < 15 && o.status !== 'disputed'; i++) { await sleep(1000); o = await api(`/orders/${o2.id}`) }
   check('open dispute (arbiter.dispute) signed in MetaMask -> disputed', o.status === 'disputed', o.status)

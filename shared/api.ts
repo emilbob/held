@@ -71,6 +71,7 @@ export interface PublicLink { id: string, item: string, amount: string, active: 
 // What the API returns: the order, its merchant, its payments and one derived status.
 export interface Order extends StoredOrder {
   merchantInfo: Pick<Merchant, 'name' | 'arbiter' | 'resolver' | 'window'>
+  notes?: Record<string, Note[]> // by payment id; only for the order's merchant and the merchant's resolver
   status: OrderStatus
   underpaid: boolean
   payments: Payment[]
@@ -84,6 +85,7 @@ export interface Db {
   payments: Record<string, StoredPayment>
   sessions: Record<string, Session> // key: sha256(session token), hex
   links?: Record<string, CheckoutLink> // absent in databases created before checkout links
+  notes?: Record<string, Note[]> // dispute notes by payment id
   lastBlock: string
   nextOrderId: number
   tagPrefix: number // random per database (see orderTag), so databases sharing a merchant never share addresses
@@ -107,4 +109,11 @@ export interface Config extends Network {
 
 // Sign-in: the wallet signs this exact text; the server accepts it for 5 minutes after `issued`.
 export const signInMessage = (address: string, host: string, issued: number) =>
-  `Sign in to Held\n\nMerchant: ${address}\nSite: ${host}\nIssued: ${new Date(issued * 1000).toISOString()}\n\nThis signature only proves you control this wallet. It does not move funds.`
+  `Sign in to Held\n\nWallet: ${address}\nSite: ${host}\nIssued: ${new Date(issued * 1000).toISOString()}\n\nThis signature only proves you control this wallet. It does not move funds.`
+
+// Dispute notes: what the buyer says went wrong, and the merchant's reply. Readable only by the merchant and the
+// resolver. A buyer's note is signed by the wallet that paid (this exact text), so nobody can speak for the buyer.
+export interface Note { by: 'buyer' | 'merchant', text: string, at: number }
+export const NOTE_MAX = 500
+export const noteMessage = (orderId: number, paymentId: string, text: string) =>
+  `Held dispute note\n\nOrder: #${orderId}\nPayment: ${paymentId}\n\n${text}\n\nOnly the merchant and the resolver can read this. It does not move funds.`

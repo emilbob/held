@@ -13,7 +13,8 @@
 //   POST /api/links/:id {active}           turn a link on or off (its merchant only)
 //   GET  /api/links/:id                    public: what the link sells, for the buyer
 //   POST /api/links/:id/orders             public: a buyer opened the link -> a fresh order for them
-//   GET  /api/disputes?resolver=0x…        disputed payments a resolver decides (public: all of it is on-chain)
+//   GET  /api/disputes?resolver=0x…        disputed payments a resolver decides; with that resolver's session, plus notes
+//   POST /api/notes {paymentId, text, signature?}  dispute note: the payer (signed) or the merchant (session)
 //   POST /api/faucet {address}             testnet only: top-up for buyers and merchants
 //
 // Held's server holds no keys and signs nothing: buyers, merchants and resolvers sign every action in their own
@@ -24,7 +25,7 @@ import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
-import { signInMessage, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type PublicLink, type StoredOrder } from '../shared/api.ts'
+import { signInMessage, noteMessage, NOTE_MAX, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
 // 1..65535, so no two databases (local, live, previews) hand out the same order addresses.
 export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
@@ -48,6 +49,11 @@ const sha256hex = (s: string) => createHash('sha256').update(s).digest('hex')
 const header = (h: Headers, name: string) => { const v = h[name]; return typeof v === 'string' ? v : '' }
 const now = () => Math.floor(Date.now() / 1000)
 const AMOUNT = /^\d+(\.\d{1,6})?$/
+// Dispute notes are only for the order's merchant and resolver.
+const withNotes = (s: Db, o: Order): Order => {
+  const notes = Object.fromEntries(o.payments.filter((p) => s.notes?.[p.id]?.length).map((p) => [p.id, s.notes![p.id]]))
+  return Object.keys(notes).length ? { ...o, notes } : o
+}
 const clientIp = (h: Headers) => header(h, 'x-forwarded-for').split(',')[0].trim() || 'local'
 
 // One order: its own virtual address under the merchant's master (no transaction, no cost).
@@ -156,7 +162,7 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const address = sessionOf(s, headers)
       if (!address) return ok({ error: 'Sign in with your merchant wallet.' }, 401)
       const mine = Object.values(s.orders).filter((o) => o.merchant.toLowerCase() === address.toLowerCase())
-      return ok({ orders: mine.sort((a, b) => b.id - a.id).map((o) => orderView(s, o)) })
+      return ok({ orders: mine.sort((a, b) => b.id - a.id).map((o) => withNotes(s, orderView(s, o))) })
     }
     const m = path.match(/^\/api\/orders\/(\d+)$/)
     if (m) {
@@ -234,8 +240,34 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       await sync()
       const s = await load()
       const theirs = new Set(Object.values(s.merchants).filter((mm) => mm.resolver.toLowerCase() === resolver.toLowerCase()).map((mm) => mm.address.toLowerCase()))
+      const isResolver = sessionOf(s, headers)?.toLowerCase() === resolver.toLowerCase()
       const orders = Object.values(s.orders).filter((o) => theirs.has(o.merchant.toLowerCase())).map((o) => orderView(s, o))
-      return ok({ orders: orders.filter((o) => o.payments.some((p) => p.status === 'disputed')).sort((a, b) => b.id - a.id) })
+        .map((o) => (isResolver ? withNotes(s, o) : o))
+      return ok({ orders: orders.filter((o) => o.payments.some((p) => p.status === 'disputed')).sort((a, b) => b.id - a.id), notes: isResolver })
+    }
+    if (path === '/api/notes' && method === 'POST') {
+      const { paymentId, signature } = body
+      const text = typeof body.text === 'string' ? body.text.trim() : ''
+      if (!text || text.length > NOTE_MAX) return ok({ error: `Write a note of up to ${NOTE_MAX} characters.` }, 400)
+      const s0 = await load()
+      const pay = s0.payments[String(paymentId)]
+      const order = pay && Object.values(s0.orders).find((o) => o.address.toLowerCase() === pay.recipient.toLowerCase())
+      if (!pay || !order) return ok({ error: 'Payment not found.' }, 404)
+      if (pay.status === 'released' || pay.status === 'refunded') return ok({ error: 'This payment is already settled.' }, 409)
+      let by: Note['by'] | null = null
+      if (typeof signature === 'string') {
+        const valid = await pub.verifyMessage({ address: pay.payer, message: noteMessage(order.id, pay.id, text), signature: signature as Hex }).catch(() => false)
+        if (valid) by = 'buyer'
+      } else if (sessionOf(s0, headers)?.toLowerCase() === pay.merchant.toLowerCase()) by = 'merchant'
+      if (!by) return ok({ error: 'Only the wallet that paid (signed) or the merchant can add a note.' }, 401)
+      const r = await mutate((s) => {
+        const list = ((s.notes ??= {})[pay.id] ??= [])
+        if (list.filter((n) => n.by === by).length >= 5) return null
+        const note: Note = { by: by!, text, at: now() }
+        list.push(note)
+        return note
+      })
+      return r ? ok(r, 201) : ok({ error: 'Note limit reached for this payment.' }, 429)
     }
     if (path === '/api/faucet' && method === 'POST') {
       if (!network.testnet) return ok({ error: 'No faucet on mainnet.' }, 404)

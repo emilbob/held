@@ -123,7 +123,8 @@ try {
   }
   await clickText(page, /^Pay \$/)
   await approveWallet(page, { done: async () => /Payment held/.test(await text(page, '.pay')) }, 90000)
-  await clickText(page, /open dispute/)
+  await clickText(page, /open dispute/) // reveals the dispute form (the note is optional)
+  await clickText(page, /^Send dispute$/)
   await approveWallet(page, { done: async () => /Dispute open/.test(await text(page, '.pay')) || /🔒|testnet is busy/.test(await text(page, '.pay')) }, 90000)
   await page.screenshot({ path: join(here, 'shots/tw-4-disputed.png') }).catch(() => {})
   o = await api(`/orders/${o2.id}`)

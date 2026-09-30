@@ -1,36 +1,44 @@
-13:57:05 PASS setup from the merchant wallet: mine, register, deploy, policy mine > register > deploy > policy > done in 42s, arbiter 0x5b7ea3da9256a7aefa60413ae9ef189748325b9e
-13:57:05 PASS register without sign-in -> 401 
-13:57:05 PASS sign-in with someone else's signature -> 401 
-13:57:05 PASS sign-in with an hour-old signature -> 401 
-13:57:05 PASS sign-in with a fresh signature -> session 
-13:57:07 PASS register with someone else's arbiter -> refused The arbiter's merchant is not your wallet.
-13:57:09 PASS register with a tampered arbiter (1 byte changed) -> refused The arbiter is not the genuine HeldArbiter contract.
-13:57:09 PASS register the genuine setup -> accepted {
+15:54:37 PASS setup from the merchant wallet: mine, register, deploy, policy mine > register > deploy > policy > done in 31s, arbiter 0x7dc2cdc64acff56fe9394bafb7dca1edf9fc7f13
+15:54:38 PASS register without sign-in -> 401 
+15:54:38 PASS sign-in with someone else's signature -> 401 
+15:54:38 PASS sign-in with an hour-old signature -> 401 
+15:54:38 PASS sign-in with a fresh signature -> session 
+15:54:38 PASS register with someone else's arbiter -> refused The arbiter's merchant is not your wallet.
+15:54:41 PASS register with a tampered arbiter (1 byte changed) -> refused The arbiter is not the genuine HeldArbiter contract.
+15:54:42 PASS register the genuine setup -> accepted {
   merchant: {
-    address: '0xaF924144882405d09CB3039e516629a00e51B97f',
-    masterId: '0x9888b840',
-    arbiter: '0x5b7ea3da9256a7aefa60413ae9ef189748325b9e',
+    address: '0xfEA0DaCf6f56997f39C90736Ec44CB951f900b8c',
+    masterId: '0xc34a62eb',
+    arbiter: '0x7dc2cdc64acff56fe9394bafb7dca1edf9fc7f13',
     resolver: '0x3a7E18E039B555e9A8eD2036ef13865147C1EDfF',
     acceptedToken: '0x20C0000000000000000000000000000000000000',
     window: 120,
     name: 'E2E Shop',
-    registeredAt: 1790776629
+    registeredAt: 1790783682
   }
 }
-13:57:09 PASS /me returns the merchant 
-13:57:09 PASS create order without sign-in -> 401 
-13:57:10 PASS signed-in non-merchant cannot create orders -> 401 
-13:57:10 PASS orders use the merchant arbiter 
-13:57:10 PASS another wallet doesn't see the merchant's orders 
-13:57:15 PASS A paid -> held (indexer follows the new merchant) 
-13:57:17 PASS merchant cannot release early (contract) reverted
-13:57:18 PASS buyer releases A 
-13:57:20 PASS A -> released 
-13:57:22 PASS merchant refunds B from their own wallet 
-13:57:22 PASS B -> refunded 
-13:57:27 PASS buyer disputes C 
-13:57:30 PASS C is on the resolver's list 
-13:57:31 PASS merchant cannot release a disputed payment (contract) reverted
-13:57:32 PASS resolver refunds C from the resolver's wallet 
-13:57:33 PASS C -> refunded 
-13:57:33 24/24 checks passed
+15:54:42 PASS /me returns the merchant 
+15:54:42 PASS create order without sign-in -> 401 
+15:54:43 PASS signed-in non-merchant cannot create orders -> 401 
+15:54:43 PASS orders use the merchant arbiter 
+15:54:43 PASS another wallet doesn't see the merchant's orders 
+15:54:47 PASS A paid -> held (indexer follows the new merchant) 
+15:54:48 PASS merchant cannot release early (contract) reverted
+15:54:49 PASS buyer releases A 
+15:54:53 PASS A -> released 
+15:54:57 PASS merchant refunds B from their own wallet 
+15:54:59 PASS B -> refunded 
+15:55:02 PASS buyer disputes C 
+15:55:05 PASS C is on the resolver's list 
+15:55:05 PASS note signed by another wallet -> 401 
+15:55:05 PASS buyer note signed by the paying wallet -> accepted 
+15:55:05 PASS stranger cannot reply -> 401 
+15:55:05 PASS merchant replies with its session 
+15:55:05 PASS public order page has no notes 
+15:55:05 PASS merchant sees both notes 
+15:55:05 PASS resolver list without sign-in has no notes 
+15:55:05 PASS signed-in resolver sees the notes 
+15:55:07 PASS merchant cannot release a disputed payment (contract) reverted
+15:55:08 PASS resolver refunds C from the resolver's wallet 
+15:55:10 PASS C -> refunded 
+15:55:10 32/32 checks passed

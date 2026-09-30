@@ -185,3 +185,13 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 .links .link.off .item, .links .link.off .amount { color: var(--muted) }
 .links .preview { margin-left: auto }
 @media (max-width: 480px) { .links .preview { margin-left: 0; flex-basis: 100% } }
+
+/* Dispute notes */
+.disputeform { flex-basis: 100%; display: grid; gap: 8px; margin-top: 4px }
+.disputeform textarea, .replyform textarea { font: inherit; width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--ink); resize: vertical }
+.disputeform .row { display: flex; gap: 8px }
+.notes { margin-top: 10px; display: grid; gap: 6px }
+.note { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: 13.5px }
+.note.buyer { border-left-color: var(--red) }
+.note.merchant { border-left-color: var(--lime) }
+.replyform { display: grid; gap: 8px; margin-top: 10px; flex-basis: 100% }

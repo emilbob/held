@@ -11,7 +11,7 @@ import { ReceivePolicyReceipt } from 'ox/tempo'
 import { parseUnits, type Abi, type Address, type Hex } from 'viem'
 import { pub, walletFor, requireState, log, isRpcLimit, PATHUSD } from './lib.ts'
 import { runSetup } from '../web/src/setup.ts'
-import { signInMessage, type Merchant, type Order } from '../shared/api.ts'
+import { signInMessage, noteMessage, type Merchant, type Order } from '../shared/api.ts'
 import arbiterJson from '../shared/HeldArbiter.json' with { type: 'json' }
 
 const PORT = 8798, HOST = `localhost:${PORT}`, API = `http://${HOST}/api`, DB = '/tmp/held-merchant-e2e.json'
@@ -124,6 +124,25 @@ try {
   await waitStatus(C.id, 'disputed')
   const disputes = await call<{ orders: Order[] }>('GET', `/disputes?resolver=${TEST_RESOLVER}`)
   check("C is on the resolver's list", disputes.body.orders.some((x) => x.id === C.id))
+
+  // Dispute notes: the payer's must be signed by the paying wallet; the merchant replies with its session; only the
+  // merchant and the resolver (signed in) can read them.
+  const cPay = (await waitStatus(C.id, 'disputed')).payments[0]
+  const reason = 'Nothing arrived by the promised date.'
+  const fakeSig = await privateKeyToAccount(generatePrivateKey()).signMessage({ message: noteMessage(C.id, cPay.id, reason) })
+  check("note signed by another wallet -> 401", (await call('POST', '/notes', { paymentId: cPay.id, text: reason, signature: fakeSig })).status === 401)
+  const goodSig = await buyer.signMessage({ message: noteMessage(C.id, cPay.id, reason) })
+  check('buyer note signed by the paying wallet -> accepted', (await call('POST', '/notes', { paymentId: cPay.id, text: reason, signature: goodSig })).status === 201)
+  check('stranger cannot reply -> 401', (await call('POST', '/notes', { paymentId: cPay.id, text: 'hi' }, sTok)).status === 401)
+  check('merchant replies with its session', (await call('POST', '/notes', { paymentId: cPay.id, text: 'Shipped, tracking TR123.' }, token)).status === 201)
+  check('public order page has no notes', !(await call<Order>('GET', `/orders/${C.id}`)).body.notes)
+  const mList = (await call<{ orders: Order[] }>('GET', '/orders', undefined, token)).body.orders.find((x) => x.id === C.id)
+  check('merchant sees both notes', mList?.notes?.[cPay.id]?.map((n) => n.by).join() === 'buyer,merchant')
+  check('resolver list without sign-in has no notes', !disputes.body.orders.find((x) => x.id === C.id)?.notes)
+  const rAcct = privateKeyToAccount(demo.resolverKey)
+  const { body: { token: rTok } } = await signIn(rAcct)
+  const rList = (await call<{ orders: Order[] }>('GET', `/disputes?resolver=${TEST_RESOLVER}`, undefined, rTok)).body.orders.find((x) => x.id === C.id)
+  check('signed-in resolver sees the notes', rList?.notes?.[cPay.id]?.[0]?.text === reason)
   // The merchant may always refund (what the buyer asked for), but must never take a disputed payment.
   const merchantTakes = await act(mw, setup.arbiter, 'release', rC).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
   check('merchant cannot release a disputed payment (contract)', merchantTakes === 'reverted', merchantTakes)

@@ -5,7 +5,7 @@ import type { Hex } from 'viem'
 import QRCode from 'qrcode'
 import * as W from './wallet.ts'
 import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Steps, Result, usd, short, countdown, duration, type Msg } from './ui.tsx'
-import type { Order, OrderStatus } from '../../shared/api.ts'
+import { noteMessage, NOTE_MAX, type Order, type OrderStatus } from '../../shared/api.ts'
 
 export default function Pay({ id }: { id: string }) {
   const now = useNow()
@@ -17,6 +17,8 @@ export default function Pay({ id }: { id: string }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<Msg>(null)
   const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
+  const [disputing, setDisputing] = useState(false)
+  const [reason, setReason] = useState('')
 
   useEffect(() => {
     if (!order || !cfg) return
@@ -45,6 +47,20 @@ export default function Pay({ id }: { id: string }) {
   const merchantHere = session.get()?.address.toLowerCase() === order.merchant.toLowerCase()
   const back = <a className="back" href="#/merchant">← Back to your orders</a>
   const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => W.arbiter(wallet!, arbiter, fn, receipt)
+  // Dispute on-chain first (from the buyer's wallet), then the signed note. A failed note never undoes the dispute.
+  const openDispute = async (paymentId: string, receipt: Hex) => {
+    await W.arbiter(wallet!, arbiter, 'dispute', receipt)
+    const text = reason.trim()
+    if (!text) { setMsg({ ok: true, text: 'Dispute opened.' }); return }
+    try {
+      const signature = await W.signMessage(wallet!, noteMessage(order.id, paymentId, text))
+      await api('/notes', { paymentId, text, signature })
+      setMsg({ ok: true, text: 'Dispute opened. Your note was sent to the merchant and the resolver.' })
+    } catch (e) {
+      setMsg({ ok: false, text: `Dispute opened, but your note wasn't sent: ${W.explain(e)}` })
+    }
+    setDisputing(false)
+  }
 
   return (
     <div className="pay">
@@ -109,10 +125,20 @@ export default function Pay({ id }: { id: string }) {
             <button className="primary" disabled={!!busy} onClick={() => run('release', callArbiter('release', main.receipt), 'Thanks! The merchant has been paid.')}>
               {busy === 'release' ? 'Confirming…' : 'I got it: release payment'}
             </button>
-            {status === 'held' && (
-              <button className="danger" disabled={!!busy} onClick={() => run('dispute', callArbiter('dispute', main.receipt), 'Dispute opened.')}>
-                {busy === 'dispute' ? 'Opening…' : 'Something went wrong: open dispute'}
-              </button>
+            {status === 'held' && !disputing && (
+              <button className="danger" disabled={!!busy} onClick={() => setDisputing(true)}>Something went wrong: open dispute</button>
+            )}
+            {status === 'held' && disputing && (
+              <form className="disputeform" onSubmit={(e) => { e.preventDefault(); run('dispute', () => openDispute(main.id, main.receipt)) }}>
+                <label htmlFor="reason">What went wrong? The merchant and the resolver will read this.</label>
+                <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={NOTE_MAX} rows={3}
+                  placeholder="e.g. Nothing arrived by the promised date." />
+                <p className="muted small">Your wallet opens the dispute, then signs your note so nobody else can write in your name.</p>
+                <div className="row">
+                  <button className="danger" disabled={!!busy}>{busy === 'dispute' ? 'Opening…' : 'Send dispute'}</button>
+                  <button type="button" className="ghost" disabled={!!busy} onClick={() => setDisputing(false)}>Cancel</button>
+                </div>
+              </form>
             )}
           </div>
         ) : (

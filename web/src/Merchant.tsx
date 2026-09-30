@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
-import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, usd, short, txUrl, addrUrl, countdown, duration, type Msg } from './ui.tsx'
-import { signInMessage, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
+import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, type Msg } from './ui.tsx'
+import { type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
 
 export default function MerchantPage() {
   const cfg = useConfig()
@@ -24,10 +24,7 @@ export default function MerchantPage() {
     if (!w.wallet) return
     setSigning(true); setMsg(null)
     try {
-      const issued = Math.floor(Date.now() / 1000)
-      const signature = await W.signMessage(w.wallet, signInMessage(w.wallet.address, location.host, issued))
-      const r = await api<{ token: string, address: Address }>('/auth', { address: w.wallet.address, issued, signature })
-      session.set(r)
+      await signInWallet(w.wallet, 'merchant')
       await loadMe()
     } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
     setSigning(false)
@@ -185,6 +182,7 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
   const now = useNow()
   const [msg, setMsg] = useState<Msg>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [reply, setReply] = useState('')
   const main = o.payments.find((p) => !p.wrongToken)
   const wrong = o.payments.filter((p) => p.wrongToken)
   const left = main ? main.windowEndsAt - now : 0
@@ -235,6 +233,17 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
         <div className="actions">
           <span className="muted">Disputed: the resolver ({short(merchant.resolver)}) decides. You can still refund the buyer.</span>
           <B k="refund" fn="refund" p={main} label="Refund buyer" done="Refunded to the buyer." />
+          <Notes notes={o.notes?.[main.id]} />
+          {!o.notes?.[main.id]?.length && <p className="muted small">The buyer didn't leave a note.</p>}
+          <form className="replyform" onSubmit={async (e) => {
+            e.preventDefault(); setMsg(null)
+            try { await api('/notes', { paymentId: main.id, text: reply }); setReply(''); setMsg({ ok: true, text: 'Your reply was sent to the resolver.' }) }
+            catch (x) { setMsg({ ok: false, text: (x as Error).message }) }
+          }}>
+            <label htmlFor={'reply' + o.id} className="muted small">Your side, for the resolver (e.g. tracking number):</label>
+            <textarea id={'reply' + o.id} value={reply} onChange={(e) => setReply(e.target.value)} maxLength={500} rows={2} />
+            <button className="small" disabled={!reply.trim()}>Send reply</button>
+          </form>
         </div>
       )}
       {wrong.map((p) => (

@@ -1,0 +1,40 @@
+# Uptime check (free on a public repo): every 15 minutes, ask the live site whether it's up and its indexer is current.
+# If not, open a GitHub issue labelled "down" (GitHub emails the repo owner); when it recovers, comment and close it.
+name: uptime
+on:
+  schedule: [{ cron: '*/15 * * * *' }]
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      URL: https://held-lilac.vercel.app/api/health
+    steps:
+      - name: Check health (3 tries, 20 s apart)
+        id: health
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o body.json -w '%{http_code}' --max-time 60 "$URL" || echo 000)
+            if [ "$code" = 200 ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; cat body.json; exit 0; fi
+            sleep 20
+          done
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          cat body.json 2>/dev/null || true
+      - name: Open or update the "down" issue
+        if: steps.health.outputs.ok == 'false'
+        run: |
+          gh label create down --color B60205 --description "Held is down (uptime check)" -R "$GITHUB_REPOSITORY" 2>/dev/null || true
+          body="Uptime check failed at $(date -u +%FT%TZ): HTTP ${{ steps.health.outputs.code }}"$'\n\n```\n'"$(head -c 1500 body.json 2>/dev/null)"$'\n```'
+          open=$(gh issue list -R "$GITHUB_REPOSITORY" --label down --state open --json number -q '.[0].number')
+          if [ -n "$open" ]; then gh issue comment "$open" -R "$GITHUB_REPOSITORY" --body "$body"
+          else gh issue create -R "$GITHUB_REPOSITORY" --label down --title "Held is down: $URL" --body "$body"; fi
+      - name: Close the "down" issue after recovery
+        if: steps.health.outputs.ok == 'true'
+        run: |
+          for n in $(gh issue list -R "$GITHUB_REPOSITORY" --label down --state open --json number -q '.[].number'); do
+            gh issue close "$n" -R "$GITHUB_REPOSITORY" --comment "Recovered at $(date -u +%FT%TZ)."
+          done

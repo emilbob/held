@@ -1,4 +1,4 @@
-// Buyer page (#/pay/:id): pay the order's unique address, then confirm delivery or open a dispute.
+// Buyer page (#/pay/:key): pay the order's unique address, then confirm delivery or open a dispute.
 // Every action is signed by the buyer's own wallet against the merchant's HeldArbiter.
 import { useEffect, useState } from 'react'
 import type { Hex } from 'viem'

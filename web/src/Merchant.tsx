@@ -158,7 +158,7 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
   const [filter, setFilter] = useState<OrderFilter>('all')
   const shown = groups[filter]
   const heldTotal = orders.flatMap((o) => o.payments).filter((p) => ['held', 'disputed'].includes(p.status)).reduce((a, p) => a + Number(p.amount), 0)
-  const link = (id: number) => `${location.origin}/#/pay/${id}`
+  const link = (o: Order) => `${location.origin}/#/pay/${o.key ?? o.id}`
 
   return (
     <div className="dash">
@@ -179,8 +179,8 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
         <button disabled={busy}>{busy ? 'Creating…' : 'Create order'}</button>
         {formErr && <span className="err">{formErr}</span>}
         {created && (
-          <p className="created">Order #{created.id} created. Send your buyer this link: <a href={link(created.id)} target="_blank">{link(created.id)}</a>
-            {' '}<button type="button" className="ghost small" onClick={() => navigator.clipboard.writeText(link(created.id)).catch(() => {})}>Copy link</button></p>
+          <p className="created">Order #{created.id} created. Send your buyer this link: <a href={link(created)} target="_blank">{link(created)}</a>
+            {' '}<button type="button" className="ghost small" onClick={() => navigator.clipboard.writeText(link(created)).catch(() => {})}>Copy link</button></p>
         )}
       </form>
 
@@ -234,7 +234,7 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
         <div className="item">{o.item}</div>
         <div className="amount">{usd(o.amount)}</div>
         <Badge status={status} />
-        <a className="buyerlink" href={`#/pay/${o.id}`}>Buyer page →</a>
+        <a className="buyerlink" href={`#/pay/${o.key ?? o.id}`}>Buyer page →</a>
       </div>
       <div className="meta">
         {o.linkId && <>From checkout link · </>}Pay-to address <code title={o.address}>{short(o.address)}</code>

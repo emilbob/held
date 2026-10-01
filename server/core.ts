@@ -2,12 +2,14 @@
 // Used by both the local node server (server/server.ts, JSON file) and the Vercel function (api/index.ts, Redis).
 //
 //   GET  /api/config                       network settings + indexer health
+//   GET  /api/health                       uptime check: syncs, 200 if the indexer is current, else 503
 //   POST /api/auth {address, issued, signature}   wallet sign-in (see signInMessage) -> session token
 //   GET  /api/me                           signed-in wallet + its merchant record, if registered
 //   POST /api/merchants {name, arbiter, masterId}  register the signed-in wallet as a merchant (verified on-chain)
 //   GET  /api/orders                       the signed-in merchant's orders            -> syncs chain first
 //   POST /api/orders {amount, item}        signed-in merchant creates an order (per-order virtual address, no tx)
-//   GET  /api/orders/:id                   one order (buyer page, public)            -> syncs chain first
+//   GET  /api/orders/:key                  one order (buyer page, public by its unguessable key) -> syncs chain first
+//                                          (a numeric id works for the order's own merchant, and for pre-key orders)
 //   GET  /api/links                        the signed-in merchant's checkout links (with order counts)
 //   POST /api/links {item, amount}         create a reusable checkout link for one product at a fixed price
 //   POST /api/links/:id {active}           turn a link on or off (its merchant only)
@@ -67,7 +69,8 @@ const clientIp = (h: Headers) => header(h, 'x-forwarded-for').split(',')[0].trim
 // One order: its own virtual address under the merchant's master (no transaction, no cost).
 function newOrder(s: Db, merchant: Merchant, item: string, amount: string, linkId?: string): StoredOrder {
   const id = s.nextOrderId++
-  const order: StoredOrder = { id, merchant: merchant.address, item: item.slice(0, 120) || `Order #${id}`, amount,
+  // key: the buyer link (#/pay/<key>). 96 random bits, so order pages can't be found by counting order numbers.
+  const order: StoredOrder = { id, key: randomBytes(12).toString('base64url'), merchant: merchant.address, item: item.slice(0, 120) || `Order #${id}`, amount,
     address: orderAddress(merchant.masterId, id, s.tagPrefix), createdAt: now(), ...(linkId && { linkId }) }
   s.orders[id] = order
   return order
@@ -112,6 +115,16 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
     const ok = (b: unknown, status = 200): ApiResponse => ({ status, body: b })
     if (method === 'OPTIONS') return ok({}, 204)
     // The sandbox's public test keys are served only on testnet.
+    // Health for uptime monitoring: syncs the indexer (at most every 10 s, so it can't be used to hammer the RPC) and
+    // reports whether it's current. 503 if the indexer errors or lags.
+    if (path === '/api/health') {
+      if (await db.rateLimit('health', 10_000)) await sync(true)
+      // The chain's height from the chain itself (another instance may have done the sync above).
+      const [s, chainHead] = await Promise.all([db.read(), pub.getBlockNumber().catch(() => null)])
+      const lag = s && chainHead !== null ? Number(chainHead) - Number(s.lastBlock) + 1 : null
+      const healthy = !lastErr && lag !== null && lag >= 0 && lag < 600 // ~6 min of blocks
+      return ok({ ok: healthy, network: network.name, head: chainHead?.toString() ?? null, lastBlock: s?.lastBlock ?? null, lag, indexerError: lastErr, now: now() }, healthy ? 200 : 503)
+    }
     if (path === '/api/config') return ok({ ...network, sandbox: network.testnet ? network.sandbox : undefined, head: head.toString(), indexerError: lastErr, now: now() })
 
     if (path === '/api/auth' && method === 'POST') {
@@ -173,11 +186,14 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const mine = Object.values(s.orders).filter((o) => o.merchant.toLowerCase() === address.toLowerCase())
       return ok({ orders: mine.sort((a, b) => b.id - a.id).map((o) => withNotes(s, orderView(s, o))) })
     }
-    const m = path.match(/^\/api\/orders\/(\d+)$/)
+    const m = path.match(/^\/api\/orders\/([\w-]{1,32})$/)
     if (m) {
       await sync()
       const s = await load()
-      const o = s.orders[m[1]]
+      const ref = m[1]
+      let o = /^\d+$/.test(ref) ? s.orders[ref] : Object.values(s.orders).find((x) => x.key === ref)
+      // By number only for orders made before keys existed, or for the order's own signed-in merchant.
+      if (o && /^\d+$/.test(ref) && o.key && sessionOf(s, headers)?.toLowerCase() !== o.merchant.toLowerCase()) o = undefined
       return o ? ok(orderView(s, o)) : ok({ error: 'Order not found' }, 404)
     }
     // ---------------------------------------------------------------- checkout links

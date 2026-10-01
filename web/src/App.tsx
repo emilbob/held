@@ -17,7 +17,7 @@ function useRoute() {
 export default function App() {
   const route = useRoute()
   const cfg = useConfig()
-  const pay = route.match(/^\/pay\/(\d+)/)
+  const pay = route.match(/^\/pay\/([\w-]{1,32})/)
   const buy = route.match(/^\/buy\/([\w-]{6,16})/)
   const page = pay ? <Pay id={pay[1]} />
     : buy ? <Buy id={buy[1]} />

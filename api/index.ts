@@ -49,8 +49,27 @@ interface VercelResponse {
   json(body: unknown): void
 }
 
+// Daily job (vercel.json cron, free on Hobby): one database read keeps Supabase's free project from pausing after
+// 7 idle days, and that same snapshot is saved to Upstash Redis (another provider), keeping the last 7 days.
+// Vercel calls it with "Authorization: Bearer $CRON_SECRET"; nobody else can trigger it.
+const BACKUP_DAYS = 7
+async function daily(): Promise<{ status: number, body: unknown }> {
+  const snap = await db.read()
+  if (!snap) return { status: 200, body: { ok: true, backup: 'nothing to back up yet' } }
+  const day = new Date().toISOString().slice(0, 10)
+  const key = `held:backup:${network.name}:${day}`
+  await redis.set(key, snap, { ex: (BACKUP_DAYS + 1) * 86400 })
+  return { status: 200, body: { ok: true, backup: key, orders: Object.keys(snap.orders).length, payments: Object.keys(snap.payments).length } }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const url = new URL(req.url ?? '/', 'http://x'), path = url.pathname
+  if (path === '/api/cron/daily') {
+    const secret = process.env.CRON_SECRET
+    if (!secret || req.headers.authorization !== `Bearer ${secret}`) { res.status(401).json({ error: 'unauthorized' }); return }
+    try { const r = await daily(); res.status(r.status).json(r.body) } catch (e) { res.status(500).json({ error: (e as Error).message }) }
+    return
+  }
   let body: unknown = {}
   if (req.method === 'POST') {
     body = req.body

@@ -65,10 +65,14 @@ export function createIndexer({ store }: { store: Db }) {
     }
   }
 
-  async function sync() {
-    const head = await pub.getBlockNumber()
+  // Scans up to the finalized block (on Tempo that's the latest: finality is immediate, so no reorg handling is
+  // needed). Works within a time budget: after a long outage, catching up takes several calls instead of one call
+  // that a serverless time limit cuts off (which would lose its progress every time). Progress is in store.lastBlock.
+  async function sync(budgetMs = 30_000) {
+    const started = Date.now()
+    const head = (await pub.getBlock({ blockTag: 'finalized' })).number
     let from = BigInt(store.lastBlock)
-    while (from <= head) {
+    while (from <= head && Date.now() - started < budgetMs) {
       const to = from + MAX_RANGE - 1n < head ? from + MAX_RANGE - 1n : head
       await scanRange(from, to)
       store.lastBlock = (to + 1n).toString()

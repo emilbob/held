@@ -1,15 +1,15 @@
-14:11:15 PASS setup from the merchant wallet: mine, register, deploy, policy mine > register > deploy > policy > done in 90s, arbiter 0xedb03e39332be59c71051da69d2e4a668ba57c8f
-14:11:16 PASS register without sign-in -> 401 
-14:11:16 PASS sign-in with someone else's signature -> 401 
-14:11:16 PASS sign-in with an hour-old signature -> 401 
-14:11:18 PASS sign-in with a fresh signature -> session 
-14:11:19 PASS register with someone else's arbiter -> refused The arbiter is not a current HeldArbiter (v2). Run setup again.
-14:11:21 PASS register with a tampered arbiter (1 byte changed) -> refused The arbiter is not the genuine HeldArbiter contract.
-14:11:24 PASS register the genuine setup -> accepted {
+14:58:36 PASS setup from the merchant wallet: mine, register, deploy, policy mine > register > deploy > policy > done in 163s, arbiter 0xd040d1d6258dbfad2cc5bcf8fe7c9b961ae7ae74
+14:58:37 PASS register without sign-in -> 401 
+14:58:37 PASS sign-in with someone else's signature -> 401 
+14:58:37 PASS sign-in with an hour-old signature -> 401 
+14:58:39 PASS sign-in with a fresh signature -> session 
+14:58:40 PASS register with someone else's arbiter -> refused The arbiter is not a current HeldArbiter (v2). Run setup again.
+14:58:42 PASS register with a tampered arbiter (1 byte changed) -> refused The arbiter is not the genuine HeldArbiter contract.
+14:58:44 PASS register the genuine setup -> accepted {
   merchant: {
-    address: '0x82Eab5EF90afceB049868Ee0Acb6D2f1C809598d',
-    masterId: '0xa63850d6',
-    arbiter: '0xedb03e39332be59c71051da69d2e4a668ba57c8f',
+    address: '0x059063886B11E8ba072985672b0c95Eb85EFBc30',
+    masterId: '0x85ddfab6',
+    arbiter: '0xd040d1d6258dbfad2cc5bcf8fe7c9b961ae7ae74',
     resolver: '0x3a7E18E039B555e9A8eD2036ef13865147C1EDfF',
     acceptedTokens: [
       '0x20C0000000000000000000000000000000000000',
@@ -18,44 +18,49 @@
     ],
     window: 120,
     name: 'E2E Shop',
-    registeredAt: 1790863882
+    registeredAt: 1790866723
   }
 }
-14:11:25 PASS /me returns the merchant 
-14:11:26 PASS create order without sign-in -> 401 
-14:11:28 PASS signed-in non-merchant cannot create orders -> 401 
-14:11:31 PASS orders use the merchant arbiter 
-14:11:31 PASS another wallet doesn't see the merchant's orders 
-14:11:35 PASS A paid -> held (indexer follows the new merchant) 
-14:11:36 PASS merchant cannot release early (contract) reverted
-14:11:37 PASS buyer releases A 
-14:11:40 PASS A -> released 
-14:11:44 PASS merchant refunds B from their own wallet 
-14:11:46 PASS B -> refunded 
-14:11:50 PASS buyer disputes C 
-14:11:51 PASS C is on the resolver's list 
-14:11:52 PASS note signed by another wallet -> 401 
-14:11:53 PASS buyer note signed by the paying wallet -> accepted 
-14:11:53 PASS stranger cannot reply -> 401 
-14:11:55 PASS merchant replies with its session 
-14:11:56 PASS public order page has no notes 
-14:11:58 PASS merchant sees both notes 
-14:11:58 PASS resolver list without sign-in has no notes 
-14:11:59 PASS signed-in resolver sees the notes 
-14:12:00 PASS merchant cannot release a disputed payment (contract) reverted
-14:12:01 PASS resolver refunds C from the resolver's wallet 
-14:12:02 PASS C -> refunded 
-14:12:08 PASS D paid in the second stablecoin -> held, not a wrong token 
-14:12:08 PASS buyer releases D (second stablecoin reaches the merchant) 
-14:12:11 PASS D -> released 
-14:12:17 PASS buyer without pathUSD confirms delivery, fee paid in the second stablecoin 
-14:12:17 PASS …and never needed pathUSD 0n
-14:12:20 PASS E -> released 
-14:12:24 PASS wrong-token payment is flagged [ true ]
-14:12:24   waiting out the 120 s window…
-14:14:30 PASS wrong token cannot reach the merchant after the window (contract) reverted
-14:14:31 PASS payer gets the wrong token back 
-14:14:31 PASS order above the launch cap ($1000) -> 400 
-14:14:31 PASS checkout link above the launch cap -> 400 
-14:14:31 PASS order of $0 -> 400 
-14:14:31 44/44 checks passed
+14:58:44 PASS /me returns the merchant 
+14:58:46 PASS create order without sign-in -> 401 
+14:58:48 PASS signed-in non-merchant cannot create orders -> 401 
+14:58:51 PASS orders use the merchant arbiter 
+14:58:51 PASS order has an unguessable key (16+ chars) ufmvf_lYvTfmVv_4
+14:58:51 PASS public: the key opens the order 
+14:58:52 PASS public: the order number does not -> 404 
+14:58:52 PASS another signed-in wallet: order number -> 404 
+14:58:52 PASS the shop's merchant: order number -> 200 
+14:58:52 PASS another wallet doesn't see the merchant's orders 
+14:58:56 PASS A paid -> held (indexer follows the new merchant) 
+14:58:57 PASS merchant cannot release early (contract) reverted
+14:58:59 PASS buyer releases A 
+14:59:01 PASS A -> released 
+14:59:05 PASS merchant refunds B from their own wallet 
+14:59:07 PASS B -> refunded 
+14:59:11 PASS buyer disputes C 
+14:59:13 PASS C is on the resolver's list 
+14:59:14 PASS note signed by another wallet -> 401 
+14:59:15 PASS buyer note signed by the paying wallet -> accepted 
+14:59:15 PASS stranger cannot reply -> 401 
+14:59:17 PASS merchant replies with its session 
+14:59:18 PASS public order page has no notes 
+14:59:20 PASS merchant sees both notes 
+14:59:20 PASS resolver list without sign-in has no notes 
+14:59:23 PASS signed-in resolver sees the notes 
+14:59:25 PASS merchant cannot release a disputed payment (contract) reverted
+14:59:25 PASS resolver refunds C from the resolver's wallet 
+14:59:28 PASS C -> refunded 
+14:59:35 PASS D paid in the second stablecoin -> held, not a wrong token 
+14:59:36 PASS buyer releases D (second stablecoin reaches the merchant) 
+14:59:39 PASS D -> released 
+14:59:45 PASS buyer without pathUSD confirms delivery, fee paid in the second stablecoin 
+14:59:46 PASS …and never needed pathUSD 0n
+14:59:47 PASS E -> released 
+14:59:52 PASS wrong-token payment is flagged [ true ]
+14:59:52   waiting out the 120 s window…
+15:01:58 PASS wrong token cannot reach the merchant after the window (contract) reverted
+15:01:59 PASS payer gets the wrong token back 
+15:01:59 PASS order above the launch cap ($1000) -> 400 
+15:01:59 PASS checkout link above the launch cap -> 400 
+15:01:59 PASS order of $0 -> 400 
+15:01:59 49/49 checks passed

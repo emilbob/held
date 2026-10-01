@@ -91,7 +91,7 @@ await addAuthenticator(page.target())
 try {
   // ORDER 1: connect Tempo Wallet -> pay -> confirm delivery
   const o1 = await createOrder('Tempo Wallet test: notebook', '2')
-  await page.goto(`${APP}/#/pay/${o1.id}`, { waitUntil: 'networkidle2' })
+  await page.goto(`${APP}/#/pay/${o1.key}`, { waitUntil: 'networkidle2' })
   await clickText(page, /^Tempo Wallet$/)
   const connected = { done: async () => /Tempo Wallet\)/.test(await text(page, '.walletbox')), toString: () => 'connect' }
   await approveWallet(page, connected, 90000)
@@ -109,13 +109,13 @@ try {
   await clickText(page, /I got it/)
   await approveWallet(page, { done: async () => /merchant has been paid/i.test(await text(page, '.pay')) || /🔒|testnet is busy/.test(await text(page, '.pay')) }, 90000)
   await page.screenshot({ path: join(here, 'shots/tw-3-released.png') }).catch(() => {})
-  let o = await api(`/orders/${o1.id}`)
-  for (let i = 0; i < 15 && o.status !== 'released'; i++) { await sleep(1000); o = await api(`/orders/${o1.id}`) }
+  let o = await api(`/orders/${o1.key}`)
+  for (let i = 0; i < 15 && o.status !== 'released'; i++) { await sleep(1000); o = await api(`/orders/${o1.key}`) }
   check('confirm delivery (arbiter.release) signed by Tempo Wallet -> released', o.status === 'released', o.status + ' ' + (await text(page, '.result')))
 
   // ORDER 2: same wallet -> pay -> dispute
   const o2 = await createOrder('Tempo Wallet test: logo', '1')
-  await page.goto(`${APP}/#/pay/${o2.id}`, { waitUntil: 'networkidle2' })
+  await page.goto(`${APP}/#/pay/${o2.key}`, { waitUntil: 'networkidle2' })
   await sleep(1500)
   if (!/Tempo Wallet\)/.test(await text(page, '.walletbox'))) {
     await clickText(page, /^Tempo Wallet$/)
@@ -127,8 +127,8 @@ try {
   await clickText(page, /^Send dispute$/)
   await approveWallet(page, { done: async () => /Dispute open/.test(await text(page, '.pay')) || /🔒|testnet is busy/.test(await text(page, '.pay')) }, 90000)
   await page.screenshot({ path: join(here, 'shots/tw-4-disputed.png') }).catch(() => {})
-  o = await api(`/orders/${o2.id}`)
-  for (let i = 0; i < 15 && o.status !== 'disputed'; i++) { await sleep(1000); o = await api(`/orders/${o2.id}`) }
+  o = await api(`/orders/${o2.key}`)
+  for (let i = 0; i < 15 && o.status !== 'disputed'; i++) { await sleep(1000); o = await api(`/orders/${o2.key}`) }
   check('open dispute (arbiter.dispute) signed by Tempo Wallet -> disputed', o.status === 'disputed', o.status)
   const payer = o.payments[0]?.payer
   log('Tempo Wallet account', payer, '| orders', o1.id, o2.id)

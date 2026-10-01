@@ -110,7 +110,7 @@ try {
   // Fund the throwaway account on testnet (pathUSD pays gas on Tempo).
   await api('/faucet', { address })
   const o1 = await createOrder('MetaMask test: notebook', '2')
-  await held.goto(`${APP}/#/pay/${o1.id}`, { waitUntil: 'networkidle2' })
+  await held.goto(`${APP}/#/pay/${o1.key}`, { waitUntil: 'networkidle2' })
   await sleep(1000)
   const hasBtn = await held.evaluate(() => [...document.querySelectorAll('button')].some((b) => /^MetaMask$/.test(b.innerText.trim())))
   check('"MetaMask" listed when MetaMask is installed', hasBtn)
@@ -127,14 +127,14 @@ try {
   await held.screenshot({ path: join(here, 'shots/mm-2-held.png') }).catch(() => {})
 
   await actInHeld('release', /^I got it/, /merchant has been paid/i)
-  let o = await api(`/orders/${o1.id}`)
-  for (let i = 0; i < 15 && o.status !== 'released'; i++) { await sleep(1000); o = await api(`/orders/${o1.id}`) }
+  let o = await api(`/orders/${o1.key}`)
+  for (let i = 0; i < 15 && o.status !== 'released'; i++) { await sleep(1000); o = await api(`/orders/${o1.key}`) }
   check('confirm delivery (arbiter.release) signed in MetaMask -> released', o.status === 'released', o.status)
   await held.screenshot({ path: join(here, 'shots/mm-3-released.png') }).catch(() => {})
 
   const o2 = await createOrder('MetaMask test: logo', '1')
   // Full reload (hash-only navigation keeps React state from order 1).
-  await held.goto(`${APP}/?o=${o2.id}#/pay/${o2.id}`, { waitUntil: 'networkidle2' })
+  await held.goto(`${APP}/?o=${o2.id}#/pay/${o2.key}`, { waitUntil: 'networkidle2' })
   await sleep(1500)
   log('  order 2 page before pay:', (await payText()).replace(/\s+/g, ' ').slice(0, 200))
   if (!/\(MetaMask\)/.test(await walletText())) { await clickHeld(/^MetaMask$/); await approveMetaMask('reconnect', async () => /\(MetaMask\)/.test(await walletText())) }
@@ -142,8 +142,8 @@ try {
   log('  order 2 page after pay:', (await payText()).replace(/\s+/g, ' ').slice(0, 300))
   await clickHeld(/open dispute$/) // reveals the dispute form (the note is optional)
   await actInHeld('dispute', /^Send dispute$/, /Dispute open/)
-  o = await api(`/orders/${o2.id}`)
-  for (let i = 0; i < 15 && o.status !== 'disputed'; i++) { await sleep(1000); o = await api(`/orders/${o2.id}`) }
+  o = await api(`/orders/${o2.key}`)
+  for (let i = 0; i < 15 && o.status !== 'disputed'; i++) { await sleep(1000); o = await api(`/orders/${o2.key}`) }
   check('open dispute (arbiter.dispute) signed in MetaMask -> disputed', o.status === 'disputed', o.status)
   await held.screenshot({ path: join(here, 'shots/mm-4-disputed.png') }).catch(() => {})
   log('orders', o1.id, o2.id)

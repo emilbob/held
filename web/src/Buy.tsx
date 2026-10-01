@@ -14,7 +14,7 @@ export default function Buy({ id }: { id: string }) {
     api<PublicLink>(`/links/${id}`)
       .then((l) => { setLink(l); if (!l.active) throw new Error('This checkout link has been turned off by the merchant.') })
       .then(() => api<Order>(`/links/${id}/orders`, {}))
-      .then((o) => location.replace(`#/pay/${o.id}`)) // replace: the back button shouldn't make another order
+      .then((o) => location.replace(`#/pay/${o.key ?? o.id}`)) // replace: the back button shouldn't make another order
       .catch((e: Error) => setError(e.message))
   }, [id])
   return (

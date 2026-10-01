@@ -48,6 +48,7 @@ export interface Merchant {
 
 export interface StoredOrder {
   id: number
+  key?: string // the buyer link (#/pay/<key>); orders created before Oct 2026 have none and use their number
   merchant: Address
   item: string
   amount: string // base units (6 decimals)

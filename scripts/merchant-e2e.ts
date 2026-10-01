@@ -37,7 +37,7 @@ const fund = (a: Address) => retry(() => Actions.faucet.fundSync(pub, { account:
 const tx = async (h: () => Promise<Hex>) => (await pub.waitForTransactionReceipt({ hash: await retry(h) })).status
 const act = (w: ReturnType<typeof walletFor>, address: Address, fn: 'release' | 'refund' | 'dispute', receipt: Hex) =>
   tx(() => w.writeContract({ address, abi: arb.abi, functionName: fn, args: [receipt], gas: 2_000_000n }))
-async function waitStatus(id: number, want: Order['status'], ms = 30000): Promise<Order> {
+async function waitStatus(id: string, want: Order['status'], ms = 30000): Promise<Order> {
   const t = Date.now(); let o = (await call<Order>('GET', `/orders/${id}`)).body
   while (o.status !== want && Date.now() - t < ms) { await new Promise((r) => setTimeout(r, 800)); o = (await call<Order>('GET', `/orders/${id}`)).body }
   return o
@@ -97,6 +97,12 @@ try {
   const B = (await call<Order>('POST', '/orders', { amount: '4', item: 'Order B' }, token)).body
   const C = (await call<Order>('POST', '/orders', { amount: '3', item: 'Order C' }, token)).body
   check('orders use the merchant arbiter', A.merchantInfo?.arbiter === setup.arbiter && A.merchant === mAcct.address)
+  // Buyer links are unguessable: the key opens the order; counting order numbers doesn't.
+  check('order has an unguessable key (16+ chars)', typeof A.key === 'string' && A.key.length >= 16, A.key)
+  check('public: the key opens the order', (await call('GET', `/orders/${A.key}`)).status === 200)
+  check('public: the order number does not -> 404', (await call('GET', `/orders/${A.id}`)).status === 404)
+  check('another signed-in wallet: order number -> 404', (await call('GET', `/orders/${A.id}`, undefined, sTok)).status === 404)
+  check("the shop's merchant: order number -> 200", (await call('GET', `/orders/${A.id}`, undefined, token)).status === 200)
   const strangerList = await call<{ orders: Order[] }>('GET', '/orders', undefined, sTok)
   check("another wallet doesn't see the merchant's orders", strangerList.body.orders.length === 0)
 
@@ -108,26 +114,26 @@ try {
     return ReceivePolicyReceipt.fromTransactionReceipt(t.receipt ?? t)[0] as Hex
   }
   const rA = await pay(A)
-  let o = await waitStatus(A.id, 'held')
+  let o = await waitStatus(A.key!, 'held')
   check('A paid -> held (indexer follows the new merchant)', o.status === 'held' && o.payments[0]?.windowEndsAt - o.payments[0]?.heldAt === 120)
   const early = await act(mw, setup.arbiter, 'release', rA).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
   check('merchant cannot release early (contract)', early === 'reverted', early)
   check('buyer releases A', (await act(bw, setup.arbiter, 'release', rA)) === 'success')
-  check('A -> released', (await waitStatus(A.id, 'released')).status === 'released')
+  check('A -> released', (await waitStatus(A.key!, 'released')).status === 'released')
 
-  const rB = await pay(B); await waitStatus(B.id, 'held')
+  const rB = await pay(B); await waitStatus(B.key!, 'held')
   check('merchant refunds B from their own wallet', (await act(mw, setup.arbiter, 'refund', rB)) === 'success')
-  check('B -> refunded', (await waitStatus(B.id, 'refunded')).status === 'refunded')
+  check('B -> refunded', (await waitStatus(B.key!, 'refunded')).status === 'refunded')
 
-  const rC = await pay(C); await waitStatus(C.id, 'held')
+  const rC = await pay(C); await waitStatus(C.key!, 'held')
   check('buyer disputes C', (await act(bw, setup.arbiter, 'dispute', rC)) === 'success')
-  await waitStatus(C.id, 'disputed')
+  await waitStatus(C.key!, 'disputed')
   const disputes = await call<{ orders: Order[] }>('GET', `/disputes?resolver=${TEST_RESOLVER}`)
   check("C is on the resolver's list", disputes.body.orders.some((x) => x.id === C.id))
 
   // Dispute notes: the payer's must be signed by the paying wallet; the merchant replies with its session; only the
   // merchant and the resolver (signed in) can read them.
-  const cPay = (await waitStatus(C.id, 'disputed')).payments[0]
+  const cPay = (await waitStatus(C.key!, 'disputed')).payments[0]
   const reason = 'Nothing arrived by the promised date.'
   const fakeSig = await privateKeyToAccount(generatePrivateKey()).signMessage({ message: noteMessage(C.id, cPay.id, reason) })
   check("note signed by another wallet -> 401", (await call('POST', '/notes', { paymentId: cPay.id, text: reason, signature: fakeSig })).status === 401)
@@ -135,7 +141,7 @@ try {
   check('buyer note signed by the paying wallet -> accepted', (await call('POST', '/notes', { paymentId: cPay.id, text: reason, signature: goodSig })).status === 201)
   check('stranger cannot reply -> 401', (await call('POST', '/notes', { paymentId: cPay.id, text: 'hi' }, sTok)).status === 401)
   check('merchant replies with its session', (await call('POST', '/notes', { paymentId: cPay.id, text: 'Shipped, tracking TR123.' }, token)).status === 201)
-  check('public order page has no notes', !(await call<Order>('GET', `/orders/${C.id}`)).body.notes)
+  check('public order page has no notes', !(await call<Order>('GET', `/orders/${C.key}`)).body.notes)
   const mList = (await call<{ orders: Order[] }>('GET', '/orders', undefined, token)).body.orders.find((x) => x.id === C.id)
   check('merchant sees both notes', mList?.notes?.[cPay.id]?.map((n) => n.by).join() === 'buyer,merchant')
   check('resolver list without sign-in has no notes', !disputes.body.orders.find((x) => x.id === C.id)?.notes)
@@ -147,7 +153,7 @@ try {
   const merchantTakes = await act(mw, setup.arbiter, 'release', rC).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
   check('merchant cannot release a disputed payment (contract)', merchantTakes === 'reverted', merchantTakes)
   check("resolver refunds C from the resolver's wallet", (await act(rw, setup.arbiter, 'refund', rC)) === 'success')
-  check('C -> refunded', (await waitStatus(C.id, 'refunded')).status === 'refunded')
+  check('C -> refunded', (await waitStatus(C.key!, 'refunded')).status === 'refunded')
 
   // ---------------------------------------------------------------- v2: several stablecoins, fee tokens, wrong tokens, launch cap
   const T1 = TOKENS[1]
@@ -157,29 +163,29 @@ try {
   }
   const D = (await call<Order>('POST', '/orders', { amount: '2', item: 'Order D (second stablecoin)' }, token)).body
   const rD = await payIn(bw, D, T1)
-  const oD = await waitStatus(D.id, 'held')
+  const oD = await waitStatus(D.key!, 'held')
   check('D paid in the second stablecoin -> held, not a wrong token', oD.status === 'held' && oD.payments[0]?.wrongToken === false)
   check('buyer releases D (second stablecoin reaches the merchant)', (await act(bw, setup.arbiter, 'release', rD)) === 'success')
-  check('D -> released', (await waitStatus(D.id, 'released')).status === 'released')
+  check('D -> released', (await waitStatus(D.key!, 'released')).status === 'released')
 
   // A buyer holding NO pathUSD, only the second stablecoin: pays and confirms delivery with fees in that stablecoin.
   const buyer2 = privateKeyToAccount(generatePrivateKey()), bw2 = walletFor(buyer2)
   await tx(() => bw.writeContract({ address: T1, abi: erc20Abi, functionName: 'transfer', args: [buyer2.address, 10_000_000n] }))
   const E = (await call<Order>('POST', '/orders', { amount: '3', item: 'Order E (buyer without pathUSD)' }, token)).body
   const rE = await payIn(bw2, E, T1)
-  await waitStatus(E.id, 'held')
+  await waitStatus(E.key!, 'held')
   const relE = await tx(() => bw2.writeContract({ address: setup.arbiter, abi: arb.abi, functionName: 'release', args: [rE], gas: 2_000_000n, feeToken: T1 } as never))
   check('buyer without pathUSD confirms delivery, fee paid in the second stablecoin', relE === 'success')
   const b2path = await pub.readContract({ address: PATHUSD, abi: erc20Abi, functionName: 'balanceOf', args: [buyer2.address] })
   check('…and never needed pathUSD', b2path === 0n, b2path)
-  check('E -> released', (await waitStatus(E.id, 'released')).status === 'released')
+  check('E -> released', (await waitStatus(E.key!, 'released')).status === 'released')
 
   // Wrong token: held, never released to the merchant (even after the window), refundable by the payer.
   const F = (await call<Order>('POST', '/orders', { amount: '1', item: 'Order F (wrong token)' }, token)).body
   const rF = await payIn(bw, F, WRONG_TOKEN)
   // A wrong-token payment leaves the order awaiting payment, so wait for the indexer to record the payment itself.
-  let oF = (await call<Order>('GET', `/orders/${F.id}`)).body
-  for (let i = 0; i < 40 && !oF.payments.length; i++) { await new Promise((r) => setTimeout(r, 800)); oF = (await call<Order>('GET', `/orders/${F.id}`)).body }
+  let oF = (await call<Order>('GET', `/orders/${F.key}`)).body
+  for (let i = 0; i < 40 && !oF.payments.length; i++) { await new Promise((r) => setTimeout(r, 800)); oF = (await call<Order>('GET', `/orders/${F.key}`)).body }
   check('wrong-token payment is flagged', oF.payments.some((p) => p.wrongToken), oF.payments.map((p) => p.wrongToken))
   log('  waiting out the 120 s window…')
   await new Promise((r) => setTimeout(r, 125_000))

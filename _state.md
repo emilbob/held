@@ -210,3 +210,15 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Next: indexer hardening (paid RPC, reorgs), monitoring/alerts, mainnet dry run, resolver multisig, guarded launch.
   Supabase free plan pauses after 7 days idle: upgrade to Pro before mainnet. Order ids are sequential and order pages
   public: make buyer links unguessable before mainnet.
+
+## Oct 1 (evening): ops, landing v2, submission
+- Free-tier ops live: /api/cron/daily (CRON_SECRET; Supabase keep-alive + 7-day backup to Upstash, cleanup of expired
+  sessions/rate limits; scripts/restore-backup.ts), /api/health + .github/workflows/uptime.yml (15 min, 'down' issues),
+  indexer reads to finalized with a time budget (catch-up tested: 1M blocks in 2 runs). Free alt RPCs refuse getLogs.
+- Buyer links: orders get a 96-bit key (#/pay/<key>); numeric ids only for the shop's merchant and pre-key orders.
+- Terms (#/terms) and privacy (#/privacy); IPs hashed in rate limits.
+- Landing v2: web/src/HeldFrame.tsx (canvas line-art, open/held/released/refunded), scroll story, film section
+  (YouTube bjRJN8NoCAM, poster web/public/film-poster.jpg), guarantee, scroll cue. Motion in web/src/anim.tsx (no GSAP,
+  ~2 KB). Navbar logo reloads to the landing.
+- Colosseum form complete except the pitch video (user records with Superteam Balkan). Copilot v2 installed + signed in.
+- Next: mainnet dry run (held-mainnet Vercel project, user's ~$3-5 USDC.e), then guarded free beta ($250 cap).

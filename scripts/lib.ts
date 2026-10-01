@@ -1,17 +1,21 @@
-// Shared helpers for Held scripts (Tempo Moderato testnet).
+// Shared helpers for Held scripts and the server. Network: HELD_NETWORK=testnet (default) or mainnet.
 import { createClient, createPublicClient, http, publicActions, walletActions, formatUnits, type Account, type Address, type Hex } from 'viem'
-import { tempoModerato } from 'viem/chains'
+import { tempo, tempoModerato } from 'viem/chains'
 import { Actions } from 'viem/tempo'
 import { privateKeyToAccount } from 'viem/accounts'
 import { VirtualAddress } from 'ox/tempo'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
+import { pickNetwork } from '../shared/network.ts'
 
+export const network = pickNetwork(process.env.HELD_NETWORK)
 export const PATHUSD: Address = '0x20c0000000000000000000000000000000000000'
-export const WRONG_TOKEN: Address = '0x20c0000000000000000000000000000000000001'
-export const chain = tempoModerato.extend({ feeToken: PATHUSD })
+// Testnet: a real token shops don't accept (ThetaUSD), for the wrong-token checks.
+export const WRONG_TOKEN: Address = network.testWrongToken ?? '0x20c0000000000000000000000000000000000003'
+export const TOKENS: Address[] = network.tokens.map((t) => t.address)
+export const chain = (network.testnet ? tempoModerato : tempo).extend({ feeToken: PATHUSD })
 // Tempo's public testnet RPC rate-limits in bursts ("Request exceeds defined limit", -32005). viem retries that
 // code, but its default (3 tries, ~2 s) gives up too early; back off for up to ~18 s instead.
-export const rpc = () => http(undefined, { retryCount: 5, retryDelay: 300 })
+export const rpc = () => http(process.env.HELD_RPC || network.rpc, { retryCount: 5, retryDelay: 300 })
 // True for RPC rate-limit rejections, so a check that expects a contract revert never passes on one.
 export const isRpcLimit = (e: unknown) => /exceeds defined limit|rate limit|too many requests/i.test(String((e as Error)?.message ?? e))
 

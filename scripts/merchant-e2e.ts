@@ -8,8 +8,8 @@ import { rmSync } from 'node:fs'
 import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts'
 import { ReceivePolicyReceipt } from 'ox/tempo'
-import { parseUnits, type Abi, type Address, type Hex } from 'viem'
-import { pub, walletFor, requireState, log, isRpcLimit, PATHUSD } from './lib.ts'
+import { parseUnits, erc20Abi, type Abi, type Address, type Hex } from 'viem'
+import { pub, walletFor, requireState, log, isRpcLimit, network, PATHUSD, TOKENS, WRONG_TOKEN } from './lib.ts'
 import { runSetup } from '../web/src/setup.ts'
 import { signInMessage, noteMessage, type Merchant, type Order } from '../shared/api.ts'
 import arbiterJson from '../shared/HeldArbiter.json' with { type: 'json' }
@@ -56,7 +56,7 @@ try {
   await fund(mAcct.address) // before the receive policy: afterwards every incoming transfer is held
   const merchantWallet = { kind: 'demo', name: 'test merchant', address: mAcct.address, client: walletFor(mAcct) } as never
   const t0 = Date.now(); let steps: string[] = []
-  const setup = await runSetup({ wallet: merchantWallet, pub: pub as never, resolver: TEST_RESOLVER, token: PATHUSD,
+  const setup = await runSetup({ wallet: merchantWallet, pub: pub as never, resolver: TEST_RESOLVER, tokens: TOKENS,
     window: 120, state: {}, save: () => {}, onStep: (s) => steps.push(s) })
   check('setup from the merchant wallet: mine, register, deploy, policy', steps.join(',') === 'mine,register,deploy,policy,done', `${steps.join(' > ')} in ${Math.round((Date.now() - t0) / 1000)}s, arbiter ${setup.arbiter}`)
 
@@ -76,7 +76,7 @@ try {
 
   // A tampered arbiter: the genuine code with one byte of its metadata changed. Behaves the same, is not the same.
   const tampered = (arb.bytecode.slice(0, -40) + (arb.bytecode.at(-40) === 'a' ? 'b' : 'a') + arb.bytecode.slice(-39)) as Hex
-  const tHash = await retry(() => walletFor(mAcct).deployContract({ abi: arb.abi, bytecode: tampered, args: [mAcct.address, TEST_RESOLVER, PATHUSD, 120n] }))
+  const tHash = await retry(() => walletFor(mAcct).deployContract({ abi: arb.abi, bytecode: tampered, args: [mAcct.address, TEST_RESOLVER, TOKENS, 120n] }))
   const tAddr = (await pub.waitForTransactionReceipt({ hash: tHash })).contractAddress!
   const fake = await call('POST', '/merchants', { name: 'x', arbiter: tAddr, masterId: setup.masterId }, token)
   check('register with a tampered arbiter (1 byte changed) -> refused', fake.status === 422 && /genuine/.test((fake.body as any).error), (fake.body as any).error)
@@ -148,6 +148,50 @@ try {
   check('merchant cannot release a disputed payment (contract)', merchantTakes === 'reverted', merchantTakes)
   check("resolver refunds C from the resolver's wallet", (await act(rw, setup.arbiter, 'refund', rC)) === 'success')
   check('C -> refunded', (await waitStatus(C.id, 'refunded')).status === 'refunded')
+
+  // ---------------------------------------------------------------- v2: several stablecoins, fee tokens, wrong tokens, launch cap
+  const T1 = TOKENS[1]
+  const payIn = async (w: ReturnType<typeof walletFor>, o: Order, token: Address) => {
+    const t = await retry(() => Actions.token.transferSync(w, { to: o.address, amount: BigInt(o.amount), token, feeToken: token } as never))
+    return ReceivePolicyReceipt.fromTransactionReceipt((t as { receipt?: unknown }).receipt as never ?? t)[0] as Hex
+  }
+  const D = (await call<Order>('POST', '/orders', { amount: '2', item: 'Order D (second stablecoin)' }, token)).body
+  const rD = await payIn(bw, D, T1)
+  const oD = await waitStatus(D.id, 'held')
+  check('D paid in the second stablecoin -> held, not a wrong token', oD.status === 'held' && oD.payments[0]?.wrongToken === false)
+  check('buyer releases D (second stablecoin reaches the merchant)', (await act(bw, setup.arbiter, 'release', rD)) === 'success')
+  check('D -> released', (await waitStatus(D.id, 'released')).status === 'released')
+
+  // A buyer holding NO pathUSD, only the second stablecoin: pays and confirms delivery with fees in that stablecoin.
+  const buyer2 = privateKeyToAccount(generatePrivateKey()), bw2 = walletFor(buyer2)
+  await tx(() => bw.writeContract({ address: T1, abi: erc20Abi, functionName: 'transfer', args: [buyer2.address, 10_000_000n] }))
+  const E = (await call<Order>('POST', '/orders', { amount: '3', item: 'Order E (buyer without pathUSD)' }, token)).body
+  const rE = await payIn(bw2, E, T1)
+  await waitStatus(E.id, 'held')
+  const relE = await tx(() => bw2.writeContract({ address: setup.arbiter, abi: arb.abi, functionName: 'release', args: [rE], gas: 2_000_000n, feeToken: T1 } as never))
+  check('buyer without pathUSD confirms delivery, fee paid in the second stablecoin', relE === 'success')
+  const b2path = await pub.readContract({ address: PATHUSD, abi: erc20Abi, functionName: 'balanceOf', args: [buyer2.address] })
+  check('…and never needed pathUSD', b2path === 0n, b2path)
+  check('E -> released', (await waitStatus(E.id, 'released')).status === 'released')
+
+  // Wrong token: held, never released to the merchant (even after the window), refundable by the payer.
+  const F = (await call<Order>('POST', '/orders', { amount: '1', item: 'Order F (wrong token)' }, token)).body
+  const rF = await payIn(bw, F, WRONG_TOKEN)
+  // A wrong-token payment leaves the order awaiting payment, so wait for the indexer to record the payment itself.
+  let oF = (await call<Order>('GET', `/orders/${F.id}`)).body
+  for (let i = 0; i < 40 && !oF.payments.length; i++) { await new Promise((r) => setTimeout(r, 800)); oF = (await call<Order>('GET', `/orders/${F.id}`)).body }
+  check('wrong-token payment is flagged', oF.payments.some((p) => p.wrongToken), oF.payments.map((p) => p.wrongToken))
+  log('  waiting out the 120 s window…')
+  await new Promise((r) => setTimeout(r, 125_000))
+  const takeF = await act(mw, setup.arbiter, 'release', rF).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
+  check('wrong token cannot reach the merchant after the window (contract)', takeF === 'reverted', takeF)
+  check('payer gets the wrong token back', (await act(bw, setup.arbiter, 'refund', rF)) === 'success')
+
+  // Launch cap.
+  const cap = Number(network.maxOrder) / 1e6
+  check(`order above the launch cap ($${cap}) -> 400`, (await call('POST', '/orders', { amount: String(cap + 1), item: 'too big' }, token)).status === 400)
+  check(`checkout link above the launch cap -> 400`, (await call('POST', '/links', { amount: String(cap + 1), item: 'too big' }, token)).status === 400)
+  check('order of $0 -> 400', (await call('POST', '/orders', { amount: '0', item: 'free' }, token)).status === 400)
 } catch (e) {
   log('ERROR', (e as Error).message); results.push(false)
 } finally {

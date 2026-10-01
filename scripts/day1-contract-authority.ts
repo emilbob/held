@@ -33,7 +33,7 @@ const results: { name: string, pass: boolean }[] = []
 const check = (name: string, pass: boolean, detail: unknown = '') => { results.push({ name, pass }); log(pass ? 'PASS' : 'FAIL', name, detail) }
 
 // 1. deploy arbiter
-const hash = await cl.merchant.deployContract({ abi, bytecode, args: [acct.merchant.address, acct.resolver.address, PATHUSD, BigInt(WINDOW)] })
+const hash = await cl.merchant.deployContract({ abi, bytecode, args: [acct.merchant.address, acct.resolver.address, [PATHUSD], BigInt(WINDOW)] })
 const dep = await pub.waitForTransactionReceipt({ hash })
 if (!dep.contractAddress) throw new Error('arbiter deploy failed')
 const arbiter = dep.contractAddress

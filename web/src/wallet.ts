@@ -5,23 +5,31 @@ import {
   type Address, type Hex, type EIP1193Provider, type WalletClient, type Account, type Chain, type Transport,
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { tempo, tempoModerato } from 'viem/chains'
+import { pickNetwork } from '../../shared/network.ts'
 
 declare global {
   interface Window { ethereum?: EIP1193Provider }
 }
 
+// The network is fixed at build time (HELD_NETWORK=testnet|mainnet, see vite.config.ts); the API serves the same one.
+declare const __HELD_NETWORK__: string
+export const NET = pickNetwork(__HELD_NETWORK__)
 export const PATHUSD: Address = '0x20c0000000000000000000000000000000000000'
-export const WRONG_TOKEN: Address = '0x20c0000000000000000000000000000000000001'
-export const explorer = 'https://explore.testnet.tempo.xyz'
+export const WRONG_TOKEN: Address | undefined = NET.testWrongToken
+export const explorer = NET.explorer
+// Plain EVM chain for browser wallets (MetaMask etc. send standard transactions).
 export const chain = defineChain({
-  id: 42431,
-  name: 'Tempo Moderato',
+  id: NET.chainId,
+  name: NET.testnet ? 'Tempo Moderato' : 'Tempo',
   nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 18 },
-  rpcUrls: { default: { http: ['https://rpc.moderato.tempo.xyz'] } },
+  rpcUrls: { default: { http: [NET.rpc] } },
   blockExplorers: { default: { name: 'Tempo Explorer', url: explorer } },
 })
-// Tempo's public testnet RPC rate-limits in bursts; back off for longer than viem's default before giving up.
-const rpc = () => http(undefined, { retryCount: 5, retryDelay: 300 })
+// viem's Tempo chain for keys Held's page holds and for Tempo Wallet: transactions can name their fee token.
+const tempoChain = NET.testnet ? tempoModerato : tempo
+// Tempo's public RPC rate-limits in bursts; back off for longer than viem's default before giving up.
+const rpc = () => http(NET.rpc, { retryCount: 5, retryDelay: 300 })
 export const pub = createPublicClient({ chain, transport: rpc() })
 
 const receiptFn = (name: 'dispute' | 'release' | 'refund') =>
@@ -50,7 +58,7 @@ export const explain = (err: unknown): string => {
   if (!name && /disconnected from all chains|No accounts connected|No active account/i.test(`${e.shortMessage} ${e.message}`))
     return 'Your wallet disconnected (for example after switching accounts). Click "Change wallet" and connect it again.'
   if (!name && /rate limit|exceeds defined limit|too many requests/i.test(`${e.shortMessage} ${e.message}`))
-    return "Tempo's testnet is busy right now (rate limited). Nothing was sent. Wait a few seconds and try again."
+    return `Tempo's ${NET.testnet ? 'testnet' : 'network'} is busy right now (rate limited). Nothing was sent. Wait a few seconds and try again.`
   return (name && errorText[name]) || name || e.shortMessage || e.message || String(err)
 }
 
@@ -93,7 +101,7 @@ let tempoProvider: EIP1193Provider | undefined
 async function tempoWalletProvider(): Promise<EIP1193Provider> {
   if (!tempoProvider) {
     const { Provider, tempoWallet } = await import('accounts')
-    tempoProvider = Provider.create({ adapter: tempoWallet(), testnet: true }) as unknown as EIP1193Provider
+    tempoProvider = Provider.create({ adapter: tempoWallet(), testnet: NET.testnet }) as unknown as EIP1193Provider
   }
   return tempoProvider
 }
@@ -114,38 +122,60 @@ export async function connect(kind: WalletKind, injected?: InjectedWallet, role:
   if (kind === 'sandbox') {
     if (!sandboxKey) throw new Error('The sandbox is not available here.')
     const account = privateKeyToAccount(sandboxKey)
-    return { kind, name: `sandbox ${role}, shared test wallet`, address: account.address, client: createWalletClient({ account, chain, transport: rpc() }) }
+    return { kind, name: `sandbox ${role}, shared test wallet`, address: account.address, client: createWalletClient({ account, chain: tempoChain, transport: rpc() }) as Wallet['client'] }
   }
   if (kind === 'demo') {
     const account = demoAccount(role)
-    return { kind, name: 'test wallet in this browser', address: account.address, client: createWalletClient({ account, chain, transport: rpc() }) }
+    return { kind, name: 'test wallet in this browser', address: account.address, client: createWalletClient({ account, chain: tempoChain, transport: rpc() }) as Wallet['client'] }
   }
   if (kind === 'tempo') {
     const provider = await tempoWalletProvider()
     const [address] = await provider.request({ method: 'eth_requestAccounts' })
-    return { kind, name: 'Tempo Wallet', address, provider, client: createWalletClient({ account: address, chain, transport: custom(provider) }) }
+    return { kind, name: 'Tempo Wallet', address, provider, client: createWalletClient({ account: address, chain: tempoChain, transport: custom(provider) }) as Wallet['client'] }
   }
   const eth = injected?.provider ?? window.ethereum
   if (!eth) throw new Error('No browser wallet found.')
   const [address] = await eth.request({ method: 'eth_requestAccounts' })
   try {
-    await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa5bf' }] })
+    await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${NET.chainId.toString(16)}` }] })
   } catch {
-    await eth.request({ method: 'wallet_addEthereumChain', params: [{ chainId: '0xa5bf', chainName: 'Tempo Moderato',
-      nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 18 }, rpcUrls: ['https://rpc.moderato.tempo.xyz'], blockExplorerUrls: [explorer] }] })
+    await eth.request({ method: 'wallet_addEthereumChain', params: [{ chainId: `0x${NET.chainId.toString(16)}`, chainName: chain.name,
+      nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 18 }, rpcUrls: [NET.rpc], blockExplorerUrls: [explorer] }] })
   }
   return { kind, name: injected?.name ?? 'Browser wallet', address, provider: eth, client: createWalletClient({ account: address, chain, transport: custom(eth) }) }
 }
 
 export const tokenBalance = (address: Address, token: Address = PATHUSD) =>
   pub.readContract({ address: token, abi: erc20Abi, functionName: 'balanceOf', args: [address] })
+export const tokenBalances = (address: Address, tokens: Address[]) => Promise.all(tokens.map((t) => tokenBalance(address, t)))
+
+// Fees on Tempo are paid in a stablecoin. A token transfer pays in the token sent; any other call (our arbiter)
+// defaults to pathUSD, which a buyer or merchant holding only USDC.e or USDT0 may not have. So wallets that can
+// (Tempo Wallet, keys held by this page) name the fee token: the accepted stablecoin this wallet holds most of.
+// Browser wallets send standard transactions without a fee token, so they need a little pathUSD for those calls.
+const FEE_RESERVE = 50_000n // $0.05 is plenty for one transaction
+async function feeTokenFor(wallet: Wallet, preferred: Address[]): Promise<Address | undefined> {
+  const tokens = [...new Set([...preferred, PATHUSD].map((t) => t.toLowerCase() as Address))]
+  const bals = await tokenBalances(wallet.address, tokens)
+  if (wallet.kind === 'injected') {
+    if (bals[tokens.indexOf(PATHUSD.toLowerCase() as Address)] < FEE_RESERVE)
+      throw new Error(`This step's network fee is paid in pathUSD, and ${wallet.name} can't choose another stablecoin. Add a little pathUSD to this wallet, or use Tempo Wallet.`)
+    return undefined
+  }
+  let best = -1
+  bals.forEach((b, i) => { if (b >= FEE_RESERVE && (best < 0 || b > bals[best])) best = i })
+  return best >= 0 ? tokens[best] : undefined
+}
+const feeOpt = (wallet: Wallet, token: Address | undefined) => (wallet.kind === 'injected' || !token ? {} : { feeToken: token })
 
 export async function transfer(wallet: Wallet, to: Address, amount: string | bigint, token: Address = PATHUSD) {
-  const hash = await wallet.client.writeContract({ address: token, abi: erc20Abi, functionName: 'transfer', args: [to, BigInt(amount)] })
+  // A TIP-20 transfer pays its fee in the token sent.
+  const hash = await wallet.client.writeContract({ address: token, abi: erc20Abi, functionName: 'transfer', args: [to, BigInt(amount)], ...feeOpt(wallet, token) } as never)
   return pub.waitForTransactionReceipt({ hash })
 }
 
-export async function arbiter(wallet: Wallet, address: Address, functionName: ArbiterFn, receipt: Hex) {
+export async function arbiter(wallet: Wallet, address: Address, functionName: ArbiterFn, receipt: Hex, feeTokens: Address[] = []) {
+  const feeToken = await feeTokenFor(wallet, feeTokens)
   // Simulate first so a rule violation shows a clear reason instead of a failed transaction.
   // Tempo's RPC occasionally returns OpcodeNotFound for eth_call (node-level, not a contract revert);
   // retry once, and if it's still a simulation error (not a clean revert), send the tx directly.
@@ -159,7 +189,7 @@ export async function arbiter(wallet: Wallet, address: Address, functionName: Ar
       throw e
     }
   }
-  const hash = await wallet.client.writeContract({ address, abi: arbiterAbi, functionName, args: [receipt], gas: 2_000_000n })
+  const hash = await wallet.client.writeContract({ address, abi: arbiterAbi, functionName, args: [receipt], gas: 2_000_000n, ...feeOpt(wallet, feeToken) } as never)
   const rc = await pub.waitForTransactionReceipt({ hash })
   if (rc.status !== 'success') throw new Error('Transaction reverted')
   return rc

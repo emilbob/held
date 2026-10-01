@@ -49,6 +49,12 @@ const sha256hex = (s: string) => createHash('sha256').update(s).digest('hex')
 const header = (h: Headers, name: string) => { const v = h[name]; return typeof v === 'string' ? v : '' }
 const now = () => Math.floor(Date.now() / 1000)
 const AMOUNT = /^\d+(\.\d{1,6})?$/
+// A price the API accepts: a positive number, at most the network's launch cap. Returns an error or null.
+const priceError = (amount: unknown, network: Network, what: string) => {
+  if (!amount || !AMOUNT.test(String(amount)) || parseUnits(String(amount), 6) <= 0n) return `${what} must be a number like 20 or 12.50`
+  if (parseUnits(String(amount), 6) > BigInt(network.maxOrder)) return `${what} can be at most $${Number(network.maxOrder) / 1e6} for now (launch limit).`
+  return null
+}
 // Dispute notes are only for the order's merchant and resolver.
 const withNotes = (s: Db, o: Order): Order => {
   const notes = Object.fromEntries(o.payments.filter((p) => s.notes?.[p.id]?.length).map((p) => [p.id, s.notes![p.id]]))
@@ -147,7 +153,8 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
 
     if (path === '/api/orders' && method === 'POST') {
       const { amount, item } = body
-      if (!amount || !AMOUNT.test(String(amount))) return ok({ error: 'Amount must be a number like 20 or 12.50' }, 400)
+      const err = priceError(amount, network, 'Amount')
+      if (err) return ok({ error: err }, 400)
       const r = await mutate((s) => {
         const address = sessionOf(s, headers)
         const merchant = address ? s.merchants[address.toLowerCase()] : undefined
@@ -175,7 +182,8 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
     if (path === '/api/links' && method === 'POST') {
       const { amount, item } = body
       if (!item || !String(item).trim()) return ok({ error: 'Name the product.' }, 400)
-      if (!amount || !AMOUNT.test(String(amount)) || Number(amount) <= 0) return ok({ error: 'Price must be a number like 20 or 12.50' }, 400)
+      const err = priceError(amount, network, 'Price')
+      if (err) return ok({ error: err }, 400)
       const r = await mutate((s) => {
         const address = sessionOf(s, headers)
         const merchant = address ? s.merchants[address.toLowerCase()] : undefined

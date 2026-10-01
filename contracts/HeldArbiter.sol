@@ -25,8 +25,13 @@ interface IAddressRegistry {
 ///   - dispute: only the original payer, only inside the window, only once.
 ///   - a disputed payment is decided once by the resolver: release to the merchant or refund the payer.
 ///   - the merchant can refund voluntarily while the payment is not settled.
-///   - a payment in a token the merchant doesn't accept can be refunded by the payer at any time.
+///   - a payment in a token the merchant doesn't accept is never released to the merchant: it can only be refunded,
+///     by the payer at any time or by the merchant.
+///
+/// v2: a shop accepts up to three stablecoins (immutables, so Held's byte-for-byte check of the deployed code covers
+/// them), and payments in other tokens can no longer reach the merchant.
 contract HeldArbiter {
+    uint256 public constant VERSION = 2;
     IReceivePolicyGuard public constant GUARD = IReceivePolicyGuard(0xB10C000000000000000000000000000000000000);
     IAddressRegistry public constant REGISTRY = IAddressRegistry(0xfDC0000000000000000000000000000000000000);
 
@@ -48,8 +53,11 @@ contract HeldArbiter {
 
     address public immutable merchant;
     address public immutable resolver;
-    address public immutable acceptedToken;
     uint64 public immutable protectionWindow;
+    // Accepted stablecoins: token0 is always set; token1 / token2 are address(0) when unused.
+    address public immutable token0;
+    address public immutable token1;
+    address public immutable token2;
 
     mapping(bytes32 => Status) public statusOf;
 
@@ -64,15 +72,35 @@ contract HeldArbiter {
     error NotOriginator();
     error WindowClosed();
     error NotAllowed();
+    error BadConfig();
 
-    constructor(address merchant_, address resolver_, address acceptedToken_, uint64 protectionWindow_) {
+    constructor(address merchant_, address resolver_, address[] memory tokens_, uint64 protectionWindow_) {
+        if (merchant_ == address(0) || resolver_ == address(0) || tokens_.length == 0 || tokens_.length > 3) revert BadConfig();
+        for (uint256 i; i < tokens_.length; i++) {
+            if (tokens_[i] == address(0)) revert BadConfig();
+            for (uint256 j; j < i; j++) if (tokens_[i] == tokens_[j]) revert BadConfig();
+        }
         merchant = merchant_;
         resolver = resolver_;
-        acceptedToken = acceptedToken_;
         protectionWindow = protectionWindow_;
+        token0 = tokens_[0];
+        token1 = tokens_.length > 1 ? tokens_[1] : address(0);
+        token2 = tokens_.length > 2 ? tokens_[2] : address(0);
     }
 
     // ------------------------------------------------------------------ views
+
+    function acceptedTokens() external view returns (address[] memory t) {
+        uint256 n = token2 != address(0) ? 3 : token1 != address(0) ? 2 : 1;
+        t = new address[](n);
+        t[0] = token0;
+        if (n > 1) t[1] = token1;
+        if (n > 2) t[2] = token2;
+    }
+
+    function accepts(address token) public view returns (bool) {
+        return token != address(0) && (token == token0 || token == token1 || token == token2);
+    }
 
     function decode(bytes calldata receipt) public pure returns (Receipt memory r) {
         r = abi.decode(receipt, (Receipt));
@@ -101,9 +129,10 @@ contract HeldArbiter {
     }
 
     /// Pay the merchant. Buyer confirmation any time; permissionless after the window;
-    /// resolver only if disputed.
+    /// resolver only if disputed. Never for a token the shop doesn't accept (those can only be refunded).
     function release(bytes calldata receipt) external {
         (bytes32 id, Receipt memory r) = _load(receipt);
+        if (!accepts(r.token)) revert NotAllowed();
         Status s = statusOf[id];
         if (s == Status.Disputed) {
             if (msg.sender != resolver) revert NotAllowed();
@@ -127,7 +156,7 @@ contract HeldArbiter {
         if (s == Status.Released || s == Status.Refunded) revert AlreadySettled();
         bool ok = msg.sender == merchant
             || (s == Status.Disputed && msg.sender == resolver)
-            || (msg.sender == r.originator && r.token != acceptedToken);
+            || (msg.sender == r.originator && !accepts(r.token));
         if (!ok) revert NotAllowed();
         statusOf[id] = Status.Refunded;
         uint256 amount = GUARD.balanceOf(receipt);

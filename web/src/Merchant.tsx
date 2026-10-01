@@ -5,7 +5,7 @@ import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
 import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, type Msg } from './ui.tsx'
-import { type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
+import { acceptedTokensOf, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
 
 export default function MerchantPage() {
   const cfg = useConfig()
@@ -87,7 +87,7 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
     if (!/^0x[0-9a-fA-F]{40}$/.test(resolver)) return setMsg({ ok: false, text: 'The resolver must be a wallet address (0x…).' })
     abort.current = new AbortController()
     try {
-      const r = await runSetup({ wallet, pub: W.pub as never, resolver: resolver as Address, token: cfg.acceptedToken, window, state: saved(),
+      const r = await runSetup({ wallet, pub: W.pub as never, resolver: resolver as Address, tokens: cfg.tokens.map((t) => t.address), window, state: saved(),
         save: (s) => localStorage.setItem(saveKey, JSON.stringify(s)), onStep: setStep, onProgress: setMining, signal: abort.current.signal })
       await api('/merchants', { name: name || 'My shop', arbiter: r.arbiter, masterId: r.masterId })
       localStorage.removeItem(saveKey)
@@ -220,7 +220,7 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
   const act = async (key: string, fn: W.ArbiterFn, p: Payment, done: string) => {
     if (!wallet) return
     setBusy(key); setMsg(null)
-    try { await W.arbiter(wallet, merchant.arbiter, fn, p.receipt as Hex); setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
+    try { await W.arbiter(wallet, merchant.arbiter, fn, p.receipt as Hex, acceptedTokensOf(merchant)); setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
     setBusy(null)
   }
   const B = ({ k, fn, p, label, done, kind = '' }: { k: string, fn: W.ArbiterFn, p: Payment, label: string, done: string, kind?: string }) => (

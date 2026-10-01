@@ -246,3 +246,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
   .landing .ctas .cta { margin-top: 0 }
   .landing .ctas { margin-top: 24px }
 }
+
+/* Buyer page: which stablecoin to pay with (shops accepting several). */
+.paywith { display: flex; flex-wrap: wrap; align-items: center; gap: 6px }
+.walletbox .actions .paywith button { width: auto }

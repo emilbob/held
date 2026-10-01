@@ -1,39 +1,70 @@
-No files changed, compilation skipped
+Compiling 1 files with Solc 0.8.28
+Solc 0.8.28 finished in 91.74ms
+Compiler run successful!
 
-Ran 33 tests for test/HeldArbiter.t.sol:HeldArbiterTest
-[PASS] testFuzz_FundsOnlyReachMerchantOrPayer(uint8[6],uint32[6]) (runs: 512, μ: 1380820, ~: 1421670)
-[PASS] testFuzz_RandomCallerPowerless(address) (runs: 512, μ: 934337, ~: 934821)
-[PASS] testFuzz_ReleaseAndRefundMoveExactAmount(uint256,bool) (runs: 512, μ: 1175210, ~: 1179258)
-[PASS] testFuzz_WindowBoundary(uint64) (runs: 512, μ: 1163099, ~: 1152832)
-[PASS] test_AnyoneCanReleaseAfterWindow() (gas: 1173407)
-[PASS] test_BuyerCannotSelfRefundAcceptedToken() (gas: 860308)
-[PASS] test_BuyerConfirmsDelivery_ReleasesToMerchant() (gas: 1189019)
-[PASS] test_BuyerDispute_ResolverRefundsToOriginator() (gas: 1232726)
-[PASS] test_BuyerDispute_ResolverReleasesToMerchant() (gas: 1216839)
-[PASS] test_CannotDisputeAfterWindow() (gas: 858359)
-[PASS] test_CannotDisputeSettledPayment() (gas: 1191310)
-[PASS] test_CannotDisputeTwice() (gas: 1149144)
-[PASS] test_CannotRefundAfterRelease() (gas: 1191077)
-[PASS] test_CannotReleaseTwice() (gas: 1191129)
-[PASS] test_DisputeFreezesRelease_EvenAfterWindow() (gas: 1257227)
-[PASS] test_MerchantCanRefundDisputedPayment() (gas: 1198692)
-[PASS] test_MerchantCannotReleaseBeforeWindow() (gas: 860115)
-[PASS] test_MerchantVoluntaryRefund() (gas: 1173089)
-[PASS] test_NoWalletCanClaimFromGuardDirectly() (gas: 946899)
-[PASS] test_OneDecisionPerDispute() (gas: 1268364)
-[PASS] test_OnlyOriginatorCanDispute() (gas: 928031)
-[PASS] test_PaymentToMasterAddressIsHeld() (gas: 820930)
-[PASS] test_PaymentToOrderAddressIsHeld() (gas: 860423)
-[PASS] test_RejectsReceiptForOtherAuthority() (gas: 1388618)
-[PASS] test_RejectsReceiptForOtherMerchant() (gas: 1418853)
-[PASS] test_ResolverCannotRefundWithoutDispute() (gas: 862347)
-[PASS] test_ResolverCannotReleaseUndisputed() (gas: 862223)
-[PASS] test_StrangerCannotRefund() (gas: 862358)
-[PASS] test_StrangerCannotReleaseBeforeWindow() (gas: 862193)
-[PASS] test_TamperedReceiptCannotRedirectRefund() (gas: 1139224)
-[PASS] test_WrongToken_PayerCanSelfRefund() (gas: 1173359)
-[PASS] test_WrongToken_RefundAlwaysGoesToOriginator() (gas: 1187661)
-[PASS] test_WrongToken_StrangerCannotRefund() (gas: 862252)
-Suite result: ok. 33 passed; 0 failed; 0 skipped; finished in 50.21ms (164.03ms CPU time)
+Ran 42 tests for test/HeldArbiter.t.sol:HeldArbiterTest
+[PASS] testFuzz_FundsOnlyReachMerchantOrPayer(uint8[6],uint32[6]) (runs: 512, μ: 1388992, ~: 1422845)
+[PASS] testFuzz_RandomCallerPowerless(address) (runs: 512, μ: 934752, ~: 935338)
+[PASS] testFuzz_ReleaseAndRefundMoveExactAmount(uint256,bool) (runs: 512, μ: 1176735, ~: 1179478)
+[PASS] testFuzz_WindowBoundary(uint64) (runs: 512, μ: 1159499, ~: 1152455)
+[PASS] testFuzz_WrongTokenNeverReachesMerchant(uint8[6],uint32[6]) (runs: 512, μ: 1231349, ~: 1321399)
+[PASS] test_AcceptedTokensView() (gas: 38832)
+[PASS] test_AnyoneCanReleaseAfterWindow() (gas: 1173611)
+[PASS] test_BuyerCannotSelfRefundAcceptedToken() (gas: 860509)
+[PASS] test_BuyerConfirmsDelivery_ReleasesToMerchant() (gas: 1189253)
+[PASS] test_BuyerDispute_ResolverRefundsToOriginator() (gas: 1232935)
+[PASS] test_BuyerDispute_ResolverReleasesToMerchant() (gas: 1217103)
+[PASS] test_CannotDisputeAfterWindow() (gas: 858486)
+[PASS] test_CannotDisputeSettledPayment() (gas: 1191618)
+[PASS] test_CannotDisputeTwice() (gas: 1149332)
+[PASS] test_CannotRefundAfterRelease() (gas: 1191339)
+[PASS] test_CannotReleaseTwice() (gas: 1191555)
+[PASS] test_ConstructorRejectsBadConfig() (gas: 16983)
+[PASS] test_DisputeFreezesRelease_EvenAfterWindow() (gas: 1258310)
+[PASS] test_EveryAcceptedTokenReleasesToMerchant() (gas: 2528460)
+[PASS] test_MerchantCanRefundDisputedPayment() (gas: 1198838)
+[PASS] test_MerchantCannotReleaseBeforeWindow() (gas: 860384)
+[PASS] test_MerchantVoluntaryRefund() (gas: 1173105)
+[PASS] test_NoWalletCanClaimFromGuardDirectly() (gas: 946878)
+[PASS] test_OneDecisionPerDispute() (gas: 1268833)
+[PASS] test_OnlyOriginatorCanDispute() (gas: 928382)
+[PASS] test_PaymentToMasterAddressIsHeld() (gas: 820953)
+[PASS] test_PaymentToOrderAddressIsHeld() (gas: 860591)
+[PASS] test_RejectsReceiptForOtherAuthority() (gas: 1388594)
+[PASS] test_RejectsReceiptForOtherMerchant() (gas: 1419078)
+[PASS] test_ResolverCannotRefundWithoutDispute() (gas: 862383)
+[PASS] test_ResolverCannotReleaseUndisputed() (gas: 862469)
+[PASS] test_SecondTokenFollowsTheSameRules() (gas: 1291272)
+[PASS] test_SingleTokenShop() (gas: 19741)
+[PASS] test_StrangerCannotRefund() (gas: 862351)
+[PASS] test_StrangerCannotReleaseBeforeWindow() (gas: 862461)
+[PASS] test_TamperedReceiptCannotRedirectRefund() (gas: 1139347)
+[PASS] test_WrongToken_BuyerCannotReleaseToMerchant() (gas: 857999)
+[PASS] test_WrongToken_NotReleasableAfterWindow() (gas: 1247383)
+[PASS] test_WrongToken_PayerCanSelfRefund() (gas: 1173612)
+[PASS] test_WrongToken_RefundAlwaysGoesToOriginator() (gas: 1187677)
+[PASS] test_WrongToken_ResolverCanOnlyRefund() (gas: 1234397)
+[PASS] test_WrongToken_StrangerCannotRefund() (gas: 862333)
+Suite result: ok. 42 passed; 0 failed; 0 skipped; finished in 76.39ms (229.22ms CPU time)
 
-Ran 1 test suite in 54.88ms (50.21ms CPU time): 33 tests passed, 0 failed, 0 skipped (33 total tests)
+Ran 1 test for test/HeldArbiter.invariant.t.sol:HeldArbiterInvariantTest
+[PASS]
+HeldArbiterInvariantTest invariants:
+[PASS] invariant_EachPaymentSettlesOnce
+[PASS] invariant_NoValueLeaks
+[PASS] invariant_OnlyMerchantOrPayerGain
+ HeldArbiterInvariantTest invariants (runs: 512, calls: 256000, reverts: 0)
+
+╭----------+----------+-------+---------+----------╮
+| Contract | Selector | Calls | Reverts | Discards |
++==================================================+
+| Handler  | act      | 85402 | 0       | 0        |
+|----------+----------+-------+---------+----------|
+| Handler  | pay      | 85701 | 0       | 0        |
+|----------+----------+-------+---------+----------|
+| Handler  | wait     | 84897 | 0       | 0        |
+╰----------+----------+-------+---------+----------╯
+
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 201.92s (201.91s CPU time)
+
+Ran 2 test suites in 201.93s (202.00s CPU time): 43 tests passed, 0 failed, 0 skipped (43 total tests)

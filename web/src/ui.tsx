@@ -114,7 +114,9 @@ export function useWallet(role: W.Role) {
   const cfg = useConfig()
   const rememberKey = role === 'buyer' ? 'held.walletKind' : `held.walletKind.${role}`
   const [wallet, setWallet] = useState<W.Wallet | null>(null)
-  const [balance, setBalance] = useState<bigint | null>(null)
+  // Per stablecoin of this network (lowercase address -> base units), and their total.
+  const [balances, setBalances] = useState<Record<string, bigint> | null>(null)
+  const balance = balances ? Object.values(balances).reduce((a, b) => a + b, 0n) : null
   const [installed, setInstalled] = useState<W.InjectedWallet[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -134,7 +136,8 @@ export function useWallet(role: W.Role) {
   }, [])
   useEffect(() => {
     if (!wallet) return
-    const f = () => W.tokenBalance(wallet.address).then(setBalance).catch(() => {})
+    const tokens = W.NET.tokens.map((t) => t.address)
+    const f = () => W.tokenBalances(wallet.address, tokens).then((b) => setBalances(Object.fromEntries(tokens.map((t, i) => [t.toLowerCase(), b[i]])))).catch(() => {})
     f(); const t = setInterval(f, 4000); return () => clearInterval(t)
   }, [wallet?.address])
   const connect = async (kind: W.WalletKind, injected?: W.InjectedWallet) => {
@@ -147,7 +150,7 @@ export function useWallet(role: W.Role) {
     } catch (e) { setError(W.explain(e)) }
     setBusy(false)
   }
-  const disconnect = () => { localStorage.removeItem(rememberKey); setWallet(null); setBalance(null) }
+  const disconnect = () => { localStorage.removeItem(rememberKey); setWallet(null); setBalances(null) }
   // External wallets: if the wallet disconnects or switches to another account, drop the stale connection so the
   // page asks again instead of failing on the next action.
   useEffect(() => {
@@ -164,12 +167,12 @@ export function useWallet(role: W.Role) {
     return () => { p.removeListener('accountsChanged', onAccounts); p.removeListener('disconnect', onDisconnect) }
   }, [wallet])
   const sandbox = !!cfg?.testnet && !!cfg.sandbox?.arbiter && role !== 'buyer'
-  return { wallet, balance, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
+  return { wallet, balance, balances, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
 }
 
 export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, note?: string }) {
   if (w.wallet) return (
-    <p className="walletline"><a href={addrUrl(w.wallet.address)} target="_blank">{short(w.wallet.address)}</a> · {w.balance === null ? '…' : usd(w.balance)} pathUSD
+    <p className="walletline"><a href={addrUrl(w.wallet.address)} target="_blank">{short(w.wallet.address)}</a> · {w.balance === null ? '…' : usd(w.balance)} {W.NET.tokens.length > 1 ? 'in stablecoins' : W.NET.tokens[0].symbol}
       <span className="muted"> ({w.wallet.name})</span>
       {' '}<button className="secondary small" onClick={w.disconnect}>Change wallet</button></p>
   )

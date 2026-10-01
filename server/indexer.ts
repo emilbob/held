@@ -6,7 +6,7 @@
 import { parseAbiItem, keccak256 } from 'viem'
 import { ReceivePolicyReceipt } from 'ox/tempo'
 import { pub, orderIdOf } from '../scripts/lib.ts'
-import type { Db, Order, PaymentStatus, StoredOrder } from '../shared/api.ts'
+import { acceptedTokensOf, type Db, type Order, type PaymentStatus, type StoredOrder } from '../shared/api.ts'
 
 const GUARD = '0xB10C000000000000000000000000000000000000'
 const TransferBlocked = parseAbiItem('event TransferBlocked(address indexed token, address indexed receiver, uint64 indexed blockedNonce, uint256 amount, uint8 receiptVersion, bytes receipt)')
@@ -44,7 +44,7 @@ export function createIndexer({ store }: { store: Db }) {
         payer: d.originator,
         recipient: d.recipient,
         token: d.token,
-        wrongToken: d.token.toLowerCase() !== merchant.acceptedToken.toLowerCase(),
+        wrongToken: !acceptedTokensOf(merchant).some((t) => t.toLowerCase() === d.token.toLowerCase()),
         amount: l.args.amount.toString(),
         heldAt: Number(d.blockedAt),
         windowEndsAt: Number(d.blockedAt) + merchant.window,
@@ -95,7 +95,7 @@ export function orderView(store: Db, order: StoredOrder, now = Math.floor(Date.n
   const paid = payments.filter((p) => !p.wrongToken).reduce((a, p) => a + BigInt(p.amount), 0n)
   return {
     ...order,
-    merchantInfo: { name: m.name, arbiter: m.arbiter, resolver: m.resolver, window: m.window },
+    merchantInfo: { name: m.name, arbiter: m.arbiter, resolver: m.resolver, window: m.window, acceptedTokens: acceptedTokensOf(m) },
     status,
     underpaid: main ? paid < BigInt(order.amount) : false,
     payments: payments.map(({ history, ...p }) => ({ ...p, history,

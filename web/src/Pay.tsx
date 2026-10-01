@@ -5,7 +5,8 @@ import type { Hex } from 'viem'
 import QRCode from 'qrcode'
 import * as W from './wallet.ts'
 import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Steps, Result, usd, short, countdown, duration, type Msg } from './ui.tsx'
-import { noteMessage, NOTE_MAX, type Order, type OrderStatus } from '../../shared/api.ts'
+import { noteMessage, NOTE_MAX, tokenSymbol, type Order, type OrderStatus } from '../../shared/api.ts'
+import type { Address } from 'viem'
 
 export default function Pay({ id }: { id: string }) {
   const now = useNow()
@@ -19,11 +20,13 @@ export default function Pay({ id }: { id: string }) {
   const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
   const [disputing, setDisputing] = useState(false)
   const [reason, setReason] = useState('')
+  const [chosen, setChosen] = useState<Address | null>(null)
 
   useEffect(() => {
     if (!order || !cfg) return
     // EIP-681 payment request: token transfer to the order's address.
-    QRCode.toDataURL(`ethereum:${cfg.acceptedToken}@${cfg.chainId}/transfer?address=${order.address}&uint256=${order.amount}`, { margin: 1, width: 220 }).then(setQr)
+    const token = order.merchantInfo.acceptedTokens[0] ?? W.PATHUSD
+    QRCode.toDataURL(`ethereum:${token}@${cfg.chainId}/transfer?address=${order.address}&uint256=${order.amount}`, { margin: 1, width: 220 }).then(setQr)
   }, [order?.address, cfg])
 
   const run = async (key: string, fn: () => Promise<unknown>, done?: string) => {
@@ -46,10 +49,17 @@ export default function Pay({ id }: { id: string }) {
   // A real buyer never sees it.
   const merchantHere = session.get()?.address.toLowerCase() === order.merchant.toLowerCase()
   const back = <a className="back" href="#/merchant">← Back to your orders</a>
-  const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => W.arbiter(wallet!, arbiter, fn, receipt)
+  const accepted = order.merchantInfo.acceptedTokens
+  const sym = (t: string) => tokenSymbol(W.NET, t)
+  const accepts = accepted.map(sym).join(', ').replace(/, ([^,]*)$/, ' or $1')
+  // Pay with: the stablecoin the buyer picked, else the first accepted one they hold enough of.
+  const bal = (t: Address) => w.balances?.[t.toLowerCase()] ?? 0n
+  const enough = accepted.filter((t) => bal(t) >= BigInt(order.amount))
+  const payToken = chosen && accepted.includes(chosen) ? chosen : enough[0] ?? accepted[0]
+  const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => W.arbiter(wallet!, arbiter, fn, receipt, accepted)
   // Dispute on-chain first (from the buyer's wallet), then the signed note. A failed note never undoes the dispute.
   const openDispute = async (paymentId: string, receipt: Hex) => {
-    await W.arbiter(wallet!, arbiter, 'dispute', receipt)
+    await W.arbiter(wallet!, arbiter, 'dispute', receipt, accepted)
     const text = reason.trim()
     if (!text) { setMsg({ ok: true, text: 'Dispute opened.' }); return }
     try {
@@ -69,7 +79,7 @@ export default function Pay({ id }: { id: string }) {
         <Steps status={status} />
         <div className="merchant">{order.merchantInfo.name} · Order #{order.id}</div>
         <h1>{order.item}</h1>
-        <div className="big">{usd(order.amount)} <small>pathUSD</small></div>
+        <div className="big">{usd(order.amount)} <small>{accepted.length > 1 ? 'in stablecoins' : sym(accepted[0])}</small></div>
         <Badge status={status} />
 
         {status === 'awaiting_payment' && (
@@ -79,7 +89,7 @@ export default function Pay({ id }: { id: string }) {
             <div className="payto">
               {qr && <img src={qr} alt="Payment QR code" />}
               <div>
-                <label>Send exactly {usd(order.amount)} pathUSD on Tempo to</label>
+                <label>Send exactly {usd(order.amount)} in {accepts} on Tempo to</label>
                 <code className="addr">{order.address}</code>
                 <button className="ghost" onClick={() => navigator.clipboard.writeText(order.address).then(() => setCopied('ok'), () => setCopied('failed'))
                   .finally(() => setTimeout(() => setCopied(null), 2000))}>{copied === 'ok' ? 'Copied ✓' : 'Copy address'}</button>
@@ -108,12 +118,25 @@ export default function Pay({ id }: { id: string }) {
 
         {wallet && status === 'awaiting_payment' && (
           <div className="actions">
-            <button className="primary" disabled={!!busy} onClick={() => run('pay', () => W.transfer(wallet, order.address, order.amount))}>
-              {busy === 'pay' ? 'Sending…' : `Pay ${usd(order.amount)}`}
+            {accepted.length > 1 && (
+              <div className="paywith" role="group" aria-label="Pay with">
+                <span className="muted small">Pay with</span>
+                {accepted.map((t) => (
+                  <button key={t} type="button" className={`chip ${t === payToken ? 'on' : ''}`} aria-pressed={t === payToken} onClick={() => setChosen(t)}>
+                    {sym(t)} <span>{w.balances ? usd(bal(t)) : '…'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {w.balances && bal(payToken) < BigInt(order.amount) && (
+              <p className="warn small">This wallet has {usd(bal(payToken))} {sym(payToken)}. {enough.length ? `Choose ${sym(enough[0])} above.` : `Add ${usd(order.amount)} in ${accepts} first.`}</p>
+            )}
+            <button className="primary" disabled={!!busy} onClick={() => run('pay', () => W.transfer(wallet, order.address, order.amount, payToken))}>
+              {busy === 'pay' ? 'Sending…' : `Pay ${usd(order.amount)}${accepted.length > 1 ? ` in ${sym(payToken)}` : ''}`}
             </button>
-            {w.testnet && (
+            {w.testnet && W.WRONG_TOKEN && (
               <button className="ghost small" disabled={!!busy} title="Testnet: send a token the merchant doesn't accept"
-                onClick={() => run('wrong', () => W.transfer(wallet, order.address, order.amount, W.WRONG_TOKEN))}>
+                onClick={() => run('wrong', () => W.transfer(wallet, order.address, order.amount, W.WRONG_TOKEN!))}>
                 {busy === 'wrong' ? 'Sending…' : 'Test: pay with the wrong token'}
               </button>
             )}

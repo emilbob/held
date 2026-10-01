@@ -4,12 +4,12 @@ import { createServer, type IncomingMessage } from 'node:http'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs'
 import { extname, join, normalize, dirname } from 'node:path'
 import { createApi, emptyDb, toJson, type DbAdapter } from './core.ts'
-import type { Db, Network } from '../shared/api.ts'
+import type { Db } from '../shared/api.ts'
+import { network } from '../scripts/lib.ts'
 
 const root = new URL('../', import.meta.url).pathname
-const network: Network = JSON.parse(readFileSync(join(root, 'network.json'), 'utf8'))
 // db-v2: the multi-merchant store. The demo-era .state/db.json is left untouched.
-const DB = process.env.HELD_DB || join(root, '.state/db-v2.json')
+const DB = process.env.HELD_DB || join(root, network.testnet ? '.state/db-v2.json' : '.state/db-mainnet.json')
 const PORT = Number(process.env.PORT || 8787)
 const STATIC = join(root, 'web/dist')
 

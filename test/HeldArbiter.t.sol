@@ -42,7 +42,9 @@ contract HeldArbiterTest is Test {
     address buyer = makeAddr("buyer");
     address stranger = makeAddr("stranger");
 
-    ITIP20 usd;   // accepted token
+    ITIP20 usd;   // accepted token (token0)
+    ITIP20 usd2;  // also accepted (token1)
+    ITIP20 usd3;  // also accepted (token2)
     ITIP20 other; // a token the merchant doesn't accept
     HeldArbiter arbiter;
 
@@ -50,7 +52,9 @@ contract HeldArbiterTest is Test {
         vm.warp(1_790_000_000);
         usd = _newToken("Test USD", "TUSD", 1);
         other = _newToken("Other USD", "OUSD", 2);
-        arbiter = new HeldArbiter(MERCHANT, resolver, address(usd), WINDOW);
+        usd2 = _newToken("Second USD", "SUSD", 3);
+        usd3 = _newToken("Third USD", "XUSD", 4);
+        arbiter = new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(usd2), address(usd3)), WINDOW);
 
         vm.startPrank(MERCHANT);
         StdPrecompiles.ADDRESS_REGISTRY.registerVirtualMaster(SALT);
@@ -60,11 +64,21 @@ contract HeldArbiterTest is Test {
         for (uint256 i; i < 3; i++) {
             address a = [buyer, stranger, resolver][i];
             usd.mint(a, 1_000_000e6);
+            usd2.mint(a, 1_000_000e6);
+            usd3.mint(a, 1_000_000e6);
             other.mint(a, 1_000_000e6);
         }
     }
 
     // ------------------------------------------------------------------ helpers
+
+    function _list(address a, address b, address c) internal pure returns (address[] memory t) {
+        uint256 n = c != address(0) ? 3 : b != address(0) ? 2 : 1;
+        t = new address[](n);
+        t[0] = a;
+        if (n > 1) t[1] = b;
+        if (n > 2) t[2] = c;
+    }
 
     function _newToken(string memory name, string memory sym, uint256 salt) internal returns (ITIP20 t) {
         t = ITIP20(StdPrecompiles.TIP20_FACTORY.createToken(name, sym, "USD", StdTokens.PATH_USD, address(this), bytes32(salt)));
@@ -428,5 +442,112 @@ contract HeldArbiterTest is Test {
         assertEq(usd.balanceOf(resolver), r0, "resolver never gains");
         assertEq(held + toMerchant + toBuyer, 50e6, "no value leaks");
         assertTrue(held == 50e6 || toMerchant == 50e6 || toBuyer == 50e6, "all-or-nothing, one destination");
+    }
+
+    // ------------------------------------------------------------------ v2: several stablecoins, wrong tokens never reach the merchant
+
+    function test_AcceptedTokensView() public view {
+        address[] memory t = arbiter.acceptedTokens();
+        assertEq(t.length, 3);
+        assertEq(t[0], address(usd));
+        assertEq(t[1], address(usd2));
+        assertEq(t[2], address(usd3));
+        assertTrue(arbiter.accepts(address(usd2)));
+        assertFalse(arbiter.accepts(address(other)));
+        assertFalse(arbiter.accepts(address(0)));
+        assertEq(arbiter.VERSION(), 2);
+    }
+
+    function test_EveryAcceptedTokenReleasesToMerchant() public {
+        ITIP20[3] memory ts = [usd, usd2, usd3];
+        for (uint256 i; i < 3; i++) {
+            bytes memory r = _pay(buyer, _orderAddress(uint48(2000 + i)), ts[i], 9e6);
+            uint256 before = ts[i].balanceOf(MERCHANT);
+            vm.prank(buyer);
+            arbiter.release(r);
+            assertEq(ts[i].balanceOf(MERCHANT) - before, 9e6);
+        }
+    }
+
+    function test_SecondTokenFollowsTheSameRules() public {
+        bytes memory r = _pay(buyer, _orderAddress(2010), usd2, 4e6);
+        _expectRevert(HeldArbiter.NotAllowed.selector, MERCHANT, Fn.Release, r);
+        _expectRevert(HeldArbiter.NotAllowed.selector, buyer, Fn.Refund, r);
+        vm.prank(buyer);
+        arbiter.dispute(r);
+        uint256 before = usd2.balanceOf(buyer);
+        vm.prank(resolver);
+        arbiter.refund(r);
+        assertEq(usd2.balanceOf(buyer) - before, 4e6);
+    }
+
+    function test_WrongToken_BuyerCannotReleaseToMerchant() public {
+        bytes memory r = _pay(buyer, _orderAddress(1044), other, 7e6);
+        _expectRevert(HeldArbiter.NotAllowed.selector, buyer, Fn.Release, r);
+    }
+
+    function test_WrongToken_NotReleasableAfterWindow() public {
+        bytes memory r = _pay(buyer, _orderAddress(1044), other, 7e6);
+        vm.warp(block.timestamp + WINDOW + 1 days);
+        _expectRevert(HeldArbiter.NotAllowed.selector, stranger, Fn.Release, r);
+        _expectRevert(HeldArbiter.NotAllowed.selector, MERCHANT, Fn.Release, r);
+        // …and the payer can still get it back, long after the window.
+        uint256 before = other.balanceOf(buyer);
+        vm.prank(buyer);
+        arbiter.refund(r);
+        assertEq(other.balanceOf(buyer) - before, 7e6);
+    }
+
+    function test_WrongToken_ResolverCanOnlyRefund() public {
+        bytes memory r = _pay(buyer, _orderAddress(1045), other, 7e6);
+        vm.prank(buyer);
+        arbiter.dispute(r);
+        _expectRevert(HeldArbiter.NotAllowed.selector, resolver, Fn.Release, r);
+        vm.prank(resolver);
+        arbiter.refund(r);
+        assertEq(uint8(arbiter.statusOf(keccak256(r))), uint8(HeldArbiter.Status.Refunded));
+    }
+
+    function test_SingleTokenShop() public {
+        HeldArbiter one = new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(0), address(0)), WINDOW);
+        address[] memory t = one.acceptedTokens();
+        assertEq(t.length, 1);
+        assertEq(one.token1(), address(0));
+        assertFalse(one.accepts(address(usd2)));
+    }
+
+    function test_ConstructorRejectsBadConfig() public {
+        address[] memory none = new address[](0);
+        address[] memory four = new address[](4);
+        four[0] = address(usd); four[1] = address(usd2); four[2] = address(usd3); four[3] = address(other);
+        address[] memory dup = _list(address(usd), address(usd), address(0));
+        address[] memory zero = new address[](2);
+        zero[0] = address(usd);
+        address[] memory ok = _list(address(usd), address(0), address(0));
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, none, WINDOW);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, four, WINDOW);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, dup, WINDOW);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, zero, WINDOW);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(address(0), resolver, ok, WINDOW);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, address(0), ok, WINDOW);
+    }
+
+    /// Whatever happens to a wrong-token payment, the merchant never receives it.
+    function testFuzz_WrongTokenNeverReachesMerchant(uint8[6] calldata actions, uint32[6] calldata waits) public {
+        bytes memory r = _pay(buyer, _orderAddress(1046), other, 25e6);
+        address[4] memory callers = [buyer, MERCHANT, resolver, stranger];
+        uint256 m0 = other.balanceOf(MERCHANT);
+        uint256 b0 = other.balanceOf(buyer);
+        for (uint256 i; i < actions.length; i++) {
+            vm.warp(block.timestamp + (waits[i] % (10 days)));
+            address caller = callers[actions[i] % 4];
+            uint8 fn = (actions[i] / 4) % 3;
+            vm.prank(caller);
+            if (fn == 0) try arbiter.release(r) {} catch {}
+            else if (fn == 1) try arbiter.refund(r) {} catch {}
+            else try arbiter.dispute(r) {} catch {}
+        }
+        assertEq(other.balanceOf(MERCHANT), m0, "merchant never receives a token it doesn't accept");
+        assertTrue(GUARD.balanceOf(r) == 25e6 || other.balanceOf(buyer) - b0 == 25e6, "held, or back with the payer");
     }
 }

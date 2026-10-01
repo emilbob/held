@@ -4,18 +4,17 @@
 import { Redis } from '@upstash/redis'
 import type { IncomingMessage } from 'node:http'
 import { createApi, toJson, type DbAdapter } from '../server/core.ts'
-import type { Db, Network } from '../shared/api.ts'
-import networkJson from '../network.json' with { type: 'json' }
-
-const network = networkJson as Network
+import type { Db } from '../shared/api.ts'
+import { network } from '../scripts/lib.ts'
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
 })
 // v2: the multi-merchant store; the demo-era 'held:db' is left untouched.
-const KEY = 'held:v2:db'
-const LOCK = 'held:v2:lock'
+// Each network keeps its own store (testnet keeps its existing key).
+const KEY = network.testnet ? 'held:v2:db' : 'held:mainnet:db'
+const LOCK = network.testnet ? 'held:v2:lock' : 'held:mainnet:lock'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const db: DbAdapter = {

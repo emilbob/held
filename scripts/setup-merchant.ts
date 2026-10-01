@@ -50,7 +50,7 @@ if (registered?.toLowerCase() !== merchant.address.toLowerCase()) {
 
 if (!s.arbiter || process.env.REDEPLOY || BigInt(s.window ?? 0) !== WINDOW) {
   const { abi, bytecode } = artifact()
-  const hash = await mc.deployContract({ abi, bytecode, args: [merchant.address, resolver.address, PATHUSD, WINDOW] })
+  const hash = await mc.deployContract({ abi, bytecode, args: [merchant.address, resolver.address, [PATHUSD], WINDOW] })
   const rc = await pub.waitForTransactionReceipt({ hash })
   if (rc.status !== 'success') throw new Error('arbiter deploy failed')
   Object.assign(s, { arbiter: rc.contractAddress, arbiterBlock: rc.blockNumber.toString(), window: WINDOW.toString() })
@@ -70,7 +70,7 @@ writeFileSync(
   new URL('../deployment.json', import.meta.url),
   JSON.stringify(
     { chainId: 42431, merchant: s.merchant, resolver: s.resolver, masterId: s.masterId, arbiter: s.arbiter,
-      arbiterBlock: s.arbiterBlock, window: s.window, acceptedToken: PATHUSD },
+      arbiterBlock: s.arbiterBlock, window: s.window, acceptedTokens: [PATHUSD] },
     null, 2) + '\n',
 )
 log('done -> deployment.json')

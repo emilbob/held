@@ -40,7 +40,8 @@ export interface Merchant {
   masterId: Hex // TIP-1022 virtual-address master
   arbiter: Address // the merchant's own HeldArbiter
   resolver: Address // decides this merchant's disputes
-  acceptedToken: Address
+  acceptedTokens: Address[] // stablecoins this shop accepts (v2 arbiter: up to 3)
+  acceptedToken?: Address // v1 shops (one token); read through acceptedTokensOf()
   window: number // protection window, seconds
   registeredAt: number
 }
@@ -70,7 +71,7 @@ export interface PublicLink { id: string, item: string, amount: string, active: 
 
 // What the API returns: the order, its merchant, its payments and one derived status.
 export interface Order extends StoredOrder {
-  merchantInfo: Pick<Merchant, 'name' | 'arbiter' | 'resolver' | 'window'>
+  merchantInfo: Pick<Merchant, 'name' | 'arbiter' | 'resolver' | 'window' | 'acceptedTokens'>
   notes?: Record<string, Note[]> // by payment id; only for the order's merchant and the merchant's resolver
   status: OrderStatus
   underpaid: boolean
@@ -91,11 +92,18 @@ export interface Db {
   tagPrefix: number // random per database (see orderTag), so databases sharing a merchant never share addresses
 }
 
-// Network-wide settings (network.json): the same for every merchant.
+export interface Token { address: Address, symbol: string }
+
+// Network-wide settings (network.testnet.json / network.mainnet.json, picked by HELD_NETWORK): the same for every merchant.
 export interface Network {
+  name: 'testnet' | 'mainnet'
   chainId: number
   testnet: boolean
-  acceptedToken: Address
+  rpc: string
+  explorer: string
+  tokens: Token[] // the stablecoins a shop accepts (all of them, in this order; the v2 arbiter holds up to 3)
+  testWrongToken?: Address // testnet only: a real token shops don't accept, for trying the wrong-token path
+  maxOrder: string // launch cap: the most one order or checkout link may charge, base units (6 decimals)
   defaultResolver: Address // suggested at merchant setup; merchants may choose another
   defaultWindow: number // seconds
   // Testnet only: a shared, already-set-up shop anyone can try (scripts/sandbox-setup.ts). The keys are PUBLIC test keys.
@@ -117,3 +125,9 @@ export interface Note { by: 'buyer' | 'merchant', text: string, at: number }
 export const NOTE_MAX = 500
 export const noteMessage = (orderId: number, paymentId: string, text: string) =>
   `Held dispute note\n\nOrder: #${orderId}\nPayment: ${paymentId}\n\n${text}\n\nOnly the merchant and the resolver can read this. It does not move funds.`
+
+// v1 shops stored one token; v2 shops store the list.
+export const acceptedTokensOf = (m: Pick<Merchant, 'acceptedTokens' | 'acceptedToken'>): Address[] =>
+  m.acceptedTokens?.length ? m.acceptedTokens : m.acceptedToken ? [m.acceptedToken] : []
+export const tokenSymbol = (network: Pick<Network, 'tokens'>, address: string) =>
+  network.tokens.find((t) => t.address.toLowerCase() === address.toLowerCase())?.symbol ?? 'token'

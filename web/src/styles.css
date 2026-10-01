@@ -258,3 +258,90 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .legal p, .legal li { font-size: 14px; line-height: 1.55 }
 .legal ul { padding-left: 20px; margin: 6px 0 }
 .legal li { margin-bottom: 6px }
+
+/* Motion (see anim.tsx). Status changes pulse once; the step bar fills instead of jumping. Off for reduced motion. */
+.badge { display: inline-block }
+.badge.changed { animation: badgepop .9s cubic-bezier(.16, 1, .3, 1) }
+@keyframes badgepop {
+  0% { transform: scale(.82); box-shadow: 0 0 0 0 currentColor }
+  35% { transform: scale(1.08); box-shadow: 0 0 0 7px transparent }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 transparent }
+}
+.steps li { transition: border-color .7s cubic-bezier(.16, 1, .3, 1), color .5s ease }
+.protect { transition: background-color .6s ease, border-color .6s ease }
+@media (prefers-reduced-motion: reduce) {
+  .badge.changed { animation: none }
+  .steps li, .protect { transition: none }
+}
+
+/* ---------------------------------------------------------------- landing (v2): hero, story, film, guarantee */
+.landing2 { max-width: 980px; margin: 0 auto }
+.landing2 h1 { font-size: 46px; line-height: 1.08; letter-spacing: -0.035em; font-weight: 750; margin: 18px 0 18px; text-wrap: balance; color: var(--ink) }
+.landing2 h2 { font-size: 34px; line-height: 1.12; letter-spacing: -0.03em; font-weight: 700; margin: 10px 0 14px; text-wrap: balance; color: var(--ink) }
+.landing2 h3 { font-size: 20px; letter-spacing: -0.015em; margin: 6px 0 8px; color: var(--ink) }
+.kicker { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--lime) }
+.landing2 .ctas { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px }
+.landing2 .cta { font-size: 15px; padding: 11px 22px; border-radius: 10px }
+.landing2 .hint { margin-top: 18px; font-size: 13px; color: var(--muted) }
+
+.hero2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px; align-items: center; min-height: calc(100vh - 160px); padding: 24px 0 40px }
+.eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted) }
+.eyebrow .logo b { display: none }
+.lede { font-size: 16px; line-height: 1.65; color: #c3c8d2; max-width: 540px }
+.hero-visual { position: relative; aspect-ratio: 1 / 1; width: 100% }
+.frame-canvas { width: 100%; height: 100%; display: block }
+
+.story { padding: 70px 0 30px; border-top: 1px solid var(--line) }
+.story-head { max-width: 620px }
+.story-body { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px }
+.story-steps { list-style: none; padding: 0; margin: 0 }
+.story-steps li { min-height: 46vh; padding: 18px 0; opacity: .35; transition: opacity .6s cubic-bezier(.16, 1, .3, 1) }
+.story-steps li.on { opacity: 1 }
+.story-steps li:last-child { min-height: 34vh }
+.story-steps .num { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; color: var(--lime) }
+.story-steps p { font-size: 15.5px; line-height: 1.65; color: #c3c8d2; max-width: 440px }
+.story-visual { position: sticky; top: 90px; align-self: start }
+.story-visual .frame-canvas { aspect-ratio: 1 / 1; height: auto }
+.frame-caption { text-align: center; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 4px }
+.frame-caption span:first-child { color: var(--lime) }
+.step-visual { display: none }
+
+.film { padding: 70px 0 30px; border-top: 1px solid var(--line) }
+.film-frame { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #000; margin-top: 20px }
+.film-frame iframe, .film-poster { position: absolute; inset: 0; width: 100%; height: 100%; border: 0 }
+.film-poster { padding: 0; background: none; cursor: pointer }
+.film-poster img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .8s cubic-bezier(.16, 1, .3, 1) }
+.film-poster:hover img { transform: scale(1.02) }
+.film-poster .play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 74px; height: 74px; border-radius: 99px;
+  display: grid; place-items: center; font-size: 24px; background: var(--lime); color: #0b0d10; box-shadow: 0 10px 40px #0009 }
+
+.guarantee { padding: 70px 0 30px; border-top: 1px solid var(--line); max-width: 760px }
+.guarantee p { font-size: 15.5px; line-height: 1.65; color: #c3c8d2 }
+.code { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; overflow-x: auto; margin: 18px 0;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13.5px; line-height: 1.8 }
+.code code { background: none; padding: 0; font-size: inherit }
+.code .ln { display: block; white-space: pre; color: #c3c8d2 }
+.code .fn { color: var(--lime) }
+.code .cm { color: var(--muted) }
+
+.final { padding: 70px 0 40px; border-top: 1px solid var(--line); text-align: center }
+.final p { color: #c3c8d2; font-size: 15.5px; max-width: 560px; margin: 0 auto }
+.final .ctas { justify-content: center }
+
+@media (max-width: 860px) {
+  .hero2 { grid-template-columns: 1fr; min-height: 0; padding-top: 10px }
+  .hero-visual { max-width: 420px; margin: 0 auto; order: -1; aspect-ratio: 4 / 3 }
+  .landing2 h1 { font-size: 36px }
+  .landing2 h2 { font-size: 28px }
+  .story-body { grid-template-columns: 1fr; gap: 0 }
+  /* Phones: each step carries its own small frame instead of one sticky frame covering the text. */
+  .story-visual { display: none }
+  .step-visual { display: block; height: 220px; max-width: 320px; margin: 0 auto 6px }
+  .story-steps li { min-height: 0; padding: 28px 0; opacity: 1 }
+}
+@media (max-width: 480px) {
+  .landing2 h1 { font-size: 31px }
+  .landing2 .ctas { flex-direction: column; align-items: stretch }
+  .landing2 .ctas a, .landing2 .ctas .cta { width: 100%; justify-content: center }
+}
+@media (prefers-reduced-motion: reduce) { .story-steps li { transition: none } }

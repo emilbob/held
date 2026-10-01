@@ -1,5 +1,6 @@
 // Shared UI: API client (with the merchant session), formatting, polling hooks, status badges and the wallet picker.
-import { useEffect, useState, type DependencyList } from 'react'
+import { useEffect, useRef, useState, type DependencyList } from 'react'
+import { Scramble } from './anim.tsx'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
 import { signInMessage, type Config, type Note, type OrderStatus } from '../../shared/api.ts'
@@ -83,9 +84,19 @@ const STATUS: Record<OrderStatus, [label: string, color: string]> = {
   released: ['Paid to merchant', 'green'],
   refunded: ['Refunded to buyer', 'violet'],
 }
+// A status change is an event: the label decodes into place and the badge pulses once.
 export const Badge = ({ status }: { status: OrderStatus }) => {
   const [label, color] = STATUS[status] ?? [status, 'grey']
-  return <span className={`badge ${color}`}>{label}</span>
+  const prev = useRef(status)
+  const [changed, setChanged] = useState(false)
+  useEffect(() => {
+    if (prev.current === status) return
+    prev.current = status
+    setChanged(true)
+    const t = setTimeout(() => setChanged(false), 900)
+    return () => clearTimeout(t)
+  }, [status])
+  return <span className={`badge ${color}${changed ? ' changed' : ''}`}><Scramble text={label} ms={500} /></span>
 }
 
 // Buyer progress: pay -> held until delivery -> settled (paid to merchant or refunded).

@@ -1,6 +1,7 @@
 // Buyer page (#/pay/:key): pay the order's unique address, then confirm delivery or open a dispute.
 // Every action is signed by the buyer's own wallet against the merchant's HeldArbiter.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { CountUp, useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
 import QRCode from 'qrcode'
 import * as W from './wallet.ts'
@@ -21,6 +22,8 @@ export default function Pay({ id }: { id: string }) {
   const [disputing, setDisputing] = useState(false)
   const [reason, setReason] = useState('')
   const [chosen, setChosen] = useState<Address | null>(null)
+  const root = useRef<HTMLDivElement>(null)
+  useEntrance(root, ':scope > .card', !!order)
 
   useEffect(() => {
     if (!order || !cfg) return
@@ -73,13 +76,13 @@ export default function Pay({ id }: { id: string }) {
   }
 
   return (
-    <div className="pay">
+    <div className="pay" ref={root}>
       {merchantHere && back}
       <div className="card checkout">
         <Steps status={status} />
         <div className="merchant">{order.merchantInfo.name} · Order #{order.id}</div>
         <h1>{order.item}</h1>
-        <div className="big">{usd(order.amount)} <small>{accepted.length > 1 ? 'in stablecoins' : sym(accepted[0])}</small></div>
+        <div className="big"><CountUp value={Number(order.amount)} format={usd} /> <small>{accepted.length > 1 ? 'in stablecoins' : sym(accepted[0])}</small></div>
         <Badge status={status} />
 
         {status === 'awaiting_payment' && (

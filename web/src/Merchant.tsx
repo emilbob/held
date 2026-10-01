@@ -1,6 +1,7 @@
 // Merchant page (#/merchant): connect a wallet, sign in, set up once (own arbiter + receive policy), then create
 // orders and act on them. Every on-chain action is signed by the merchant's own wallet; Held's server holds no keys.
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { CountUp, useEntrance } from './anim.tsx'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
@@ -135,6 +136,8 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
 // ---------------------------------------------------------------- dashboard
 function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnType<typeof useWallet>, testnet: boolean }) {
   const [data, err, refresh] = usePoll(() => api<{ orders: Order[] }>('/orders'), 2500, [])
+  const root = useRef<HTMLDivElement>(null)
+  useEntrance(root, '.summary > div, :scope > .card, .ordercard', data !== null, { stagger: 0.05 })
   const [item, setItem] = useState('')
   const [amount, setAmount] = useState('')
   const [created, setCreated] = useState<Order | null>(null)
@@ -161,12 +164,12 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
   const link = (o: Order) => `${location.origin}/#/pay/${o.key ?? o.id}`
 
   return (
-    <div className="dash">
+    <div className="dash" ref={root}>
       <h1 className="sr-only">{m.name} dashboard</h1>
       <section className="summary">
         <div><label>{m.name}</label><a href={addrUrl(m.address)} target="_blank">{short(m.address)}</a></div>
-        <div><label>Balance</label><b>{w.balance === null ? '…' : usd(w.balance)}</b></div>
-        <div><label>Held for buyers</label><b>{usd(heldTotal)}</b></div>
+        <div><label>Balance</label><b>{w.balance === null ? '…' : <CountUp value={Number(w.balance)} format={usd} />}</b></div>
+        <div><label>Held for buyers</label><b><CountUp value={heldTotal} format={usd} /></b></div>
         <div><label>Protection window</label>{duration(m.window)}</div>
         <div><label>Your arbiter</label><a href={addrUrl(m.arbiter)} target="_blank">{short(m.arbiter)}</a></div>
         <div><label>Resolver</label><a href={addrUrl(m.resolver)} target="_blank">{short(m.resolver)}</a></div>

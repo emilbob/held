@@ -1,6 +1,7 @@
 // Resolver page (#/resolve): disputes for merchants who chose this wallet as their resolver. Each decision is signed
 // by the resolver's own wallet, and HeldArbiter allows exactly two outcomes: refund the buyer or pay the merchant.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
 import * as W from './wallet.ts'
 import { api, session, signInWallet, usePoll, useWallet, WalletPicker, Result, Notes, usd, short, txUrl, addrUrl, type Msg } from './ui.tsx'
@@ -20,9 +21,11 @@ export default function Resolve() {
     setSigning(false)
   }
   useEffect(() => { if (w.wallet?.kind === 'sandbox' && !signedIn && !signing) signIn() }, [w.wallet?.address, signedIn])
+  const root = useRef<HTMLDivElement>(null)
   const [data, err] = usePoll(() => (addr ? api<{ orders: Order[], notes: boolean }>(`/disputes?resolver=${addr}`, undefined, 'resolver') : Promise.resolve(null)), 4000, [addr, signedIn])
+  useEntrance(root, ':scope > .card', !addr || data !== null, { stagger: 0.07 })
   return (
-    <div className={w.wallet ? 'dash' : 'narrow'}>
+    <div className={w.wallet ? 'dash' : 'narrow'} ref={root}>
       <div className="card">
         <h1>Resolve disputes</h1>
         <p>Connect the resolver wallet. You'll see open disputes for every merchant who chose it. The contract lets you do only

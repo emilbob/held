@@ -1,6 +1,8 @@
 // Sandbox (#/sandbox, testnet only): try every role in a couple of minutes with a shared shop that's already set up.
 // Merchant and resolver use the sandbox's PUBLIC test keys; the buyer uses a test wallet of their own.
+import { useRef } from 'react'
 import { useConfig } from './ui.tsx'
+import { useEntrance } from './anim.tsx'
 
 const go = (role: 'merchant' | 'resolver', hash: string) => {
   try { localStorage.setItem(`held.walletKind.${role}`, 'sandbox') } catch {}
@@ -9,9 +11,11 @@ const go = (role: 'merchant' | 'resolver', hash: string) => {
 
 export default function Sandbox() {
   const cfg = useConfig()
+  const root = useRef<HTMLDivElement>(null)
+  useEntrance(root, 'h1, :scope > .card > p, .roles li', true, { stagger: 0.08 })
   if (cfg && (!cfg.testnet || !cfg.sandbox?.arbiter)) return <p className="muted">The sandbox is only available on testnet.</p>
   return (
-    <div className="narrow">
+    <div className="narrow" ref={root}>
       <div className="card sandbox">
         <h1>Try Held in 2 minutes</h1>
         <p>A shared <b>Sandbox Shop</b> is already set up on Tempo testnet, so you can play every role without installing

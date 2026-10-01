@@ -24,9 +24,12 @@ header .tag { color: var(--muted); font-size: 13px; letter-spacing: -0.01em }
 header nav { margin-left: auto; display: flex; gap: 20px; font-size: 14px }
 header nav a { color: var(--ink); font-weight: 500; white-space: nowrap }
 header nav a:hover { color: var(--lime) }
+header nav a.ext { color: var(--muted) }
+header nav a.ext [aria-hidden] { margin-left: 2px; font-size: 11px; vertical-align: 1px }
+header nav a.ext:hover { color: var(--lime) }
 
 main { max-width: 980px; margin: 28px auto; padding: 0 20px }
-footer { max-width: 980px; margin: 32px auto 40px; padding: 14px 20px 0; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line);
+footer { max-width: 940px; margin: 32px auto 40px; padding: 14px 0 0; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line);
   display: flex; align-items: baseline; gap: 8px 24px }
 footer p { margin: 0; flex: 1 }
 footer a { white-space: nowrap }
@@ -136,7 +139,7 @@ input:focus-visible { outline: none; border-color: var(--lime); }
   header .tag { display: none }
   header nav { gap: 16px }
   main { padding: 0 16px }
-  footer { padding: 14px 16px 0; flex-direction: column }
+  footer { margin: 28px 16px 32px; padding: 14px 0 0; flex-direction: column }
   main { margin: 20px auto }
   .summary { grid-template-columns: 1fr 1fr }
   .payto { flex-direction: column }
@@ -234,3 +237,12 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .card.empty { color: var(--ink) }
 /* Headlines break into even lines instead of leaving one word alone. */
 .landing .card h1 { text-wrap: balance; max-width: 640px; margin-left: auto; margin-right: auto }
+
+/* Balanced wrapping so taglines don't strand a lone word; equal-width CTAs when they stack on phones. */
+.landing .tag { text-wrap: balance }
+@media (max-width: 480px) {
+  .landing .ctas { flex-direction: column; align-items: stretch; max-width: 300px; margin: 0 auto }
+  .landing .ctas a, .landing .ctas .cta { width: 100%; justify-content: center }
+  .landing .ctas .cta { margin-top: 0 }
+  .landing .ctas { margin-top: 24px }
+}

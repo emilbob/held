@@ -22,10 +22,10 @@ export default function Resolve() {
   useEffect(() => { if (w.wallet?.kind === 'sandbox' && !signedIn && !signing) signIn() }, [w.wallet?.address, signedIn])
   const [data, err] = usePoll(() => (addr ? api<{ orders: Order[], notes: boolean }>(`/disputes?resolver=${addr}`, undefined, 'resolver') : Promise.resolve(null)), 4000, [addr, signedIn])
   return (
-    <div className="dash">
+    <div className={w.wallet ? 'dash' : 'narrow'}>
       <div className="card">
         <h1>Resolve disputes</h1>
-        <p className="muted">Connect the resolver wallet. You'll see open disputes for every merchant who chose it. The contract lets you do only
+        <p>Connect the resolver wallet. You'll see open disputes for every merchant who chose it. The contract lets you do only
           two things: refund the buyer, or pay the merchant.</p>
         <WalletPicker w={w} note="Use the wallet merchants set as their resolver." />
         {w.wallet && !signedIn && (

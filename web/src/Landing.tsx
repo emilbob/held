@@ -9,7 +9,7 @@ export default function Landing() {
       <div className="card">
         <div className="logo"><Logo size={80} /></div>
         <div className="tag">Buyer protection for stablecoin payments{cfg?.testnet ? ' · Tempo testnet' : ' on Tempo'}</div>
-        <h1>Pay a stranger on-chain. Get your money back if it goes wrong.</h1>
+        <h1>Pay a stranger on‑chain. Get your money back if it goes wrong.</h1>
         <p>
           Held sets up a merchant checkout where Tempo holds the buyer's payment until delivery. The Held arbiter
           contract is the only way out: it can release the funds to the merchant or refund the buyer. No custodian.

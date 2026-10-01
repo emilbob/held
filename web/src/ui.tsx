@@ -119,11 +119,16 @@ export function useWallet(role: W.Role) {
   const balance = balances ? Object.values(balances).reduce((a, b) => a + b, 0n) : null
   const [installed, setInstalled] = useState<W.InjectedWallet[]>([])
   const [busy, setBusy] = useState(false)
+  const [toppingUp, setToppingUp] = useState(false)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => W.watchWallets(setInstalled), [])
   // Testnet: top up a freshly connected wallet so trying Held never stalls on an empty balance.
   const topUp = async (w: W.Wallet) => {
-    if ((await getConfig()).testnet && (await W.tokenBalance(w.address)) < 1_000_000n) await api('/faucet', { address: w.address }).catch(() => {})
+    if ((await getConfig()).testnet && (await W.tokenBalance(w.address)) < 1_000_000n) {
+      setToppingUp(true)
+      await api('/faucet', { address: w.address }).catch(() => {})
+      setToppingUp(false)
+    }
   }
   const sandboxKey = async () => {
     const sb = (await getConfig()).sandbox
@@ -167,7 +172,7 @@ export function useWallet(role: W.Role) {
     return () => { p.removeListener('accountsChanged', onAccounts); p.removeListener('disconnect', onDisconnect) }
   }, [wallet])
   const sandbox = !!cfg?.testnet && !!cfg.sandbox?.arbiter && role !== 'buyer'
-  return { wallet, balance, balances, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
+  return { wallet, balance, balances, toppingUp, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
 }
 
 export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, note?: string }) {

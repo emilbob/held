@@ -128,10 +128,11 @@ export default function Pay({ id }: { id: string }) {
                 ))}
               </div>
             )}
-            {w.balances && bal(payToken) < BigInt(order.amount) && (
+            {w.toppingUp && <p className="muted small">Adding free test funds to this wallet…</p>}
+            {!w.toppingUp && w.balances && bal(payToken) < BigInt(order.amount) && (
               <p className="warn small">This wallet has {usd(bal(payToken))} {sym(payToken)}. {enough.length ? `Choose ${sym(enough[0])} above.` : `Add ${usd(order.amount)} in ${accepts} first.`}</p>
             )}
-            <button className="primary" disabled={!!busy} onClick={() => run('pay', () => W.transfer(wallet, order.address, order.amount, payToken))}>
+            <button className="primary" disabled={!!busy || w.toppingUp || (!!w.balances && bal(payToken) < BigInt(order.amount))} onClick={() => run('pay', () => W.transfer(wallet, order.address, order.amount, payToken))}>
               {busy === 'pay' ? 'Sending…' : `Pay ${usd(order.amount)}${accepted.length > 1 ? ` in ${sym(payToken)}` : ''}`}
             </button>
             {w.testnet && W.WRONG_TOKEN && (

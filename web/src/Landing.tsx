@@ -32,7 +32,7 @@ export default function Landing() {
     <div className="landing2">
       <section className="hero2" ref={hero}>
         <div className="hero-copy">
-          <div className="eyebrow"><Logo size={22} /><Scramble onMount ms={700} text={`Buyer protection for stablecoin payments${cfg?.testnet ? ' · Tempo testnet' : ' on Tempo'}`} /></div>
+          <div className="eyebrow"><Logo size={44} /><Scramble onMount ms={700} text={`Buyer protection for stablecoin payments${cfg?.testnet ? ' · Tempo testnet' : ' on Tempo'}`} /></div>
           <h1><LineReveal text="Pay a stranger on‑chain. Get your money back if it goes wrong." delay={0.15} /></h1>
           <p className="lede">Held sets up a merchant checkout where Tempo holds the buyer's payment until delivery. The Held arbiter contract is the
             only way out: it can release the funds to the merchant or refund the buyer. No custodian. No platform risk.</p>

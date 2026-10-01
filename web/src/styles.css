@@ -285,7 +285,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .landing2 .hint { margin-top: 18px; font-size: 13px; color: var(--muted) }
 
 .hero2 { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px; align-items: center; min-height: calc(100vh - 160px); padding: 24px 0 40px }
-.eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted) }
+.eyebrow { display: inline-flex; align-items: center; gap: 14px; font-size: 14px; color: var(--muted) }
 .eyebrow .logo b { display: none }
 .lede { font-size: 16px; line-height: 1.65; color: #c3c8d2; max-width: 540px }
 .hero-visual { position: relative; aspect-ratio: 1 / 1; width: 100% }

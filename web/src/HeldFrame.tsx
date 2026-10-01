@@ -108,6 +108,10 @@ export function HeldFrame({ phase = 'held', cycle = false, className }: { phase?
         ctx.beginPath(); ctx.roundRect(tx - tw / 2, ty - th / 2, tw, th, th * 0.3); ctx.stroke()
         ctx.globalAlpha = Math.max(0, op) * 0.45; ctx.lineWidth = 1
         ctx.beginPath(); ctx.roundRect(tx - tw / 2 + 4, ty - th / 2 + 4, tw - 8, th - 8, th * 0.22); ctx.stroke()
+        // A "$" in the same colour: money, without a specific amount.
+        ctx.globalAlpha = Math.max(0, op)
+        ctx.fillStyle = `rgb(${rgb})`; ctx.font = `600 ${Math.round(th * 0.56)}px -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', tx, ty + 1)
         ctx.restore()
       }
     }

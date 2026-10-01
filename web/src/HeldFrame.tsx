@@ -103,10 +103,11 @@ export function HeldFrame({ phase = 'held', cycle = false, className }: { phase?
         const tw = scale * 0.34, th = scale * 0.16, op = s.tokenIn
         ctx.save()
         ctx.globalAlpha = Math.max(0, op)
-        ctx.shadowColor = `rgba(${rgb},${0.55 * s.lock + 0.15})`; ctx.shadowBlur = 24 * (0.4 + s.lock)
-        // A plain glowing chip: "a payment", no specific amount.
-        ctx.fillStyle = `rgba(${rgb},0.85)`; ctx.strokeStyle = `rgb(${rgb})`; ctx.lineWidth = 1.5
-        ctx.beginPath(); ctx.roundRect(tx - tw / 2, ty - th / 2, tw, th, th * 0.3); ctx.fill(); ctx.stroke()
+        // The payment, drawn like the frames: a hairline outline chip, no fill, no glow.
+        ctx.strokeStyle = `rgb(${rgb})`; ctx.lineWidth = 1.5
+        ctx.beginPath(); ctx.roundRect(tx - tw / 2, ty - th / 2, tw, th, th * 0.3); ctx.stroke()
+        ctx.globalAlpha = Math.max(0, op) * 0.45; ctx.lineWidth = 1
+        ctx.beginPath(); ctx.roundRect(tx - tw / 2 + 4, ty - th / 2 + 4, tw - 8, th - 8, th * 0.22); ctx.stroke()
         ctx.restore()
       }
     }

@@ -6,6 +6,7 @@ import MerchantPage from './Merchant.tsx'
 import Resolve from './Resolve.tsx'
 import Sandbox from './Sandbox.tsx'
 import Buy from './Buy.tsx'
+import { Terms, Privacy } from './Legal.tsx'
 import { useConfig } from './ui.tsx'
 
 function useRoute() {
@@ -24,6 +25,8 @@ export default function App() {
     : route.startsWith('/merchant') || route.startsWith('/dashboard') ? <MerchantPage />
     : route.startsWith('/resolve') ? <Resolve />
     : route.startsWith('/sandbox') ? <Sandbox />
+    : route.startsWith('/terms') ? <Terms />
+    : route.startsWith('/privacy') ? <Privacy />
     : <Landing />
   return (
     <>
@@ -35,7 +38,7 @@ export default function App() {
       <main>{page}</main>
       <footer>
         <p>Funds are held by Tempo's ReceivePolicyGuard; each merchant's arbiter can only pay the merchant or refund the payer.</p>
-        {!route.startsWith('/resolve') && <a href="#/resolve">Resolver console</a>}
+        <span className="footlinks">{!route.startsWith('/resolve') && <a href="#/resolve">Resolver console</a>}<a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></span>
       </footer>
     </>
   )

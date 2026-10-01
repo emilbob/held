@@ -54,12 +54,13 @@ interface VercelResponse {
 // Vercel calls it with "Authorization: Bearer $CRON_SECRET"; nobody else can trigger it.
 const BACKUP_DAYS = 7
 async function daily(): Promise<{ status: number, body: unknown }> {
+  const cleaned = await db.cleanup?.() // expired sessions + rate-limit rows (no stale visitor data)
   const snap = await db.read()
-  if (!snap) return { status: 200, body: { ok: true, backup: 'nothing to back up yet' } }
+  if (!snap) return { status: 200, body: { ok: true, backup: 'nothing to back up yet', cleaned } }
   const day = new Date().toISOString().slice(0, 10)
   const key = `held:backup:${network.name}:${day}`
   await redis.set(key, snap, { ex: (BACKUP_DAYS + 1) * 86400 })
-  return { status: 200, body: { ok: true, backup: key, orders: Object.keys(snap.orders).length, payments: Object.keys(snap.payments).length } }
+  return { status: 200, body: { ok: true, backup: key, orders: Object.keys(snap.orders).length, payments: Object.keys(snap.payments).length, cleaned } }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

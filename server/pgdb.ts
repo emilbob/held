@@ -101,6 +101,12 @@ export function pgAdapter(url: string, schema: string): DbAdapter & { end(): Pro
         on conflict (key) do update set until = excluded.until where r.until < ${now} returning key`
       return r.length > 0
     },
+    async cleanup() {
+      const now = Date.now()
+      const s = await sql`delete from ${t('sessions')} where exp < ${Math.floor(now / 1000)}`
+      const r = await sql`delete from ${t('ratelimits')} where until < ${now}`
+      return { sessions: s.count, ratelimits: r.count }
+    },
     end: () => sql.end({ timeout: 5 }),
   }
 }

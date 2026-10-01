@@ -42,8 +42,10 @@ export interface DbAdapter {
   // the locked transaction). wait: false -> skip (resolve undefined) if someone else holds the lock.
   lock<T>(fn: (io: DbIO) => Promise<T>, opts: { wait: boolean }): Promise<T | undefined>
   rateLimit(key: string, ms: number): Promise<boolean>
+  cleanup?(): Promise<{ sessions: number, ratelimits: number }>
 }
 export interface DbIO { read(): Promise<Db | null>, write(d: Db): Promise<void> }
+// Optional housekeeping (daily job): drop expired sessions and rate-limit rows. Returns how many rows went.
 export interface ApiResponse { status: number, body: unknown }
 type Headers = Record<string, string | string[] | undefined>
 
@@ -64,7 +66,8 @@ const withNotes = (s: Db, o: Order): Order => {
   const notes = Object.fromEntries(o.payments.filter((p) => s.notes?.[p.id]?.length).map((p) => [p.id, s.notes![p.id]]))
   return Object.keys(notes).length ? { ...o, notes } : o
 }
-const clientIp = (h: Headers) => header(h, 'x-forwarded-for').split(',')[0].trim() || 'local'
+// Rate limits key on a short one-way hash of the visitor's IP, never the IP itself (see the privacy page).
+const clientIp = (h: Headers) => sha256hex('ip:' + (header(h, 'x-forwarded-for').split(',')[0].trim() || 'local')).slice(0, 16)
 
 // One order: its own virtual address under the merchant's master (no transaction, no cost).
 function newOrder(s: Db, merchant: Merchant, item: string, amount: string, linkId?: string): StoredOrder {

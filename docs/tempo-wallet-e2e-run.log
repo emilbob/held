@@ -2,24 +2,25 @@
 > held@0.1.0 e2e:tempo-wallet
 > node e2e/tempo-wallet.ts
 
-15:55:25   wallet popup: Sign in with Tempo Create an account or sign in with a passkey to localhost:8787. Create account or Sign in with passkey By continuing, you agree to the Terms of Service and Privacy Policy.
-15:55:25   wallet: clicked "Create account"
-15:55:28 PASS Tempo Wallet connects (passkey account created) 
-15:55:33   wallet popup: Payment Request localhost:8787 is requesting a payment. Reject Pay 0x6 853fF5b5f501896c40bA … adC805075944A7fDb6 7
-15:55:33   wallet popup: Payment Request localhost:8787 is requesting a payment. Reject Pay held-e2e-muoae60r $5,000,000.00
-15:55:34   wallet popup: Payment Request localhost:8787 is requesting a payment. $2.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0007 Reject Pay $2.00 held-e2e-muoae60r $5,000,000.00
-15:55:34   wallet: clicked "Pay $2.00"
-15:55:37 PASS pay with Tempo Wallet -> held 
-15:55:38   wallet popup: Review Transaction Reject Confirm held-e2e-muoae60r $5,000,000.00
-15:55:38   wallet popup: Review Transaction Fee $0.002 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-muoae60r $4,999,998.00
-15:55:38   wallet: clicked "Confirm"
-15:55:42 PASS confirm delivery (arbiter.release) signed by Tempo Wallet -> released released 
-15:55:44   wallet popup: Payment Request localhost:8787 is requesting a payment. Reject Pay held-e2e-muoae60r $4,999,998.00
-15:55:45   wallet popup: Payment Request localhost:8787 is requesting a payment. $1.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0004 Reject Pay $1.00 held-e2e-muoae60r $4,999,998.00
-15:55:45   wallet: clicked "Pay $1.00"
-15:55:48   wallet popup: Review Transaction Reject Confirm held-e2e-muoae60r $4,999,998.00
-15:55:49   wallet popup: Review Transaction Fee $0.002 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-muoae60r $4,999,997.00
-15:55:49   wallet: clicked "Confirm"
-15:55:52 PASS open dispute (arbiter.dispute) signed by Tempo Wallet -> disputed disputed
-15:55:52 Tempo Wallet account 0x6853fF5b5f501896c40bAadC805075944A7fDb67 | orders 1022 1023
-15:55:52 4/4 checks passed
+12:27:44   wallet popup: Sign in with Tempo Create an account or sign in with a passkey to localhost:8787. Create account or Sign in with passkey By continuing, you agree to the Terms of Service and Privacy Policy.
+12:27:44   wallet: clicked "Create account"
+12:27:47 PASS Tempo Wallet connects (passkey account created) 
+12:27:51   wallet popup: Payment Request localhost:8787 is requesting a payment. Reject Pay 0xc 2E06290dd6E1b637A3AA … C3AaF1A23030F55354 7
+12:27:52   wallet popup: Payment Request localhost:8787 is requesting a payment. Reject Pay held-e2e-mupiexiu
+12:27:53   wallet popup: Payment Request localhost:8787 is requesting a payment. $2.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0007 Reject Pay $2.00 held-e2e-mupiexiu
+12:27:53   wallet: clicked "Pay $2.00"
+12:27:56 PASS pay with Tempo Wallet -> held 
+12:27:56   wallet popup: Review Transaction Reject Confirm held-e2e-mupiexiu
+12:27:57   wallet popup: Review Transaction Fee $0.002 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-mupiexiu
+12:27:57   wallet: clicked "Confirm"
+12:28:00 PASS confirm delivery (arbiter.release) signed by Tempo Wallet -> released released 
+12:28:02   wallet popup: Payment Request localhost:8787 is requesting a payment. Reject Pay held-e2e-mupiexiu
+12:28:03   wallet popup: Payment Request localhost:8787 is requesting a payment. $1.00 To 0xB 10C00000000000000000 … 000000000000000000 0 Currency PathUSD Fee $0.0004 Reject Pay $1.00 held-e2e-mupiexiu $4,999,998.00
+12:28:03   wallet: clicked "Pay $1.00"
+12:28:09   wallet popup: Review Transaction Reject Confirm held-e2e-mupiexiu $4,999,998.00
+12:28:10   wallet popup: Review Transaction Reject Confirm held-e2e-mupiexiu $4,999,997.00
+12:28:11   wallet popup: Review Transaction Fee $0.002 This transaction interacts with a smart contract but has no visible balance changes. Review carefully before confirming. Reject Confirm held-e2e-mupiexiu $4,999,997.00
+12:28:11   wallet: clicked "Confirm"
+12:28:15 PASS open dispute (arbiter.dispute) signed by Tempo Wallet -> disputed disputed
+12:28:15 Tempo Wallet account 0xc2E06290dd6E1b637A3AAC3AaF1A23030F553547 | orders 1026 1027
+12:28:15 4/4 checks passed

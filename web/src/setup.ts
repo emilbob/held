@@ -78,7 +78,11 @@ export async function runSetup(p: {
 
   // 3. The merchant's own arbiter.
   p.onStep('deploy')
-  if (!state.arbiter || (await pub.getCode({ address: state.arbiter })) === undefined) {
+  // Reuse a saved arbiter only if it's the current version (a v1 arbiter from an earlier setup gets replaced; step 4
+  // then points the receive policy at the new one).
+  const current = state.arbiter && (await pub.getCode({ address: state.arbiter })) !== undefined &&
+    (await pub.readContract({ address: state.arbiter, abi: arbiter.abi, functionName: 'VERSION' }).catch(() => 0n)) === 2n
+  if (!current) {
     const hash = await wallet.client.deployContract({ abi: arbiter.abi, bytecode: arbiter.bytecode, args: [me, p.resolver, p.tokens, BigInt(p.window)] })
     const rc = await wait(hash, 'Deploying the arbiter')
     if (!rc.contractAddress) throw new Error('Deploying the arbiter returned no address.')
@@ -88,10 +92,11 @@ export async function runSetup(p: {
 
   // 4. Receive policy: hold everything; only the arbiter may release (to the merchant) or refund (to the payer).
   p.onStep('policy')
+  const arb = state.arbiter!
   const pol = await Actions.receivePolicy.get(pub, { account: me })
-  if (!pol.recoveryAuthority || !isAddressEqual(pol.recoveryAuthority, state.arbiter) || pol.senderPolicyId !== 'reject-all')
-    await wait(await Actions.receivePolicy.set(wallet.client, { senderPolicyId: 'reject-all', tokenPolicyId: 'allow-all', claimer: state.arbiter }), 'Setting the receive policy')
+  if (!pol.recoveryAuthority || !isAddressEqual(pol.recoveryAuthority, arb) || pol.senderPolicyId !== 'reject-all')
+    await wait(await Actions.receivePolicy.set(wallet.client, { senderPolicyId: 'reject-all', tokenPolicyId: 'allow-all', claimer: arb }), 'Setting the receive policy')
 
   p.onStep('done')
-  return { masterId: state.masterId!, arbiter: state.arbiter }
+  return { masterId: state.masterId!, arbiter: arb }
 }

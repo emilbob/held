@@ -100,7 +100,7 @@ try {
   check('Tempo Wallet connects (passkey account created)', /Tempo Wallet\)/.test(wb), wb.split('\n')[1])
 
   // wait for faucet top-up
-  for (let i = 0; i < 30 && !/\$[1-9][\d,]*\.\d\d pathUSD/.test(await text(page, '.walletbox')); i++) await sleep(1000)
+  for (let i = 0; i < 30 && !/\$[1-9][\d,]*\.\d\d in stablecoins/.test(await text(page, '.walletbox')); i++) await sleep(1000)
   await clickText(page, /^Pay \$/)
   await approveWallet(page, { done: async () => /Payment held/.test(await text(page, '.pay')) }, 90000)
   await page.screenshot({ path: join(here, 'shots/tw-2-held.png') }).catch(() => {})

@@ -1,6 +1,6 @@
 // Testnet sandbox for judges and first-time visitors: one shared shop that's already set up, plus its own resolver,
 // so anyone can play merchant, buyer and resolver in a couple of minutes without mining a checkout address.
-// The two keys are PUBLIC TESTNET KEYS on purpose: they're written to network.json (`sandbox`) and bundled into the
+// The two keys are PUBLIC TESTNET KEYS on purpose: they're written to network.testnet.json (`sandbox`) and bundled into the
 // testnet site. They hold only free test funds and are never offered when network.testnet is false. Held's server
 // still holds no keys; it only refuses to re-register the sandbox address with a different arbiter.
 // Usage: node scripts/sandbox-setup.ts [server...]   (default: http://localhost:8787 https://held-lilac.vercel.app)
@@ -12,7 +12,7 @@ import { pub, walletFor, log, TOKENS } from './lib.ts'
 import { runSetup, type SetupState } from '../web/src/setup.ts'
 import { signInMessage, type Network } from '../shared/api.ts'
 
-const FILE = new URL('../network.json', import.meta.url)
+const FILE = new URL('../network.testnet.json', import.meta.url)
 const net: Network = JSON.parse(readFileSync(FILE, 'utf8'))
 if (!net.testnet) throw new Error('The sandbox is testnet only.')
 const servers = process.argv.slice(2).length ? process.argv.slice(2) : ['http://localhost:8787', 'https://held-lilac.vercel.app']

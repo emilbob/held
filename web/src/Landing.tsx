@@ -43,6 +43,7 @@ export default function Landing() {
           <p className="hint">Buying something? Open the checkout link your merchant sent you.</p>
         </div>
         <div className="hero-visual"><HeldFrame cycle className="frame-canvas" /></div>
+        <ScrollCue />
       </section>
 
       <Story />
@@ -58,6 +59,22 @@ export default function Landing() {
         </div>
       </section>
     </div>
+  )
+}
+
+/** "Scroll" with a dot sliding down a hairline; fades once the page moves, and takes you to "How it works". */
+function ScrollCue() {
+  const [gone, setGone] = useState(false)
+  useEffect(() => {
+    const f = () => setGone(scrollY > 40)
+    f(); addEventListener('scroll', f, { passive: true })
+    return () => removeEventListener('scroll', f)
+  }, [])
+  return (
+    <button type="button" className={`scroll-cue${gone ? ' gone' : ''}`} aria-label="Scroll to how it works"
+      onClick={() => document.querySelector('.story')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>
+      <span>Scroll</span><i />
+    </button>
   )
 }
 

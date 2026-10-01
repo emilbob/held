@@ -284,7 +284,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .landing2 .cta { font-size: 15px; padding: 11px 22px; border-radius: 10px }
 .landing2 .hint { margin-top: 18px; font-size: 13px; color: var(--muted) }
 
-.hero2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px; align-items: center; min-height: calc(100vh - 160px); padding: 24px 0 40px }
+.hero2 { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px; align-items: center; min-height: calc(100vh - 160px); padding: 24px 0 40px }
 .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted) }
 .eyebrow .logo b { display: none }
 .lede { font-size: 16px; line-height: 1.65; color: #c3c8d2; max-width: 540px }
@@ -345,3 +345,16 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
   .landing2 .ctas a, .landing2 .ctas .cta { width: 100%; justify-content: center }
 }
 @media (prefers-reduced-motion: reduce) { .story-steps li { transition: none } }
+
+/* Scroll cue: a label over a hairline with a dot sliding down it. */
+.scroll-cue { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px;
+  background: none; border: 0; padding: 6px 10px; cursor: pointer; color: var(--muted); transition: opacity .5s ease }
+.scroll-cue:hover { color: var(--ink); opacity: 1 }
+.scroll-cue span { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; letter-spacing: .2em; text-transform: uppercase }
+.scroll-cue i { position: relative; display: block; width: 1px; height: 46px; background: linear-gradient(var(--line), transparent); overflow: hidden }
+.scroll-cue i::after { content: ''; position: absolute; left: -2px; top: 0; width: 5px; height: 5px; border-radius: 99px; background: var(--lime);
+  box-shadow: 0 0 8px var(--lime); animation: cue 1.8s cubic-bezier(.65, 0, .35, 1) infinite }
+@keyframes cue { 0% { transform: translateY(-6px); opacity: 0 } 25% { opacity: 1 } 80% { opacity: 1 } 100% { transform: translateY(46px); opacity: 0 } }
+.scroll-cue.gone { opacity: 0; pointer-events: none }
+@media (max-width: 860px) { .scroll-cue { display: none } }
+@media (prefers-reduced-motion: reduce) { .scroll-cue i::after { animation: none; top: 20px } }

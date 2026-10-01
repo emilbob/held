@@ -1,11 +1,12 @@
 // Vercel serverless entry for every /api/* route (vercel.json rewrites /api/(.*) here).
-// Same API core as the local server; state lives in Upstash Redis (Vercel Marketplace). Indexing happens on demand:
+// Same API core as the local server; state lives in Postgres (Supabase, DATABASE_URL) or, until that's set, Upstash Redis. Indexing happens on demand:
 // each read syncs new TransferBlocked + arbiter events since the stored block, under a Redis lock.
 import { Redis } from '@upstash/redis'
 import type { IncomingMessage } from 'node:http'
 import { createApi, toJson, type DbAdapter } from '../server/core.ts'
 import type { Db } from '../shared/api.ts'
 import { network } from '../scripts/lib.ts'
+import { pgAdapter } from '../server/pgdb.ts'
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL,
@@ -17,7 +18,7 @@ const KEY = network.testnet ? 'held:v2:db' : 'held:mainnet:db'
 const LOCK = network.testnet ? 'held:v2:lock' : 'held:mainnet:lock'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-const db: DbAdapter = {
+const redisDb: DbAdapter = {
   async read() { return (await redis.get<Db>(KEY)) ?? null }, // @upstash/redis JSON-decodes automatically
   async write(d) { await redis.set(KEY, d) },
   async lock(fn, { wait }) {
@@ -28,13 +29,15 @@ const db: DbAdapter = {
       if (i > 60) throw new Error('store busy, try again')
       await sleep(150)
     }
-    try { return await fn() } finally {
+    try { return await fn(redisDb) } finally {
       if ((await redis.get(LOCK)) === token) await redis.del(LOCK)
     }
   },
   async rateLimit(key, ms) { return (await redis.set(`held:rl:${key}`, 1, { nx: true, px: ms })) === 'OK' },
 }
 
+// Postgres when configured (transactions + advisory locks); Redis is the fallback during the switch.
+const db: DbAdapter = process.env.DATABASE_URL ? pgAdapter(process.env.DATABASE_URL, `held_${network.name}`) : redisDb
 const api = createApi({ network, db })
 
 // The parts of Vercel's Node request/response helpers this handler uses.

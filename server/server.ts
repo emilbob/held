@@ -6,6 +6,7 @@ import { extname, join, normalize, dirname } from 'node:path'
 import { createApi, emptyDb, toJson, type DbAdapter } from './core.ts'
 import type { Db } from '../shared/api.ts'
 import { network } from '../scripts/lib.ts'
+import { pgAdapter } from './pgdb.ts'
 
 const root = new URL('../', import.meta.url).pathname
 // db-v2: the multi-merchant store. The demo-era .state/db.json is left untouched.
@@ -16,7 +17,7 @@ const STATIC = join(root, 'web/dist')
 // Single process, so the "lock" is a promise chain and rate limits live in memory.
 let chain: Promise<unknown> = Promise.resolve(), busy = false
 const seen = new Map<string, number>()
-const db: DbAdapter = {
+const fileDb: DbAdapter = {
   async read() {
     if (!existsSync(DB)) return null
     return JSON.parse(readFileSync(DB, 'utf8')) as Db
@@ -24,7 +25,7 @@ const db: DbAdapter = {
   async write(d) { mkdirSync(dirname(DB), { recursive: true }); writeFileSync(DB + '.tmp', JSON.stringify(d, null, 2)); renameSync(DB + '.tmp', DB) },
   lock(fn, { wait }) {
     if (!wait && busy) return Promise.resolve(undefined)
-    const run = chain.then(async () => { busy = true; try { return await fn() } finally { busy = false } })
+    const run = chain.then(async () => { busy = true; try { return await fn(fileDb) } finally { busy = false } })
     chain = run.catch(() => {})
     return run
   },
@@ -33,9 +34,11 @@ const db: DbAdapter = {
 // First run with HELD_ORDER_START (used by the e2e scripts): seed an empty DB with that order number.
 if (process.env.HELD_ORDER_START && !existsSync(DB)) {
   const { pub } = await import('../scripts/lib.ts')
-  await db.write(emptyDb((await pub.getBlockNumber()).toString(), Number(process.env.HELD_ORDER_START)))
+  await fileDb.write(emptyDb((await pub.getBlockNumber()).toString(), Number(process.env.HELD_ORDER_START)))
 }
 
+// DATABASE_URL -> Postgres (as in production); otherwise a local JSON file.
+const db: DbAdapter = process.env.DATABASE_URL ? pgAdapter(process.env.DATABASE_URL, `held_${network.name}`) : fileDb
 const api = createApi({ network, db })
 
 const readBody = (req: IncomingMessage) => new Promise<Record<string, unknown>>((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => { try { ok(b ? JSON.parse(b) : {}) } catch { ok({}) } }) })

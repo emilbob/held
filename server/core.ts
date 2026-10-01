@@ -36,10 +36,12 @@ export const emptyDb = (lastBlock: string, nextOrderId = 1001): Db =>
 export interface DbAdapter {
   read(): Promise<Db | null>
   write(d: Db): Promise<void>
-  // wait: false -> skip (resolve undefined) if someone else holds the lock.
-  lock<T>(fn: () => Promise<T>, opts: { wait: boolean }): Promise<T | undefined>
+  // Runs fn while holding the store's lock; fn must read and write through the `io` it's given (for Postgres that's
+  // the locked transaction). wait: false -> skip (resolve undefined) if someone else holds the lock.
+  lock<T>(fn: (io: DbIO) => Promise<T>, opts: { wait: boolean }): Promise<T | undefined>
   rateLimit(key: string, ms: number): Promise<boolean>
 }
+export interface DbIO { read(): Promise<Db | null>, write(d: Db): Promise<void> }
 export interface ApiResponse { status: number, body: unknown }
 type Headers = Record<string, string | string[] | undefined>
 
@@ -78,22 +80,22 @@ const errText = (e: unknown) => (e as ViemishError).shortMessage || (e as Viemis
 export function createApi({ network, db }: { network: Network, db: DbAdapter }) {
   let head = 0n, lastErr: string | null = null, lastSync = 0
 
-  async function load(): Promise<Db> {
-    return (await db.read()) ?? emptyDb((await pub.getBlockNumber()).toString()) // first run: index from now
+  async function load(io: DbIO = db): Promise<Db> {
+    return (await io.read()) ?? emptyDb((await pub.getBlockNumber()).toString()) // first run: index from now
   }
   // Read-modify-write under a lock so concurrent serverless invocations don't lose updates.
   const mutate = <T>(fn: (s: Db) => T | Promise<T>) =>
-    db.lock(async () => { const s = await load(); const r = await fn(s); await db.write(s); return r }, { wait: true }) as Promise<T>
+    db.lock(async (io) => { const s = await load(io); const r = await fn(s); await io.write(s); return r }, { wait: true }) as Promise<T>
 
   async function sync(force = false) {
     if (!force && Date.now() - lastSync < 1000) return
     lastSync = Date.now()
     try {
       // If another invocation is already syncing, just read what it wrote.
-      await db.lock(async () => {
-        const s = await load()
+      await db.lock(async (io) => {
+        const s = await load(io)
         head = await createIndexer({ store: s }).sync()
-        await db.write(s)
+        await io.write(s)
       }, { wait: false })
       lastErr = null
     } catch (e) { lastErr = errText(e) }

@@ -8,7 +8,7 @@ import { LineReveal, Scramble, useEntrance, useMagnetic, useScrollEntrance } fro
 import { HeldFrame, type FramePhase } from './HeldFrame.tsx'
 
 // YouTube id of the product film (empty: the film section stays hidden). Loads nothing from YouTube until played.
-const FILM_YOUTUBE_ID = ''
+const FILM_YOUTUBE_ID = 'bjRJN8NoCAM'
 const CONTRACT_URL = 'https://github.com/emilbob/held/blob/main/contracts/HeldArbiter.sol'
 
 const STEPS: { n: string, phase: FramePhase, title: string, text: string, state: string }[] = [

@@ -191,3 +191,22 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   empty state. Copy: "from their/your own wallet" everywhere (no "any wallet").
 - Pushed through f0e7f74. Next session: more UI polish on request; user-side: Blockaid report, record demo
   (docs/demo-script.md), submission form (opens Oct 6, deadline Oct 12), merchant conversations.
+
+## Oct 1: contract v2, network switch, Postgres (all live on testnet)
+- HeldArbiter v2 (VERSION 2): up to 3 accepted stablecoins as immutables (covered by the byte-for-byte check); tokens
+  the shop doesn't accept can only be refunded. forge 42 + invariants (30k random actions), fuzz 20k, mutation-checked.
+- HELD_NETWORK=testnet|mainnet -> network.<name>.json (server, scripts, vite define). Mainnet: chain 4217, USDC.e
+  0x20C0…8b50, USDT0 0x20C0…EB73, pathUSD (verified on-chain), maxOrder $250 (testnet $1,000). Mainnet RPC rpc.tempo.xyz.
+- Fee tokens: arbiter calls default to pathUSD on Tempo; Tempo Wallet + page keys now name the fee token (the accepted
+  stablecoin held most); MetaMask gets a pathUSD pre-check message. e2e: buyer with 0 pathUSD confirms delivery.
+- Buyer page: choose stablecoin; Pay disabled until enough; "Adding free test funds…" during testnet top-up.
+- Sandbox shop moved to v2 arbiter 0x79a9…3b94 (held v1 payments #1016/#1018 refunded first).
+- Storage: Supabase project `held` (us-east-1, free plan, id anayotqghmejwmjbinwh), schemas held_testnet / held_mainnet.
+  server/pgdb.ts: one transaction + advisory lock per write, single-statement atomic reads, counter/lastBlock can't go
+  backwards. MUST use the SESSION pooler (5432): the transaction pooler (6543) returned empty reads under load, then hung.
+  DATABASE_URL in .env.local and Vercel production. Live cut over Oct 1 14:20; Redis key held:v2:db frozen (rollback =
+  remove DATABASE_URL on Vercel + redeploy).
+- Tests: e2e 44/44 (file + Postgres), concurrency 6/6 (2 instances), Tempo Wallet 4/4 (local + live), MetaMask 7/7.
+- Next: indexer hardening (paid RPC, reorgs), monitoring/alerts, mainnet dry run, resolver multisig, guarded launch.
+  Supabase free plan pauses after 7 days idle: upgrade to Pro before mainnet. Order ids are sequential and order pages
+  public: make buyer links unguessable before mainnet.

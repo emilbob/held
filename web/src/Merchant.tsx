@@ -65,6 +65,7 @@ export default function MerchantPage() {
 
 const Loading = () => <div className="narrow"><div className="card loading" aria-busy="true"><p className="muted">Loading your shop…</p></div></div>
 
+const PAGE = 20
 type OrderFilter = 'action' | 'unpaid' | 'settled' | 'all'
 const FILTERS: [OrderFilter, string][] = [['action', 'Needs action'], ['unpaid', 'Awaiting payment'], ['settled', 'Settled'], ['all', 'All']]
 
@@ -165,7 +166,11 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
     all: orders,
   }
   const [filter, setFilter] = useState<OrderFilter>('all')
-  const shown = groups[filter]
+  // Long lists: the newest PAGE orders first, then "Show more" (new orders arrive at the top, so no numbered pages).
+  const [limit, setLimit] = useState(PAGE)
+  const all = groups[filter]
+  const shown = all.slice(0, limit)
+  const more = Math.min(PAGE, all.length - shown.length)
   const heldTotal = orders.flatMap((o) => o.payments).filter((p) => ['held', 'disputed'].includes(p.status)).reduce((a, p) => a + Number(p.amount), 0)
   const link = (o: Order) => `${location.origin}/#/pay/${o.key ?? o.id}`
   // Draw the dashboard once its orders are in: drawing the shell first made the entrance replay over it ("refresh").
@@ -204,13 +209,19 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
           <div className="chips" role="group" aria-label="Show orders">
             {FILTERS.map(([k, label]) => (
               <button key={k} className={`chip ${filter === k ? 'on' : ''} ${k === 'action' && groups.action.length ? 'attention' : ''}`}
-                aria-pressed={filter === k} onClick={() => setFilter(k)}>{label} <span>{groups[k].length}</span></button>
+                aria-pressed={filter === k} onClick={() => { setFilter(k); setLimit(PAGE) }}>{label} <span>{groups[k].length}</span></button>
             ))}
           </div>
         </div>
         {data && orders.length === 0 && <p className="muted">No orders yet. Create one above, or make a checkout link, and send it to your buyer.</p>}
         {data && orders.length > 0 && shown.length === 0 && <p className="muted">Nothing here right now.</p>}
         {shown.map((o) => <OrderCard key={o.id} order={o} wallet={w.wallet} merchant={m} testnet={testnet} />)}
+        {more > 0 && (
+          <div className="more">
+            <span className="muted small">Showing {shown.length} of {all.length}</span>
+            <button className="secondary" onClick={() => setLimit(limit + PAGE)}>Show {more} more</button>
+          </div>
+        )}
       </section>
     </div>
   )

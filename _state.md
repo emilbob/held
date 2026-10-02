@@ -230,3 +230,5 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Merchant page: no connect/sign-in flash, dashboard drawn once orders load (entrance no longer replays = "refresh").
 - FAQ page (#/faq, 18 questions; navbar on wide screens + footer). Chatbot declined for now (wrong answers about money,
   phishing screenshots, free OpenRouter limits). Mainnet dry run on hold: the user wants more done before mainnet.
+- Orders list: first 20, then "Show 20 more" (client-side; resets per filter). Later, when shops have hundreds of orders:
+  server-side paging + per-merchant queries (/api/orders loads the whole db on every 2.5 s poll).

@@ -232,3 +232,6 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   phishing screenshots, free OpenRouter limits). Mainnet dry run on hold: the user wants more done before mainnet.
 - Orders list: first 20, then "Show 20 more" (client-side; resets per filter). Later, when shops have hundreds of orders:
   server-side paging + per-merchant queries (/api/orders loads the whole db on every 2.5 s poll).
+- Colosseum weekly update video: film/out/held-week-oct2.mp4 (60 s, 1080p60, H.264 + AAC, 15 MB). Remotion composition
+  HeldWeek in film/src/Week.tsx (captions written by Claude, user OK'd), screenshots in film/public/week/ from the live
+  site. film/ stays local-only. Render: cd film && npx remotion render src/index.ts HeldWeek out/held-week-oct2.mp4

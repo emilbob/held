@@ -76,7 +76,8 @@ export function Privacy() {
           <li><b>Merchants:</b> your wallet address, your shop name, your contract address, your orders and checkout links (item and price).</li>
           <li><b>Payments:</b> what's already public on Tempo: amounts, wallet addresses, transaction hashes, and the payment's status.</li>
           <li><b>Feedback:</b> what you write on the feedback page, which kind of user you said you are, and a contact only if you
-            give one. Only Held's developer reads it; it's never shown publicly.</li>
+            give one. Only Held's developer reads it. It's shown publicly only if you tick "You can quote this", and then only the
+            text and the name or handle you chose, never your contact.</li>
           <li><b>Dispute notes:</b> what the buyer and merchant write. Only that merchant and their resolver can read them; they never
             appear on public pages.</li>
           <li><b>Sign-in sessions:</b> stored as a one-way hash, and deleted after they expire (7 days).</li>

@@ -27,7 +27,7 @@ import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
-import { signInMessage, noteMessage, NOTE_MAX, FEEDBACK_MAX, CONTACT_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
+import { signInMessage, noteMessage, NOTE_MAX, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
 // 1..65535, so no two databases (local, live, previews) hand out the same order addresses.
 export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
@@ -308,8 +308,10 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const role = (['buyer', 'merchant', 'looking'] as const).find((r) => r === body.role) ?? 'looking'
       if (!text || text.length > FEEDBACK_MAX) return ok({ error: `Write your feedback (up to ${FEEDBACK_MAX} characters).` }, 400)
       if (contact.length > CONTACT_MAX) return ok({ error: `Keep the contact under ${CONTACT_MAX} characters.` }, 400)
+      const quote = body.quote === true
+      const quoteName = quote && typeof body.quoteName === 'string' ? body.quoteName.trim().slice(0, QUOTE_NAME_MAX) : ''
       if (!(await db.rateLimit(`feedback:${clientIp(headers)}`, 20_000))) return ok({ error: 'Thanks! Wait a few seconds before sending more.' }, 429)
-      await db.addFeedback({ at: now(), role, text, ...(contact && { contact }) })
+      await db.addFeedback({ at: now(), role, text, ...(contact && { contact }), ...(quote && { quote, ...(quoteName && { quoteName }) }) })
       return ok({ ok: true }, 201)
     }
     if (path === '/api/feedback') {

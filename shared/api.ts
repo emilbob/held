@@ -123,9 +123,11 @@ export const signInMessage = (address: string, host: string, issued: number) =>
 // Feedback from anyone trying Held (#/feedback). Stored apart from the main Db (it only grows); readable only by
 // Held's owner (a session of the network's default resolver wallet). No account; the contact is optional.
 export type FeedbackRole = 'buyer' | 'merchant' | 'looking'
-export interface Feedback { at: number, role: FeedbackRole, text: string, contact?: string }
+// quote: the person allowed quoting this publicly, shown as quoteName (a first name or handle). Off by default.
+export interface Feedback { at: number, role: FeedbackRole, text: string, contact?: string, quote?: boolean, quoteName?: string }
 export const FEEDBACK_MAX = 1000
 export const CONTACT_MAX = 120
+export const QUOTE_NAME_MAX = 40
 
 // Dispute notes: what the buyer says went wrong, and the merchant's reply. Readable only by the merchant and the
 // resolver. A buyer's note is signed by the wallet that paid (this exact text), so nobody can speak for the buyer.

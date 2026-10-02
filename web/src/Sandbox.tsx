@@ -34,8 +34,9 @@ export default function Sandbox() {
             then press <i>Pay $1.00</i>. You'll see <i>Held: protected</i>: Tempo holds the money, not the merchant.
           </li>
           <li>
-            <b>Try to cheat as the merchant.</b> Back on the dashboard, press <i>Try to pay yourself early</i> on that order.
-            The contract refuses.
+            <b>Try to cheat as the merchant.</b> Go back to the dashboard (<i>← Back to your orders</i> at the top of the buyer
+            page, or <i>Dashboard</i> in the menu) and press <i>Try to pay yourself early</i> on that order. The contract refuses.
+            Then return with <i>Buyer page →</i>.
           </li>
           <li>
             <b>Finish the order.</b> On the buyer page, either press <i>I got it: release payment</i> (the merchant is paid),

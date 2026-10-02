@@ -41,6 +41,7 @@ export default function MerchantPage() {
   if (!w.wallet) return (
     <div className="narrow">
       <div className="card">
+        <p className="kicker">For merchants</p>
         <h1>Accept stablecoin payments with buyer protection</h1>
         <p>Connect the wallet that will be your shop's checkout address. Buyers pay it; every payment is held until they
           confirm delivery or the protection window ends. You can refund anytime, and only you and the buyer's wallet ever receive the money.</p>
@@ -51,6 +52,7 @@ export default function MerchantPage() {
   if (!signedIn || !me) return (
     <div className="narrow">
       <div className="card">
+        <p className="kicker">For merchants</p>
         <h1>Sign in</h1>
         <WalletPicker w={w} />
         <p className="muted">Sign a message to prove this wallet is yours. It's free and moves no funds.</p>
@@ -108,6 +110,7 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
   return (
     <div className="narrow">
       <form className="card setup" onSubmit={start}>
+        <p className="kicker">For merchants</p>
         <h1>Set up your shop</h1>
         <p className="muted">One time, from your wallet ({short(wallet.address)}). Your checkout address and your own arbiter contract: Held's server never holds your keys or your funds.</p>
         <label htmlFor="shopname">Shop name</label>
@@ -178,6 +181,7 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
 
   return (
     <div className="dash" ref={root}>
+      <p className="kicker">For merchants · {m.name} dashboard</p>
       <h1 className="sr-only">{m.name} dashboard</h1>
       <p className="askfb top">Held is in beta: your feedback decides what we build next. <a href="#/feedback">Tell us what you need</a></p>
       <section className="summary">

@@ -148,3 +148,22 @@ export function useMagnetic<T extends HTMLElement>(strength = 0.3) {
   }, [strength])
   return ref
 }
+
+// ---------------------------------------------------------------- back to top
+/** A round button that appears after scrolling down about a screen and smoothly returns to the top. */
+export function ToTop() {
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const f = () => setShown(scrollY > innerHeight * 0.9)
+    f(); addEventListener('scroll', f, { passive: true }); return () => removeEventListener('scroll', f)
+  }, [])
+  const up = () => {
+    scrollTo({ top: 0, behavior: reduced() ? 'auto' : 'smooth' })
+    document.querySelector<HTMLElement>('header .logo')?.focus({ preventScroll: true })
+  }
+  return (
+    <button type="button" className={`totop${shown ? ' on' : ''}`} onClick={up} aria-label="Back to top" tabIndex={shown ? 0 : -1} aria-hidden={!shown}>
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    </button>
+  )
+}

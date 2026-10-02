@@ -379,3 +379,13 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .faq summary:hover { color: var(--lime) }
 .faq summary:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; border-radius: 4px }
 .faq details p { margin: 0 0 12px; color: #c3c8d2 }
+/* Back to top: bottom right, appears after about a screen of scrolling. */
+.totop { position: fixed; right: 22px; bottom: 22px; z-index: 3; width: 42px; height: 42px; border-radius: 99px; padding: 0;
+  display: grid; place-items: center; background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
+  box-shadow: 0 6px 20px #0008; cursor: pointer; opacity: 0; transform: translateY(10px); pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease, color .15s, border-color .15s }
+.totop.on { opacity: 1; transform: none; pointer-events: auto }
+.totop:hover { color: var(--lime); border-color: var(--lime) }
+.totop:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px }
+@media (max-width: 720px) { .totop { right: 14px; bottom: 14px; width: 40px; height: 40px } }
+@media (prefers-reduced-motion: reduce) { .totop { transition: none } }

@@ -10,6 +10,7 @@ import { Terms, Privacy } from './Legal.tsx'
 import Roadmap from './Roadmap.tsx'
 import Faq from './Faq.tsx'
 import { useConfig } from './ui.tsx'
+import { ToTop } from './anim.tsx'
 
 function useRoute() {
   const [hash, setHash] = useState(location.hash)
@@ -45,6 +46,7 @@ export default function App() {
         <p>Funds are held by Tempo's ReceivePolicyGuard; each merchant's arbiter can only pay the merchant or refund the payer.</p>
         <span className="footlinks">{!route.startsWith('/resolve') && <a href="#/resolve">Resolver console</a>}<a href="#/faq">FAQ</a><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></span>
       </footer>
+      <ToTop />
     </>
   )
 }

@@ -11,7 +11,7 @@ const sections: [string, [string, ReactNode][]][] = [
     ['How does Held protect my payment?',
       <>You pay with a normal stablecoin transfer to the order's own address. Tempo holds the payment instead of passing it to the
         merchant, and the merchant's contract can send it to exactly two places: the merchant, or back to the wallet that paid.
-        Nobody else, Held included, can receive it.</>],
+        Nobody, Held included, can redirect it anywhere else.</>],
     ['My order arrived. What do I do?',
       <>Open your order page and confirm delivery. That releases the payment to the merchant. If you don't, the merchant can release
         it themselves once the protection window ends.</>],

@@ -227,4 +227,6 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Pre-flight for mainnet (read-only): chain 4217 live, USDC.e/USDT0/pathUSD, receive-policy + virtual-address precompiles
   and guard respond, rpc.tempo.xyz serves 50k-block getLogs, held_mainnet schema exists. No minimum order: pilot can be $0.10.
 - Navbar "Beta" tag (links to the roadmap) + #/roadmap page (Now / Next / Later, no dates). Tempo link hidden on phones.
-- Mainnet dry run on hold: the user wants more done before mainnet.
+- Merchant page: no connect/sign-in flash, dashboard drawn once orders load (entrance no longer replays = "refresh").
+- FAQ page (#/faq, 18 questions; navbar on wide screens + footer). Chatbot declined for now (wrong answers about money,
+  phishing screenshots, free OpenRouter limits). Mainnet dry run on hold: the user wants more done before mainnet.

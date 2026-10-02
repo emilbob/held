@@ -8,6 +8,7 @@ import Sandbox from './Sandbox.tsx'
 import Buy from './Buy.tsx'
 import { Terms, Privacy } from './Legal.tsx'
 import Roadmap from './Roadmap.tsx'
+import Faq from './Faq.tsx'
 import { useConfig } from './ui.tsx'
 
 function useRoute() {
@@ -29,6 +30,7 @@ export default function App() {
     : route.startsWith('/terms') ? <Terms />
     : route.startsWith('/privacy') ? <Privacy />
     : route.startsWith('/roadmap') ? <Roadmap />
+    : route.startsWith('/faq') ? <Faq />
     : <Landing />
   return (
     <>
@@ -36,12 +38,12 @@ export default function App() {
         <a href="/" className="logo" onClick={(e) => { e.preventDefault(); location.href = "/"; if (location.hash === "" || location.hash === "#/") location.reload() }}><Logo size={24} /></a>
         <a href="#/roadmap" className="beta" title="Held is in beta: see the roadmap">Beta</a>
         <span className="tag">Buyer protection for stablecoin payments{cfg?.testnet ? ' · Tempo testnet' : ' on Tempo'}</span>
-        <nav>{cfg?.testnet && cfg.sandbox?.arbiter && <a href="#/sandbox">Try it</a>}<a href="#/" className="wide-only">How it works</a><a href="#/merchant"><span className="wide-only">For merchants</span><span className="narrow-only">Merchants</span></a><a href="#/roadmap">Roadmap</a><a href="https://tempo.xyz" target="_blank" rel="noopener noreferrer" className="ext wide-only">Tempo<span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></a></nav>
+        <nav>{cfg?.testnet && cfg.sandbox?.arbiter && <a href="#/sandbox">Try it</a>}<a href="#/" className="wide-only">How it works</a><a href="#/merchant"><span className="wide-only">For merchants</span><span className="narrow-only">Merchants</span></a><a href="#/roadmap">Roadmap</a><a href="#/faq" className="wide-only">FAQ</a><a href="https://tempo.xyz" target="_blank" rel="noopener noreferrer" className="ext wide-only">Tempo<span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></a></nav>
       </header>
       <main>{page}</main>
       <footer>
         <p>Funds are held by Tempo's ReceivePolicyGuard; each merchant's arbiter can only pay the merchant or refund the payer.</p>
-        <span className="footlinks">{!route.startsWith('/resolve') && <a href="#/resolve">Resolver console</a>}<a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></span>
+        <span className="footlinks">{!route.startsWith('/resolve') && <a href="#/resolve">Resolver console</a>}<a href="#/faq">FAQ</a><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a></span>
       </footer>
     </>
   )

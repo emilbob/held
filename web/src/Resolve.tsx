@@ -33,6 +33,7 @@ export default function Resolve() {
   useEntrance(root, ':scope > .card', !addr || data !== null, { stagger: 0.07 })
   return (
     <div className={w.wallet ? 'dash' : 'narrow'} ref={root}>
+      {session.get()?.address && <a className="back" href="#/merchant">← Back to your orders</a>}
       <div className="card">
         <h1>Resolve disputes</h1>
         <p>Connect the resolver wallet. You'll see open disputes for every merchant who chose it. The contract lets you do only
@@ -82,6 +83,7 @@ function Dispute({ order: o, wallet }: { order: Order, wallet: W.Wallet }) {
       <div className="meta">
         Buyer <a href={addrUrl(p.payer)} target="_blank">{short(p.payer)}</a> · merchant <a href={addrUrl(o.merchant)} target="_blank">{short(o.merchant)}</a>
         {' '}· <a href={txUrl(p.txHash)} target="_blank">payment</a>{disputedTx && <> · <a href={txUrl(disputedTx)} target="_blank">dispute</a></>}
+        {o.key && <> · <a href={`#/pay/${o.key}`}>Buyer page →</a></>}
       </div>
       <Notes notes={o.notes?.[p.id]} />
       <div className="actions resolver">

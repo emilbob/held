@@ -273,8 +273,9 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const s = await load()
       const theirs = new Set(Object.values(s.merchants).filter((mm) => mm.resolver.toLowerCase() === resolver.toLowerCase()).map((mm) => mm.address.toLowerCase()))
       const isResolver = sessionOf(s, headers)?.toLowerCase() === resolver.toLowerCase()
+      // Buyer-page keys (the unguessable #/pay/<key> links) and notes only for the signed-in resolver; this list is public.
       const orders = Object.values(s.orders).filter((o) => theirs.has(o.merchant.toLowerCase())).map((o) => orderView(s, o))
-        .map((o) => (isResolver ? withNotes(s, o) : o))
+        .map((o) => (isResolver ? withNotes(s, o) : (({ key: _key, ...rest }) => rest)(o)))
       return ok({ orders: orders.filter((o) => o.payments.some((p) => p.status === 'disputed')).sort((a, b) => b.id - a.id), notes: isResolver })
     }
     if (path === '/api/notes' && method === 'POST') {

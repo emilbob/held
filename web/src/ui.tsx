@@ -217,14 +217,15 @@ export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, not
   )
   return (
     <div className="actions picker">
-      <button className="primary" onClick={() => w.connect('tempo')} disabled={w.busy}>{w.busy ? 'Connecting…' : 'Tempo Wallet'}</button>
+      {/* Testnet sandbox first: someone trying the sandbox shouldn't reach for their own wallet by mistake. */}
+      {w.sandbox && <button className="primary" onClick={() => w.connect('sandbox')} disabled={w.busy}>Sandbox {w.role} (shared, no setup)</button>}
+      <button className={w.sandbox ? 'ghost' : 'primary'} onClick={() => w.connect('tempo')} disabled={w.busy}>{w.busy && !w.sandbox ? 'Connecting…' : 'Tempo Wallet'}</button>
       {w.installed.map((iw) => (
         <button key={iw.rdns} className="ghost" onClick={() => w.connect('injected', iw)} disabled={w.busy}>
           {iw.icon && <img src={iw.icon} alt="" className="wicon" />}{iw.name}
         </button>
       ))}
       {w.testnet && <button className="secondary" onClick={() => w.connect('demo')} disabled={w.busy}>Test wallet in this browser</button>}
-      {w.sandbox && <button className="secondary" onClick={() => w.connect('sandbox')} disabled={w.busy}>Sandbox {w.role} (shared, no setup)</button>}
       <p className="muted small">{note ?? 'Tempo Wallet signs with a passkey (Face ID / Touch ID). No extension, no seed phrase.'}</p>
       {w.error && <Result msg={{ ok: false, text: w.error }} />}
     </div>

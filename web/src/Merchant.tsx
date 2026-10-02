@@ -37,7 +37,7 @@ export default function MerchantPage() {
   // One steady placeholder while a remembered wallet reconnects or the shop loads, instead of flashing
   // the connect and sign-in screens on the way to the dashboard.
   const autoSignIn = w.wallet?.kind === 'sandbox' && !signedIn && !msg
-  if (w.restoring || (signedIn && !me) || autoSignIn) return <div className="narrow"><div className="card loading" aria-busy="true"><p className="muted">Loading your shop…</p></div></div>
+  if (w.restoring || (signedIn && !me) || autoSignIn) return <Loading />
   if (!w.wallet) return (
     <div className="narrow">
       <div className="card">
@@ -62,6 +62,8 @@ export default function MerchantPage() {
   if (!me.merchant) return cfg && <Setup cfg={cfg} wallet={w.wallet} onDone={loadMe} />
   return <Dashboard merchant={me.merchant} w={w} testnet={!!cfg?.testnet} />
 }
+
+const Loading = () => <div className="narrow"><div className="card loading" aria-busy="true"><p className="muted">Loading your shop…</p></div></div>
 
 type OrderFilter = 'action' | 'unpaid' | 'settled' | 'all'
 const FILTERS: [OrderFilter, string][] = [['action', 'Needs action'], ['unpaid', 'Awaiting payment'], ['settled', 'Settled'], ['all', 'All']]
@@ -166,6 +168,8 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
   const shown = groups[filter]
   const heldTotal = orders.flatMap((o) => o.payments).filter((p) => ['held', 'disputed'].includes(p.status)).reduce((a, p) => a + Number(p.amount), 0)
   const link = (o: Order) => `${location.origin}/#/pay/${o.key ?? o.id}`
+  // Draw the dashboard once its orders are in: drawing the shell first made the entrance replay over it ("refresh").
+  if (data === null && !err) return <Loading />
 
   return (
     <div className="dash" ref={root}>

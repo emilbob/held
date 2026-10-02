@@ -208,7 +208,7 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   remove DATABASE_URL on Vercel + redeploy).
 - Tests: e2e 44/44 (file + Postgres), concurrency 6/6 (2 instances), Tempo Wallet 4/4 (local + live), MetaMask 7/7.
 - Next: indexer hardening (paid RPC, reorgs), monitoring/alerts, mainnet dry run, resolver multisig, guarded launch.
-  Supabase free plan pauses after 7 days idle: upgrade to Pro before mainnet. Order ids are sequential and order pages
+  Supabase free plan pauses after 7 days idle (solved free: daily cron keep-alive + Upstash backup; no Pro needed for the beta). Order ids are sequential and order pages
   public: make buyer links unguessable before mainnet.
 
 ## Oct 1 (evening): ops, landing v2, submission

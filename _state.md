@@ -238,3 +238,7 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Fee decided (research/business-model.md): contract v3, 1% on release only, refunds free, 0% until ~mid-2027 then 1%
   (immutable per shop), optional cap. Roadmap + FAQ updated and live (ee285f9). v3 to be built on a separate branch +
   separate testnet deployment; held-lilac/main stay unchanged in behavior until winners (~mid-Nov). Needs a fee wallet.
+- Domain: getheld.xyz bought Oct 2 (Vercel, $1.99 1st yr, $13/yr after; brand stays "Held"). Attached to project held
+  (apex) + www.getheld.xyz (308 -> apex); held-lilac.vercel.app keeps working (not redirected). og:url/og:image, uptime
+  monitor, demo script/page, script defaults switched to getheld.xyz. (held-lilac was flagged by MetaMask/Blockaid; a
+  new domain starts clean.)

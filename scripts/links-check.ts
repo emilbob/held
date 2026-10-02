@@ -1,5 +1,5 @@
 // Checkout-link rules against a Held server, signed in as the sandbox merchant (public testnet key).
-// Usage: npm run test:links   (APP=https://held-lilac.vercel.app npm run test:links for the live site)
+// Usage: npm run test:links   (APP=https://getheld.xyz npm run test:links for the live site)
 import { readFileSync } from 'node:fs'
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts'
 import { signInMessage } from '../shared/api.ts'

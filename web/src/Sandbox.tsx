@@ -26,7 +26,7 @@ export default function Sandbox() {
             <button className="primary" onClick={() => go('merchant', '#/merchant')}>Open the Sandbox Shop</button>
           </li>
           <li>
-            <b>Create an order.</b> Under <i>New order</i>, type an item and an amount (e.g. <i>Mug</i>, <i>1</i>) and press
+            <b>Create an order.</b> Under <i>New order</i>, type an item and a price (e.g. <i>Mug</i>, <i>1</i>) and press
             {' '}<i>Create order</i>. On your new order, press <i>Buyer page →</i>.
           </li>
           <li>

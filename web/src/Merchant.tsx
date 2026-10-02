@@ -196,7 +196,7 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
       <form className="card neworder" onSubmit={create}>
         <div className="nohead"><h2>New order</h2><span className="muted small">For one buyer: send them its buyer page</span></div>
         <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item" aria-label="Item" required />
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (USD)" aria-label="Amount in USD" inputMode="decimal" className="amt" required />
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Price (USD, total)" aria-label="Price in USD, the total the buyer pays" inputMode="decimal" className="amt" required />
         <button disabled={busy}>{busy ? 'Creating…' : 'Create order'}</button>
         {formErr && <span className="err">{formErr}</span>}
         {created && (

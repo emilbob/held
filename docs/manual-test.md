@@ -13,7 +13,7 @@ Everything is on testnet: test funds are free and added automatically. Note anyt
 ## Part 1: Sandbox (one browser is enough)
 Exact button names, checked on the live site Oct 2.
 - [ ] getheld.xyz → **Try it** (navbar) → **Open the Sandbox Shop** → dashboard opens with no flicker
-- [ ] **New order**: Item "Test 1", Amount 1 → **Create order** → on that order, **Buyer page →**
+- [ ] **New order**: Item "Test 1", Price 1 → **Create order** → on that order, **Buyer page →**
 - [ ] **Test wallet in this browser** → "Adding free test funds to this wallet…" for a few seconds → **Pay $1.00 in pathUSD**
 - [ ] Status becomes **Held: protected** ("Payment held: you're protected")
 - [ ] Dashboard: on that order, **Try to pay yourself early** → refused ("This wallet is not allowed to do that")

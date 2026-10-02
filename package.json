@@ -16,7 +16,8 @@
     "e2e:metamask": "node e2e/metamask.ts",
     "typecheck": "tsc && npm --prefix web run typecheck",
     "test:e2e": "node scripts/merchant-e2e.ts",
-    "test:links": "node scripts/links-check.ts"
+    "test:links": "node scripts/links-check.ts",
+    "sandbox:reset": "node scripts/sandbox-reset.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.35.0",

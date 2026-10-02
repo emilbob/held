@@ -235,3 +235,6 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Colosseum weekly update video: film/out/held-week-oct2.mp4 (60 s, 1080p60, H.264 + AAC, 15 MB). Remotion composition
   HeldWeek in film/src/Week.tsx (captions written by Claude, user OK'd), screenshots in film/public/week/ from the live
   site. film/ stays local-only. Render: cd film && npx remotion render src/index.ts HeldWeek out/held-week-oct2.mp4
+- Fee decided (research/business-model.md): contract v3, 1% on release only, refunds free, 0% until ~mid-2027 then 1%
+  (immutable per shop), optional cap. Roadmap + FAQ updated and live (ee285f9). v3 to be built on a separate branch +
+  separate testnet deployment; held-lilac/main stay unchanged in behavior until winners (~mid-Nov). Needs a fee wallet.

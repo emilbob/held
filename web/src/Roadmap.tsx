@@ -48,7 +48,7 @@ export default function Roadmap() {
             </li>
           ))}
         </ol>
-        <p className="muted small">Questions or ideas? <a href="https://github.com/emilbob/held/issues" target="_blank" rel="noopener noreferrer">Open an issue on GitHub</a>.</p>
+        <p className="muted small">Questions or ideas? <a href="#/feedback">Send us feedback</a> or <a href="https://github.com/emilbob/held/issues" target="_blank" rel="noopener noreferrer">open an issue on GitHub</a>.</p>
       </div>
     </div>
   )

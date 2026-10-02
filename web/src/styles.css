@@ -36,7 +36,7 @@ header nav a.ext:hover { color: var(--lime) }
 
 main { max-width: 980px; margin: 28px auto; padding: 0 20px }
 footer { max-width: 940px; margin: 32px auto 40px; padding: 14px 0 0; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line);
-  display: flex; align-items: baseline; gap: 8px 24px }
+  display: flex; align-items: baseline; gap: 8px 14px }
 footer p { margin: 0; flex: 1 }
 footer a { white-space: nowrap }
 
@@ -259,7 +259,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .walletbox .actions .paywith button { width: auto }
 
 /* Footer links and the terms / privacy pages */
-.footlinks { display: flex; gap: 11px; flex-wrap: wrap }
+.footlinks { display: flex; gap: 9px; flex-wrap: wrap }
 .legal h2 { font-size: 15px; margin: 18px 0 6px; color: var(--ink) }
 .legal p, .legal li { font-size: 14px; line-height: 1.55 }
 .legal ul { padding-left: 20px; margin: 6px 0 }
@@ -390,3 +390,9 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 @media (max-width: 720px) { .totop { right: 14px; bottom: 14px; width: 40px; height: 40px } }
 @media (prefers-reduced-motion: reduce) { .totop { transition: none } }
 .orders .more { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 6px 0 4px; flex-wrap: wrap }
+.feedback textarea { width: 100%; resize: vertical; min-height: 110px; font: inherit; padding: 8px 10px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--surface-2); color: var(--ink) }
+.feedback textarea:focus-visible { outline: none; border-color: var(--lime) }
+.feedback label .muted { font-size: 12px }
+.feedback > button.primary { margin-top: 14px }
+.tryfeedback { margin: 14px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font-size: 14px }

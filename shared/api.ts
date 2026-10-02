@@ -120,6 +120,13 @@ export interface Config extends Network {
 export const signInMessage = (address: string, host: string, issued: number) =>
   `Sign in to Held\n\nWallet: ${address}\nSite: ${host}\nIssued: ${new Date(issued * 1000).toISOString()}\n\nThis signature only proves you control this wallet. It does not move funds.`
 
+// Feedback from anyone trying Held (#/feedback). Stored apart from the main Db (it only grows); readable only by
+// Held's owner (a session of the network's default resolver wallet). No account; the contact is optional.
+export type FeedbackRole = 'buyer' | 'merchant' | 'looking'
+export interface Feedback { at: number, role: FeedbackRole, text: string, contact?: string }
+export const FEEDBACK_MAX = 1000
+export const CONTACT_MAX = 120
+
 // Dispute notes: what the buyer says went wrong, and the merchant's reply. Readable only by the merchant and the
 // resolver. A buyer's note is signed by the wallet that paid (this exact text), so nobody can speak for the buyer.
 export interface Note { by: 'buyer' | 'merchant', text: string, at: number }

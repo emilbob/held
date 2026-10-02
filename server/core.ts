@@ -27,7 +27,7 @@ import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
-import { signInMessage, noteMessage, NOTE_MAX, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
+import { signInMessage, noteMessage, NOTE_MAX, FEEDBACK_MAX, CONTACT_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
 // 1..65535, so no two databases (local, live, previews) hand out the same order addresses.
 export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
@@ -43,6 +43,9 @@ export interface DbAdapter {
   lock<T>(fn: (io: DbIO) => Promise<T>, opts: { wait: boolean }): Promise<T | undefined>
   rateLimit(key: string, ms: number): Promise<boolean>
   cleanup?(): Promise<{ sessions: number, ratelimits: number }>
+  // Feedback lives outside the Db snapshot: append one, list all (newest first).
+  addFeedback(f: Feedback): Promise<void>
+  listFeedback(): Promise<Feedback[]>
 }
 export interface DbIO { read(): Promise<Db | null>, write(d: Db): Promise<void> }
 // Optional housekeeping (daily job): drop expired sessions and rate-limit rows. Returns how many rows went.
@@ -297,6 +300,23 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
         return note
       })
       return r ? ok(r, 201) : ok({ error: 'Note limit reached for this payment.' }, 429)
+    }
+    if (path === '/api/feedback' && method === 'POST') {
+      const text = typeof body.text === 'string' ? body.text.trim() : ''
+      const contact = typeof body.contact === 'string' ? body.contact.trim() : ''
+      const role = (['buyer', 'merchant', 'looking'] as const).find((r) => r === body.role) ?? 'looking'
+      if (!text || text.length > FEEDBACK_MAX) return ok({ error: `Write your feedback (up to ${FEEDBACK_MAX} characters).` }, 400)
+      if (contact.length > CONTACT_MAX) return ok({ error: `Keep the contact under ${CONTACT_MAX} characters.` }, 400)
+      if (!(await db.rateLimit(`feedback:${clientIp(headers)}`, 20_000))) return ok({ error: 'Thanks! Wait a few seconds before sending more.' }, 429)
+      await db.addFeedback({ at: now(), role, text, ...(contact && { contact }) })
+      return ok({ ok: true }, 201)
+    }
+    if (path === '/api/feedback') {
+      // Owner only: a session of this network's default resolver (Held's own wallet).
+      const s = await load()
+      const who = sessionOf(s, headers)
+      if (!who || who.toLowerCase() !== network.defaultResolver.toLowerCase()) return ok({ error: "Sign in with Held's owner wallet." }, 401)
+      return ok({ feedback: await db.listFeedback() })
     }
     if (path === '/api/faucet' && method === 'POST') {
       if (!network.testnet) return ok({ error: 'No faucet on mainnet.' }, 404)

@@ -40,6 +40,7 @@ export default function Sandbox() {
         <p className="muted small">Shared by everyone, so you'll see other visitors' sandbox orders. The sandbox merchant and resolver
           use public test keys that hold only test funds; they're never offered on mainnet. Want your own shop? <a href="#/merchant">Set one up</a>:
           it takes a few minutes once.</p>
+        <p className="tryfeedback">Tried it? <a href="#/feedback">Tell us what you think</a>: what would stop you using Held?</p>
       </div>
     </div>
   )

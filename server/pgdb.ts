@@ -22,6 +22,9 @@ export function pgAdapter(url: string, schema: string): DbAdapter & { end(): Pro
   const sql = postgres(url.replace(/:6543\//, ':5432/'), { max: 4, idle_timeout: 20, connect_timeout: 15, onnotice: () => {} })
   const t = (name: string) => sql(`${schema}.${name}`) // postgres.js escapes this as "schema"."table"
   const seen: WeakMap<Db, Rows> = new WeakMap()
+  let feedbackReady: Promise<unknown> | null = null
+  const ensureFeedback = () => (feedbackReady ??= sql`create table if not exists ${t('feedback')} (id bigserial primary key, at bigint not null, data jsonb not null)`
+    .catch((e) => { feedbackReady = null; throw e }))
   const snapshot = (d: Db): Rows => Object.fromEntries(TABLES.map((name) =>
     [name, new Map(Object.entries((d[name] ?? {}) as Record<string, unknown>).map(([k, v]) => [k, JSON.stringify(v)]))])) as Rows
 
@@ -106,6 +109,15 @@ export function pgAdapter(url: string, schema: string): DbAdapter & { end(): Pro
       const s = await sql`delete from ${t('sessions')} where exp < ${Math.floor(now / 1000)}`
       const r = await sql`delete from ${t('ratelimits')} where until < ${now}`
       return { sessions: s.count, ratelimits: r.count }
+    },
+    // Feedback: its own table, created on first use (so no manual migration), never loaded with the Db.
+    async addFeedback(f) {
+      await ensureFeedback()
+      await sql`insert into ${t('feedback')} (at, data) values (${f.at}, ${sql.json(f as never)})`
+    },
+    async listFeedback() {
+      await ensureFeedback()
+      return (await sql`select data from ${t('feedback')} order by id desc limit 500`).map((r) => r.data) as never
     },
     end: () => sql.end({ timeout: 5 }),
   }

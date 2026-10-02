@@ -2,7 +2,7 @@
 import { NET } from './wallet.ts'
 import { usd } from './ui.tsx'
 
-const UPDATED = '1 October 2026'
+const UPDATED = '2 October 2026'
 const CONTACT = 'https://github.com/emilbob/held/issues'
 const coins = NET.tokens.map((t) => t.symbol).join(', ')
 
@@ -75,6 +75,8 @@ export function Privacy() {
         <ul>
           <li><b>Merchants:</b> your wallet address, your shop name, your contract address, your orders and checkout links (item and price).</li>
           <li><b>Payments:</b> what's already public on Tempo: amounts, wallet addresses, transaction hashes, and the payment's status.</li>
+          <li><b>Feedback:</b> what you write on the feedback page, which kind of user you said you are, and a contact only if you
+            give one. Only Held's developer reads it; it's never shown publicly.</li>
           <li><b>Dispute notes:</b> what the buyer and merchant write. Only that merchant and their resolver can read them; they never
             appear on public pages.</li>
           <li><b>Sign-in sessions:</b> stored as a one-way hash, and deleted after they expire (7 days).</li>

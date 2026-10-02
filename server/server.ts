@@ -30,6 +30,9 @@ const fileDb: DbAdapter = {
     return run
   },
   async rateLimit(key, ms) { if (Date.now() - (seen.get(key) || 0) < ms) return false; seen.set(key, Date.now()); return true },
+  // Feedback in a file next to the Db (it never goes into the Db snapshot).
+  async addFeedback(f) { const all = await fileDb.listFeedback(); writeFileSync(DB + '.feedback.json', JSON.stringify([f, ...all], null, 2)) },
+  async listFeedback() { return existsSync(DB + '.feedback.json') ? JSON.parse(readFileSync(DB + '.feedback.json', 'utf8')) : [] },
 }
 // First run with HELD_ORDER_START (used by the e2e scripts): seed an empty DB with that order number.
 if (process.env.HELD_ORDER_START && !existsSync(DB)) {

@@ -9,6 +9,7 @@ import Buy from './Buy.tsx'
 import { Terms, Privacy } from './Legal.tsx'
 import Roadmap from './Roadmap.tsx'
 import Faq from './Faq.tsx'
+import Feedback from './Feedback.tsx'
 import { useConfig } from './ui.tsx'
 import { ToTop } from './anim.tsx'
 
@@ -32,6 +33,7 @@ export default function App() {
     : route.startsWith('/privacy') ? <Privacy />
     : route.startsWith('/roadmap') ? <Roadmap />
     : route.startsWith('/faq') ? <Faq />
+    : route.startsWith('/feedback') ? <Feedback />
     : <Landing />
   return (
     <>
@@ -44,7 +46,7 @@ export default function App() {
       <main>{page}</main>
       <footer>
         <p>Funds are held by Tempo's ReceivePolicyGuard; each merchant's arbiter can only pay the merchant or refund the payer.</p>
-        <span className="footlinks">{!route.startsWith('/resolve') && <a href="#/resolve">Resolver console</a>}<a href="#/faq">FAQ</a><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a><a href="https://x.com/tempoheld" target="_blank" rel="noopener noreferrer">X<span className="sr-only"> (@tempoheld, opens in a new tab)</span></a></span>
+        <span className="footlinks">{!route.startsWith('/resolve') && <a href="#/resolve">Resolver</a>}<a href="#/feedback">Feedback</a><a href="#/faq">FAQ</a><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a><a href="https://x.com/tempoheld" target="_blank" rel="noopener noreferrer">X<span className="sr-only"> (@tempoheld, opens in a new tab)</span></a></span>
       </footer>
       <ToTop />
     </>

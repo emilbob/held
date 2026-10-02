@@ -4,7 +4,7 @@
 import { Redis } from '@upstash/redis'
 import type { IncomingMessage } from 'node:http'
 import { createApi, toJson, type DbAdapter } from '../server/core.ts'
-import type { Db } from '../shared/api.ts'
+import type { Db, Feedback } from '../shared/api.ts'
 import { network } from '../scripts/lib.ts'
 import { pgAdapter } from '../server/pgdb.ts'
 
@@ -34,6 +34,8 @@ const redisDb: DbAdapter = {
     }
   },
   async rateLimit(key, ms) { return (await redis.set(`held:rl:${key}`, 1, { nx: true, px: ms })) === 'OK' },
+  async addFeedback(f) { await redis.lpush(`${KEY}:feedback`, f) },
+  async listFeedback() { return redis.lrange<Feedback>(`${KEY}:feedback`, 0, 499) },
 }
 
 // Postgres when configured (transactions + advisory locks); Redis is the fallback during the switch.

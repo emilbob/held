@@ -222,3 +222,9 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   ~2 KB). Navbar logo reloads to the landing.
 - Colosseum form complete except the pitch video (user records with Superteam Balkan). Copilot v2 installed + signed in.
 - Next: mainnet dry run (held-mainnet Vercel project, user's ~$3-5 USDC.e), then guarded free beta ($250 cap).
+
+## Oct 2: beta label + roadmap
+- Pre-flight for mainnet (read-only): chain 4217 live, USDC.e/USDT0/pathUSD, receive-policy + virtual-address precompiles
+  and guard respond, rpc.tempo.xyz serves 50k-block getLogs, held_mainnet schema exists. No minimum order: pilot can be $0.10.
+- Navbar "Beta" tag (links to the roadmap) + #/roadmap page (Now / Next / Later, no dates). Tempo link hidden on phones.
+- Mainnet dry run on hold: the user wants more done before mainnet.

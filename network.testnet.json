@@ -30,5 +30,11 @@
     "salt": "0x000000005d1fb2fbe10a8adad26b9eac9f3a41f1f6d140729a3dd7db4c82cf1c",
     "masterId": "0xeb83d968",
     "arbiter": "0x79a9a3381f672ab426a34a5f171b1f93e0003b94"
+  },
+  "fee": {
+    "recipient": "0x5b60526984b0C7dEc076B66C6DE61A9EEc7237e5",
+    "bps": 100,
+    "start": 0,
+    "cap": "0"
   }
 }

@@ -63,6 +63,15 @@ export default function MerchantPage() {
   return <Dashboard merchant={me.merchant} w={w} testnet={!!cfg?.testnet} />
 }
 
+/** "Free until 1 July 2027, then 1% of each released payment (at most $5)." from the network's fee settings. */
+function feeText(fee: Config['fee']): string {
+  if (!fee.bps) return 'none.'
+  const pct = `${fee.bps / 100}% of each released payment${fee.cap !== '0' ? ` (at most ${usd(Number(fee.cap))})` : ''}`
+  if (fee.start * 1000 <= Date.now()) return pct[0].toUpperCase() + pct.slice(1) + '.'
+  const date = new Date(fee.start * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+  return `free until ${date}, then ${pct}.`
+}
+
 const Loading = () => <div className="narrow"><div className="card loading" aria-busy="true"><p className="muted">Loading your shop…</p></div></div>
 
 const PAGE = 20
@@ -95,7 +104,7 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
     if (!/^0x[0-9a-fA-F]{40}$/.test(resolver)) return setMsg({ ok: false, text: 'The resolver must be a wallet address (0x…).' })
     abort.current = new AbortController()
     try {
-      const r = await runSetup({ wallet, pub: W.pub as never, resolver: resolver as Address, tokens: cfg.tokens.map((t) => t.address), window, state: saved(),
+      const r = await runSetup({ wallet, pub: W.pub as never, resolver: resolver as Address, tokens: cfg.tokens.map((t) => t.address), window, fee: cfg.fee, state: saved(),
         save: (s) => localStorage.setItem(saveKey, JSON.stringify(s)), onStep: setStep, onProgress: setMining, signal: abort.current.signal })
       await api('/merchants', { name: name || 'My shop', arbiter: r.arbiter, masterId: r.masterId })
       localStorage.removeItem(saveKey)
@@ -121,6 +130,8 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
           <p className="muted small">Held's resolver by default. It can only refund the buyer or pay you, never anything else.</p>
           <input value={resolver} onChange={(e) => setResolver(e.target.value.trim())} aria-label="Resolver address" disabled={!!step} />
         </details>
+        <p className="muted small feeline"><b>Held's fee:</b> {feeText(cfg.fee)} Refunds are always free. It's written into your
+          contract at setup, so Held can never raise it.</p>
         <ol className="setupsteps">
           {STEPS.map(([s, label], i) => (
             <li key={s} className={i < at || step === 'done' ? 'done' : i === at ? 'now' : ''}>

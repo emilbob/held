@@ -25,6 +25,7 @@ contract HeldArbiterTest is Test {
     event Disputed(bytes32 indexed id, address indexed originator);
     event Released(bytes32 indexed id, address indexed caller, uint256 amount);
     event Refunded(bytes32 indexed id, address indexed caller, address indexed originator, uint256 amount);
+    event FeeCharged(bytes32 indexed id, address indexed token, address indexed recipient, uint256 fee);
 
     IGuard constant GUARD = IGuard(0xB10C000000000000000000000000000000000000);
     ITIP403ReceivePolicy constant REG403 = ITIP403ReceivePolicy(0x403c000000000000000000000000000000000000);
@@ -41,6 +42,10 @@ contract HeldArbiterTest is Test {
     address resolver = makeAddr("resolver");
     address buyer = makeAddr("buyer");
     address stranger = makeAddr("stranger");
+    address feeWallet = makeAddr("feeWallet");
+    uint16 constant FEE_BPS = 100; // 1%
+    // The default arbiter's free period lasts a year past setUp's clock, so the v2 behaviour tests pay no fee.
+    uint64 constant FEE_START = 1_790_000_000 + 365 days;
 
     ITIP20 usd;   // accepted token (token0)
     ITIP20 usd2;  // also accepted (token1)
@@ -54,11 +59,11 @@ contract HeldArbiterTest is Test {
         other = _newToken("Other USD", "OUSD", 2);
         usd2 = _newToken("Second USD", "SUSD", 3);
         usd3 = _newToken("Third USD", "XUSD", 4);
-        arbiter = new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(usd2), address(usd3)), WINDOW);
+        arbiter = _deploy(FEE_BPS, FEE_START, 0);
 
         vm.startPrank(MERCHANT);
         StdPrecompiles.ADDRESS_REGISTRY.registerVirtualMaster(SALT);
-        REG403.setReceivePolicy(REJECT_ALL, ALLOW_ALL, address(arbiter));
+        REG403.setReceivePolicy(arbiter.payoutPolicyId(), ALLOW_ALL, address(arbiter));
         vm.stopPrank();
 
         for (uint256 i; i < 3; i++) {
@@ -71,6 +76,18 @@ contract HeldArbiterTest is Test {
     }
 
     // ------------------------------------------------------------------ helpers
+
+    function _deploy(uint16 bps, uint64 feeStart, uint256 cap) internal returns (HeldArbiter) {
+        return new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(usd2), address(usd3)), WINDOW, feeWallet, bps, feeStart, cap);
+    }
+
+    /// Point the merchant's receive policy at a fresh arbiter (as a merchant re-running setup would).
+    function _useArbiter(HeldArbiter a) internal {
+        arbiter = a;
+        uint64 policy = a.payoutPolicyId(); // read first: an external call in the arguments would use up the prank
+        vm.prank(MERCHANT);
+        REG403.setReceivePolicy(policy, ALLOW_ALL, address(a));
+    }
 
     function _list(address a, address b, address c) internal pure returns (address[] memory t) {
         uint256 n = c != address(0) ? 3 : b != address(0) ? 2 : 1;
@@ -365,8 +382,9 @@ contract HeldArbiterTest is Test {
     function test_RejectsReceiptForOtherMerchant() public {
         // Another merchant naming this arbiter as their authority can't make it pay them.
         address otherMerchant = makeAddr("otherMerchant");
+        uint64 policy = arbiter.payoutPolicyId();
         vm.prank(otherMerchant);
-        REG403.setReceivePolicy(REJECT_ALL, ALLOW_ALL, address(arbiter));
+        REG403.setReceivePolicy(policy, ALLOW_ALL, address(arbiter));
         bytes memory r = _pay(buyer, otherMerchant, usd, 5e6);
         _expectRevert(HeldArbiter.NotForMerchant.selector, buyer, Fn.Release, r);
         _expectRevert(HeldArbiter.NotForMerchant.selector, otherMerchant, Fn.Refund, r);
@@ -455,7 +473,7 @@ contract HeldArbiterTest is Test {
         assertTrue(arbiter.accepts(address(usd2)));
         assertFalse(arbiter.accepts(address(other)));
         assertFalse(arbiter.accepts(address(0)));
-        assertEq(arbiter.VERSION(), 2);
+        assertEq(arbiter.VERSION(), 3);
     }
 
     function test_EveryAcceptedTokenReleasesToMerchant() public {
@@ -509,7 +527,7 @@ contract HeldArbiterTest is Test {
     }
 
     function test_SingleTokenShop() public {
-        HeldArbiter one = new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(0), address(0)), WINDOW);
+        HeldArbiter one = new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(0), address(0)), WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
         address[] memory t = one.acceptedTokens();
         assertEq(t.length, 1);
         assertEq(one.token1(), address(0));
@@ -524,12 +542,138 @@ contract HeldArbiterTest is Test {
         address[] memory zero = new address[](2);
         zero[0] = address(usd);
         address[] memory ok = _list(address(usd), address(0), address(0));
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, none, WINDOW);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, four, WINDOW);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, dup, WINDOW);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, zero, WINDOW);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(address(0), resolver, ok, WINDOW);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, address(0), ok, WINDOW);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, none, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, four, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, dup, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, zero, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(address(0), resolver, ok, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, address(0), ok, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
+        // Fee settings: above the 10% ceiling, a fee with no wallet, or the merchant as its own fee wallet.
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, feeWallet, 1001, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, address(0), FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, MERCHANT, FEE_BPS, FEE_START, 0);
+        // A shop with no fee at all needs no fee wallet.
+        HeldArbiter free = new HeldArbiter(MERCHANT, resolver, ok, WINDOW, address(0), 0, 0, 0);
+        assertEq(free.feeFor(1_000e6), 0);
+    }
+
+    // ------------------------------------------------------------------ fee (v3)
+
+    function test_Fee_NoneDuringFreePeriod() public {
+        bytes memory r = _payOrder(100e6);
+        uint256 m0 = usd.balanceOf(MERCHANT);
+        assertEq(arbiter.feeFor(100e6), 0, "free period");
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(MERCHANT) - m0, 100e6, "merchant gets everything");
+        assertEq(usd.balanceOf(feeWallet), 0);
+    }
+
+    function test_Fee_SplitAfterFreePeriod() public {
+        bytes memory r = _payOrder(100e6);
+        vm.warp(FEE_START); // the free period ends exactly here
+        uint256 m0 = usd.balanceOf(MERCHANT);
+        vm.expectEmit(address(arbiter));
+        emit FeeCharged(keccak256(r), address(usd), feeWallet, 1e6);
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(MERCHANT) - m0, 99e6, "merchant gets 99%");
+        assertEq(usd.balanceOf(feeWallet), 1e6, "fee wallet gets 1%");
+        assertEq(usd.balanceOf(address(arbiter)), 0, "arbiter keeps nothing");
+        assertEq(GUARD.balanceOf(r), 0);
+    }
+
+    function test_Fee_OneSecondBeforeStartIsFree() public {
+        bytes memory r = _payOrder(100e6);
+        vm.warp(FEE_START - 1);
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(feeWallet), 0);
+    }
+
+    function test_Fee_ResolverReleaseOfDisputePaysFee() public {
+        _useArbiter(_deploy(FEE_BPS, uint64(block.timestamp), 0));
+        bytes memory r = _payOrder(50e6);
+        vm.prank(buyer);
+        arbiter.dispute(r);
+        vm.prank(resolver);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(feeWallet), 0.5e6);
+        assertEq(usd.balanceOf(resolver), 1_000_000e6, "resolver never gains");
+    }
+
+    function test_Fee_RefundsAreAlwaysFree() public {
+        _useArbiter(_deploy(FEE_BPS, uint64(block.timestamp), 0));
+        bytes memory r1 = _payOrder(80e6);
+        bytes memory r2 = _pay(buyer, _orderAddress(1043), usd2, 30e6);
+        uint256 b1 = usd.balanceOf(buyer);
+        uint256 b2 = usd2.balanceOf(buyer);
+        vm.prank(MERCHANT);
+        arbiter.refund(r1);
+        vm.prank(buyer);
+        arbiter.dispute(r2);
+        vm.prank(resolver);
+        arbiter.refund(r2);
+        assertEq(usd.balanceOf(buyer) - b1, 80e6, "voluntary refund: 100% back");
+        assertEq(usd2.balanceOf(buyer) - b2, 30e6, "dispute refund: 100% back");
+        assertEq(usd.balanceOf(feeWallet) + usd2.balanceOf(feeWallet), 0, "no fee on refunds");
+    }
+
+    function test_Fee_Cap() public {
+        _useArbiter(_deploy(FEE_BPS, uint64(block.timestamp), 5e6));
+        bytes memory r = _payOrder(2_000e6); // 1% would be $20
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(feeWallet), 5e6, "capped at $5");
+        assertEq(usd.balanceOf(MERCHANT), 1_995e6);
+    }
+
+    function test_Fee_TinyPaymentRoundsToNoFee() public {
+        _useArbiter(_deploy(FEE_BPS, uint64(block.timestamp), 0));
+        bytes memory r = _payOrder(99); // 0.000099: 1% rounds down to 0
+        uint256 m0 = usd.balanceOf(MERCHANT);
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(MERCHANT) - m0, 99);
+        assertEq(usd.balanceOf(feeWallet), 0);
+    }
+
+    function test_Fee_WrongTokenStillOnlyRefundable() public {
+        _useArbiter(_deploy(FEE_BPS, uint64(block.timestamp), 0));
+        bytes memory r = _pay(buyer, _orderAddress(1047), other, 10e6);
+        _expectRevert(HeldArbiter.NotAllowed.selector, buyer, Fn.Release, r);
+        vm.prank(buyer);
+        arbiter.refund(r);
+        assertEq(other.balanceOf(feeWallet), 0);
+        assertEq(other.balanceOf(MERCHANT), 0);
+    }
+
+    /// The payout whitelist lets only the arbiter through: every other sender's payment, even straight to the
+    /// merchant's master address, is still held.
+    function test_PayoutPolicy_OnlyArbiterPassesThrough() public {
+        _pay(stranger, MERCHANT, usd, 3e6);           // reverts if not held
+        _pay(buyer, MERCHANT, usd2, 4e6);
+        uint64 policy = arbiter.payoutPolicyId();
+        vm.prank(MERCHANT);
+        vm.expectRevert(); // nobody but the arbiter (the policy's admin, with no code for it) can edit the whitelist
+        StdPrecompiles.TIP403_REGISTRY.modifyPolicyWhitelist(policy, buyer, true);
+    }
+
+    /// Fuzz: whatever the amount, fee and cap, the merchant's share plus the fee is exactly the payment.
+    function testFuzz_FeeSplitIsExact(uint96 amount, uint16 bps, uint64 cap) public {
+        amount = uint96(bound(amount, 1, 100_000e6));
+        bps = uint16(bound(bps, 1, 1000));
+        _useArbiter(_deploy(bps, uint64(block.timestamp), cap));
+        usd.mint(buyer, amount);
+        bytes memory r = _payOrder(amount);
+        uint256 m0 = usd.balanceOf(MERCHANT);
+        uint256 want = uint256(amount) * bps / 10_000;
+        if (cap != 0 && want > cap) want = cap;
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(feeWallet), want, "fee");
+        assertEq(usd.balanceOf(MERCHANT) - m0 + usd.balanceOf(feeWallet), amount, "merchant + fee == payment");
+        assertEq(usd.balanceOf(address(arbiter)), 0, "arbiter keeps nothing");
     }
 
     /// Whatever happens to a wrong-token payment, the merchant never receives it.

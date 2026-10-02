@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import type { Hex } from 'viem'
-import { pub, walletFor, log, TOKENS } from './lib.ts'
+import { pub, walletFor, log, TOKENS, network } from './lib.ts'
 import { runSetup, type SetupState } from '../web/src/setup.ts'
 import { signInMessage, type Network } from '../shared/api.ts'
 
@@ -34,7 +34,7 @@ if (!state.arbiter) {
 }
 const t0 = Date.now()
 const r = await runSetup({ wallet: { kind: 'demo', name: 'sandbox', address: merchant.address, client: walletFor(merchant) } as never,
-  pub: pub as never, resolver: resolver.address, tokens: TOKENS, window: 300, state, save,
+  pub: pub as never, resolver: resolver.address, tokens: TOKENS, window: 300, fee: network.fee, state, save,
   onStep: (s) => log(`  ${s}${s === 'done' ? ` (${Math.round((Date.now() - t0) / 1000)}s)` : ''}`) })
 log(`sandbox shop: merchant ${merchant.address}, arbiter ${r.arbiter}, resolver ${resolver.address}`)
 

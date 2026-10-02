@@ -97,6 +97,8 @@ contract HeldArbiterInvariantTest is Test {
     ITIP20[4] tokens;
     address resolver = makeAddr("resolver");
     address stranger = makeAddr("stranger");
+    address feeWallet = makeAddr("feeWallet");
+    uint16 constant FEE_BPS = 100;
     address[] payers;
     uint256 constant START = 1_000_000_000e6;
     mapping(address => mapping(uint256 => uint256)) start;
@@ -109,17 +111,18 @@ contract HeldArbiterInvariantTest is Test {
         }
         address[] memory accepted = new address[](3);
         for (uint256 i; i < 3; i++) accepted[i] = address(tokens[i]);
-        arbiter = new HeldArbiter(MERCHANT, resolver, accepted, WINDOW);
+        // Fee on from the start (v3), so every random release exercises the split.
+        arbiter = new HeldArbiter(MERCHANT, resolver, accepted, WINDOW, feeWallet, FEE_BPS, uint64(block.timestamp), 0);
         vm.startPrank(MERCHANT);
         StdPrecompiles.ADDRESS_REGISTRY.registerVirtualMaster(SALT);
-        REG403.setReceivePolicy(0, 1, address(arbiter));
+        REG403.setReceivePolicy(arbiter.payoutPolicyId(), 1, address(arbiter));
         vm.stopPrank();
 
         payers.push(makeAddr("payer1")); payers.push(makeAddr("payer2")); payers.push(makeAddr("payer3"));
-        address[6] memory everyone = [payers[0], payers[1], payers[2], stranger, resolver, MERCHANT];
+        address[7] memory everyone = [payers[0], payers[1], payers[2], stranger, resolver, MERCHANT, feeWallet];
         for (uint256 a; a < everyone.length; a++)
             for (uint256 t; t < 4; t++) {
-                if (everyone[a] != MERCHANT) tokens[t].mint(everyone[a], START);
+                if (everyone[a] != MERCHANT && everyone[a] != feeWallet) tokens[t].mint(everyone[a], START);
                 start[everyone[a]][t] = tokens[t].balanceOf(everyone[a]);
             }
 
@@ -127,7 +130,8 @@ contract HeldArbiterInvariantTest is Test {
         targetContract(address(h));
     }
 
-    /// Per token: every unit paid is either still held, with the merchant, or back with its payer. Nothing else.
+    /// Per token: every unit paid is either still held, with the merchant, with the fee wallet (at most the fee),
+    /// or back with its payer. Nothing else.
     function invariant_NoValueLeaks() public view {
         for (uint256 t; t < 4; t++) {
             uint256 paid; uint256 held;
@@ -138,10 +142,12 @@ contract HeldArbiterInvariantTest is Test {
                 held += GUARD.balanceOf(r);
             }
             uint256 merchantGain = tokens[t].balanceOf(MERCHANT) - start[MERCHANT][t];
+            uint256 feeGain = tokens[t].balanceOf(feeWallet) - start[feeWallet][t];
             uint256 payersNow; uint256 payersStart;
             for (uint256 p; p < payers.length; p++) { payersNow += tokens[t].balanceOf(payers[p]); payersStart += start[payers[p]][t]; }
             uint256 payersLost = payersStart - payersNow;
-            assertEq(held + merchantGain, payersLost, "every unit is held or with the merchant; refunds net out");
+            assertEq(held + merchantGain + feeGain, payersLost, "every unit is held, with the merchant or the fee; refunds net out");
+            assertLe(feeGain * 10_000, (merchantGain + feeGain) * FEE_BPS, "fee is at most 1% of what was released");
             assertLe(payersLost, paid, "payers never lose more than they paid");
         }
     }
@@ -153,6 +159,12 @@ contract HeldArbiterInvariantTest is Test {
             assertEq(tokens[t].balanceOf(resolver), start[resolver][t], "resolver never gains or loses");
         }
         assertEq(tokens[3].balanceOf(MERCHANT), start[MERCHANT][3], "merchant never receives an unaccepted token");
+        assertEq(tokens[3].balanceOf(feeWallet), 0, "no fee is ever taken from an unaccepted token");
+    }
+
+    /// The arbiter splits a release inside one transaction: it never ends a call holding any token.
+    function invariant_ArbiterNeverKeepsFunds() public view {
+        for (uint256 t; t < 4; t++) assertEq(tokens[t].balanceOf(address(arbiter)), 0, "arbiter balance is always 0");
     }
 
     /// Each payment is all-or-nothing: fully held, or fully settled to one place, matching its recorded status.

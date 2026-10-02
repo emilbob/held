@@ -12,13 +12,24 @@ interface IAddressRegistry {
     function resolveRecipient(address to) external view returns (address effectiveRecipient);
 }
 
+/// Tempo TIP-403 policy registry precompile. Used once, in the constructor, to create the payout whitelist.
+interface ITIP403Registry {
+    function createPolicyWithAccounts(address admin, uint8 policyType, address[] calldata accounts) external returns (uint64);
+}
+
+/// The TIP-20 transfer used to split a released payment between the merchant and the fee wallet.
+interface ITIP20Transfer {
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+
 /// @title HeldArbiter
 /// @notice The recovery authority for a merchant's checkout address. Every incoming transfer to that
 ///         address is held by the protocol's ReceivePolicyGuard. This contract is the only party that can
 ///         claim held funds, and it can send them to exactly two places:
 ///           - the merchant (release, via a "resume" claim), or
 ///           - the original payer (refund, via a "reroute" claim).
-///         Nobody, including the merchant, the resolver or Held, can send held funds anywhere else.
+///         Nobody, including the merchant, the resolver or Held, can send held funds anywhere else (v3: except
+///         the shop's fixed fee, taken from a release, never from a refund).
 ///
 /// Rules:
 ///   - release: the buyer can confirm delivery at any time; after the protection window anyone can release.
@@ -30,10 +41,21 @@ interface IAddressRegistry {
 ///
 /// v2: a shop accepts up to three stablecoins (immutables, so Held's byte-for-byte check of the deployed code covers
 /// them), and payments in other tokens can no longer reach the merchant.
+///
+/// v3: Held's fee, fixed per shop at deploy and never changeable: `feeBps` of a released payment (optionally capped
+/// at `feeCap` per payment) goes to `feeRecipient`, but only from `feeStart` on (the free period ends then).
+/// Refunds never pay a fee: the payer always gets 100% back. A release with a fee claims the payment to this
+/// contract and splits it in the same transaction, so this contract never keeps a balance. For that payout to reach
+/// the merchant, the constructor creates a TIP-403 whitelist holding only this contract (admin: this contract, which
+/// has no code to change it), and the merchant's receive policy uses it as its sender policy: every other sender's
+/// payment is still held.
 contract HeldArbiter {
-    uint256 public constant VERSION = 2;
+    uint256 public constant VERSION = 3;
+    uint256 public constant MAX_FEE_BPS = 1000; // 10%: a hard ceiling on what any shop's fee can be set to
     IReceivePolicyGuard public constant GUARD = IReceivePolicyGuard(0xB10C000000000000000000000000000000000000);
     IAddressRegistry public constant REGISTRY = IAddressRegistry(0xfDC0000000000000000000000000000000000000);
+    ITIP403Registry public constant POLICIES = ITIP403Registry(0x403c000000000000000000000000000000000000);
+    uint8 internal constant WHITELIST = 0;
 
     /// ClaimReceiptV1 witness (ABI layout from TIP-1028 / ox ReceivePolicyReceipt).
     struct Receipt {
@@ -58,12 +80,22 @@ contract HeldArbiter {
     address public immutable token0;
     address public immutable token1;
     address public immutable token2;
+    // Fee (v3). feeBps == 0 means no fee ever; then feeRecipient may be address(0).
+    address public immutable feeRecipient;
+    uint16 public immutable feeBps;
+    uint64 public immutable feeStart; // unix time: releases before this pay no fee
+    uint256 public immutable feeCap;  // max fee per payment in token units; 0 = no cap
+    // TIP-403 whitelist containing only this contract: the merchant's receive policy uses it as sender policy.
+    // Storage, not immutable: its value comes from the registry at deploy time, so baking it into the code would make
+    // every deployment's code different and break Held's byte-for-byte check. Set once here; no code can change it.
+    uint64 public payoutPolicyId;
 
     mapping(bytes32 => Status) public statusOf;
 
     event Disputed(bytes32 indexed id, address indexed originator);
     event Released(bytes32 indexed id, address indexed caller, uint256 amount);
     event Refunded(bytes32 indexed id, address indexed caller, address indexed originator, uint256 amount);
+    event FeeCharged(bytes32 indexed id, address indexed token, address indexed recipient, uint256 fee);
 
     error NotOurReceipt();
     error NotForMerchant();
@@ -74,8 +106,13 @@ contract HeldArbiter {
     error NotAllowed();
     error BadConfig();
 
-    constructor(address merchant_, address resolver_, address[] memory tokens_, uint64 protectionWindow_) {
+    constructor(
+        address merchant_, address resolver_, address[] memory tokens_, uint64 protectionWindow_,
+        address feeRecipient_, uint16 feeBps_, uint64 feeStart_, uint256 feeCap_
+    ) {
         if (merchant_ == address(0) || resolver_ == address(0) || tokens_.length == 0 || tokens_.length > 3) revert BadConfig();
+        if (feeBps_ > MAX_FEE_BPS || (feeBps_ > 0 && feeRecipient_ == address(0))) revert BadConfig();
+        if (feeRecipient_ == merchant_ || feeRecipient_ == address(this)) revert BadConfig();
         for (uint256 i; i < tokens_.length; i++) {
             if (tokens_[i] == address(0)) revert BadConfig();
             for (uint256 j; j < i; j++) if (tokens_[i] == tokens_[j]) revert BadConfig();
@@ -86,6 +123,13 @@ contract HeldArbiter {
         token0 = tokens_[0];
         token1 = tokens_.length > 1 ? tokens_[1] : address(0);
         token2 = tokens_.length > 2 ? tokens_[2] : address(0);
+        feeRecipient = feeRecipient_;
+        feeBps = feeBps_;
+        feeStart = feeStart_;
+        feeCap = feeCap_;
+        address[] memory self = new address[](1);
+        self[0] = address(this);
+        payoutPolicyId = POLICIES.createPolicyWithAccounts(address(this), WHITELIST, self);
     }
 
     // ------------------------------------------------------------------ views
@@ -112,6 +156,13 @@ contract HeldArbiter {
 
     function windowEndsAt(bytes calldata receipt) external view returns (uint64) {
         return decode(receipt).blockedAt + protectionWindow;
+    }
+
+    /// The fee a release of `amount` would pay right now (0 before feeStart or when the shop has no fee).
+    function feeFor(uint256 amount) public view returns (uint256 fee) {
+        if (feeBps == 0 || block.timestamp < feeStart) return 0;
+        fee = amount * feeBps / 10_000;
+        if (feeCap != 0 && fee > feeCap) fee = feeCap;
     }
 
     // ------------------------------------------------------------ actions
@@ -144,7 +195,16 @@ contract HeldArbiter {
         }
         statusOf[id] = Status.Released;
         uint256 amount = GUARD.balanceOf(receipt);
-        GUARD.claim(merchant, receipt); // resume claim: funds go to the merchant (the policy owner)
+        uint256 fee = feeFor(amount);
+        if (fee == 0) {
+            GUARD.claim(merchant, receipt); // resume claim: funds go to the merchant (the policy owner)
+        } else {
+            // Reroute the whole payment here (partial claims don't exist), then split it in this same transaction.
+            GUARD.claim(address(this), receipt);
+            if (!ITIP20Transfer(r.token).transfer(merchant, amount - fee)) revert NotAllowed();
+            if (!ITIP20Transfer(r.token).transfer(feeRecipient, fee)) revert NotAllowed();
+            emit FeeCharged(id, r.token, feeRecipient, fee);
+        }
         emit Released(id, msg.sender, amount);
     }
 

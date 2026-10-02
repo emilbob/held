@@ -1,14 +1,17 @@
 // Merchant setup, run from the merchant's own wallet (nothing here touches Held's server or any shared key):
 //   1. mine a TIP-1022 salt for the checkout address (proof of work, in Web Workers; minutes)
 //   2. register the checkout address as a virtual-address master (one tx)
-//   3. deploy the merchant's own HeldArbiter (merchant, resolver, accepted stablecoins, protection window) (one tx)
-//   4. set the receive policy: hold every incoming payment, with that arbiter as the only recovery authority (one tx)
+//   3. deploy the merchant's own HeldArbiter (merchant, resolver, accepted stablecoins, protection window, and Held's
+//      fee settings, fixed for this shop) (one tx)
+//   4. set the receive policy: hold every incoming payment, with that arbiter as the only recovery authority; only the
+//      arbiter's own payouts (the merchant's share of a release with a fee) pass straight through (one tx)
 // Every step is skipped if already done and saved after each one, so a reload never repeats a finished step.
 import { VirtualMaster } from 'ox/tempo'
 import { Actions } from 'viem/tempo'
 import { isAddressEqual, type Abi, type Address, type Hex, type PublicClient } from 'viem'
 import arbiterJson from '../../shared/HeldArbiter.json' with { type: 'json' }
 import type { Wallet } from './wallet.ts'
+import type { Network } from '../../shared/api.ts'
 
 const arbiter = arbiterJson as { abi: Abi, bytecode: Hex }
 
@@ -49,7 +52,7 @@ async function mine(address: Address, onProgress: ((m: MiningProgress) => void) 
 }
 
 export async function runSetup(p: {
-  wallet: Wallet, pub: PublicClient, resolver: Address, tokens: Address[], window: number,
+  wallet: Wallet, pub: PublicClient, resolver: Address, tokens: Address[], window: number, fee: Network['fee'],
   state: SetupState, save: (s: SetupState) => void,
   onStep: (s: SetupStep) => void, onProgress?: (m: MiningProgress) => void, signal?: AbortSignal,
 }): Promise<{ masterId: Hex, arbiter: Address }> {
@@ -78,24 +81,28 @@ export async function runSetup(p: {
 
   // 3. The merchant's own arbiter.
   p.onStep('deploy')
-  // Reuse a saved arbiter only if it's the current version (a v1 arbiter from an earlier setup gets replaced; step 4
-  // then points the receive policy at the new one).
+  // Reuse a saved arbiter only if it's the current version (an older arbiter from an earlier setup gets replaced;
+  // step 4 then points the receive policy at the new one).
   const current = state.arbiter && (await pub.getCode({ address: state.arbiter })) !== undefined &&
-    (await pub.readContract({ address: state.arbiter, abi: arbiter.abi, functionName: 'VERSION' }).catch(() => 0n)) === 2n
+    (await pub.readContract({ address: state.arbiter, abi: arbiter.abi, functionName: 'VERSION' }).catch(() => 0n)) === 3n
   if (!current) {
-    const hash = await wallet.client.deployContract({ abi: arbiter.abi, bytecode: arbiter.bytecode, args: [me, p.resolver, p.tokens, BigInt(p.window)] })
+    const f = p.fee
+    const hash = await wallet.client.deployContract({ abi: arbiter.abi, bytecode: arbiter.bytecode,
+      args: [me, p.resolver, p.tokens, BigInt(p.window), f.recipient, f.bps, BigInt(f.start), BigInt(f.cap)] })
     const rc = await wait(hash, 'Deploying the arbiter')
     if (!rc.contractAddress) throw new Error('Deploying the arbiter returned no address.')
     state.arbiter = rc.contractAddress
     p.save(state)
   }
 
-  // 4. Receive policy: hold everything; only the arbiter may release (to the merchant) or refund (to the payer).
+  // 4. Receive policy: hold everything except the arbiter's own payouts; only the arbiter may release (to the
+  // merchant) or refund (to the payer). The sender policy is the arbiter's whitelist, which holds only the arbiter.
   p.onStep('policy')
   const arb = state.arbiter!
+  const payout = await pub.readContract({ address: arb, abi: arbiter.abi, functionName: 'payoutPolicyId' }) as bigint
   const pol = await Actions.receivePolicy.get(pub, { account: me })
-  if (!pol.recoveryAuthority || !isAddressEqual(pol.recoveryAuthority, arb) || pol.senderPolicyId !== 'reject-all')
-    await wait(await Actions.receivePolicy.set(wallet.client, { senderPolicyId: 'reject-all', tokenPolicyId: 'allow-all', claimer: arb }), 'Setting the receive policy')
+  if (!pol.recoveryAuthority || !isAddressEqual(pol.recoveryAuthority, arb) || pol.senderPolicyId !== payout)
+    await wait(await Actions.receivePolicy.set(wallet.client, { senderPolicyId: payout, tokenPolicyId: 'allow-all', claimer: arb }), 'Setting the receive policy')
 
   p.onStep('done')
   return { masterId: state.masterId!, arbiter: arb }

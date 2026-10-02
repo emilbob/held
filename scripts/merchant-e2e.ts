@@ -57,7 +57,7 @@ try {
   const merchantWallet = { kind: 'demo', name: 'test merchant', address: mAcct.address, client: walletFor(mAcct) } as never
   const t0 = Date.now(); let steps: string[] = []
   const setup = await runSetup({ wallet: merchantWallet, pub: pub as never, resolver: TEST_RESOLVER, tokens: TOKENS,
-    window: 120, state: {}, save: () => {}, onStep: (s) => steps.push(s) })
+    window: 120, fee: network.fee, state: {}, save: () => {}, onStep: (s) => steps.push(s) })
   check('setup from the merchant wallet: mine, register, deploy, policy', steps.join(',') === 'mine,register,deploy,policy,done', `${steps.join(' > ')} in ${Math.round((Date.now() - t0) / 1000)}s, arbiter ${setup.arbiter}`)
 
   // ---------------------------------------------------------------- auth + registration (and what must be refused)
@@ -76,10 +76,18 @@ try {
 
   // A tampered arbiter: the genuine code with one byte of its metadata changed. Behaves the same, is not the same.
   const tampered = (arb.bytecode.slice(0, -40) + (arb.bytecode.at(-40) === 'a' ? 'b' : 'a') + arb.bytecode.slice(-39)) as Hex
-  const tHash = await retry(() => walletFor(mAcct).deployContract({ abi: arb.abi, bytecode: tampered, args: [mAcct.address, TEST_RESOLVER, TOKENS, 120n] }))
+  const f = network.fee
+  const feeArgs = [f.recipient, f.bps, BigInt(f.start), BigInt(f.cap)] as const
+  const tHash = await retry(() => walletFor(mAcct).deployContract({ abi: arb.abi, bytecode: tampered, args: [mAcct.address, TEST_RESOLVER, TOKENS, 120n, ...feeArgs] }))
   const tAddr = (await pub.waitForTransactionReceipt({ hash: tHash })).contractAddress!
   const fake = await call('POST', '/merchants', { name: 'x', arbiter: tAddr, masterId: setup.masterId }, token)
   check('register with a tampered arbiter (1 byte changed) -> refused', fake.status === 422 && /genuine/.test((fake.body as any).error), (fake.body as any).error)
+
+  // The genuine code with the fee switched off (v3): a shop can't opt out of, or redirect, Held's fee.
+  const nHash = await retry(() => walletFor(mAcct).deployContract({ abi: arb.abi, bytecode: arb.bytecode, args: [mAcct.address, TEST_RESOLVER, TOKENS, 120n, '0x0000000000000000000000000000000000000000', 0, 0n, 0n] }))
+  const nAddr = (await pub.waitForTransactionReceipt({ hash: nHash })).contractAddress!
+  const noFee = await call('POST', '/merchants', { name: 'x', arbiter: nAddr, masterId: setup.masterId }, token)
+  check('register a genuine arbiter with no fee -> refused', noFee.status === 422 && /fee/.test((noFee.body as any).error), (noFee.body as any).error)
 
   const reg = await call<{ merchant: Merchant }>('POST', '/merchants', { name: 'E2E Shop', arbiter: setup.arbiter, masterId: setup.masterId }, token)
   check('register the genuine setup -> accepted', reg.status === 201 && reg.body.merchant.arbiter === setup.arbiter, reg.body)
@@ -118,8 +126,17 @@ try {
   check('A paid -> held (indexer follows the new merchant)', o.status === 'held' && o.payments[0]?.windowEndsAt - o.payments[0]?.heldAt === 120)
   const early = await act(mw, setup.arbiter, 'release', rA).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
   check('merchant cannot release early (contract)', early === 'reverted', early)
+  // Fee (v3): measure the split of A's release on chain. The buyer pays the gas, so the merchant's and fee wallet's
+  // balances move only by the split.
+  const bal = (a: Address) => pub.readContract({ address: PATHUSD, abi: erc20Abi, functionName: 'balanceOf', args: [a] })
+  const [m0, f0] = await Promise.all([bal(mAcct.address), bal(network.fee.recipient)])
   check('buyer releases A', (await act(bw, setup.arbiter, 'release', rA)) === 'success')
   check('A -> released', (await waitStatus(A.key!, 'released')).status === 'released')
+  const [m1, f1] = await Promise.all([bal(mAcct.address), bal(network.fee.recipient)])
+  const feeOn = network.fee.bps > 0 && Date.now() / 1000 >= network.fee.start
+  const wantFee = feeOn ? 5_000_000n * BigInt(network.fee.bps) / 10_000n : 0n
+  check(`release splits on chain: merchant +${Number(5_000_000n - wantFee) / 1e6}, fee wallet +${Number(wantFee) / 1e6}`,
+    m1 - m0 === 5_000_000n - wantFee && f1 - f0 === wantFee, { merchant: String(m1 - m0), fee: String(f1 - f0) })
 
   const rB = await pay(B); await waitStatus(B.key!, 'held')
   check('merchant refunds B from their own wallet', (await act(mw, setup.arbiter, 'refund', rB)) === 'success')

@@ -107,6 +107,11 @@ export interface Network {
   maxOrder: string // launch cap: the most one order or checkout link may charge, base units (6 decimals)
   defaultResolver: Address // suggested at merchant setup; merchants may choose another
   defaultWindow: number // seconds
+  // Held's fee (contract v3), written into every new shop's arbiter and never changeable for that shop: `bps` of each
+  // released payment (max `cap` base units per payment, "0" = no cap) goes to `recipient`, from unix time `start` on.
+  // Refunds never pay it. Testnet: a placeholder wallet with the fee on from the start, to exercise the split.
+  // Mainnet: recipient is address(0) until the real fee wallet is set, so the contract refuses to deploy.
+  fee: { recipient: Address, bps: number, start: number, cap: string }
   // Testnet only: a shared, already-set-up shop anyone can try (scripts/sandbox-setup.ts). The keys are PUBLIC test keys.
   sandbox?: { merchant: Address, merchantKey: Hex, resolver: Address, resolverKey: Hex, salt?: Hex, masterId?: Hex, arbiter?: Address }
 }

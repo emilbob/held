@@ -238,3 +238,18 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Fee decided (research/business-model.md): contract v3, 1% on release only, refunds free, 0% until ~mid-2027 then 1%
   (immutable per shop), optional cap. Roadmap + FAQ updated and live (ee285f9). v3 to be built on a separate branch +
   separate testnet deployment; held-lilac/main stay unchanged in behavior until winners (~mid-Nov). Needs a fee wallet.
+
+## Oct 2: contract v3 (fee) on branch v3-fee (NOT merged, NOT deployed)
+- HeldArbiter v3: immutable fee (recipient, bps <= 10%, start time, cap); release before `start` or with fee 0 =
+  v2 resume claim; after: reroute the whole payment to the arbiter, then merchant share + fee in the same tx.
+  Refunds unchanged (100% to payer). Constructor creates a TIP-403 whitelist holding only the arbiter (admin = arbiter,
+  no code to edit it); merchant's receive policy uses it as sender policy so only the arbiter's payout passes.
+  payoutPolicyId is storage (not immutable) so the byte-for-byte check works. Event FeeCharged.
+- network.*.json `fee`: testnet placeholder wallet 0x5b60...37e5 (key in .state/fee-placeholder.json), 1%, on from
+  start=0; mainnet recipient = address(0) on purpose (constructor refuses) until the real fee wallet is set, start
+  1814400000 (2027-07-01), 1%, no cap. Server refuses arbiters whose fee settings differ from the network's.
+- Setup screen shows the fee ("free until 1 July 2027, then 1%..." / testnet "1% of each released payment").
+- Tests: forge 53/53 (52 unit+fuzz incl. 10 fee tests, invariants incl. ArbiterNeverKeepsFunds), testnet e2e 51/51
+  (on-chain split $5 -> merchant 4.95 / fee 0.05; no-fee arbiter refused). Logs: docs/*-v3.log.
+- Before merge (after winners, ~mid-Nov): real fee wallet; re-run Tempo Wallet + MetaMask e2e; new v3 sandbox shop;
+  show fee on released orders (FeeCharged) in the dashboard; decide the exact free-period end date.

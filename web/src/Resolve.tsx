@@ -4,12 +4,19 @@ import { useEffect, useRef, useState } from 'react'
 import { useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
 import * as W from './wallet.ts'
-import { api, session, signInWallet, usePoll, useWallet, WalletPicker, Result, Notes, usd, short, txUrl, addrUrl, type Msg } from './ui.tsx'
+import { api, session, signInWallet, usePoll, useWallet, useConfig, WalletPicker, Result, Notes, usd, short, txUrl, addrUrl, type Msg } from './ui.tsx'
 import type { Order } from '../../shared/api.ts'
 
 export default function Resolve() {
   const w = useWallet('resolver')
+  const cfg = useConfig()
   const addr = w.wallet?.address
+  // Testnet: if a non-sandbox wallet is connected, check whether the sandbox has disputes waiting, so someone trying
+  // the sandbox with their own wallet isn't told "No open disputes" while theirs waits for the sandbox resolver.
+  const sbResolver = cfg?.testnet ? cfg.sandbox?.resolver : undefined
+  const otherWallet = !!addr && !!sbResolver && addr.toLowerCase() !== sbResolver.toLowerCase()
+  const [sbData] = usePoll(() => (otherWallet ? api<{ orders: Order[] }>(`/disputes?resolver=${sbResolver}`, undefined, 'resolver') : Promise.resolve(null)), 8000, [otherWallet])
+  const switchToSandbox = async () => { w.disconnect(); await w.connect('sandbox') }
   // Signing in lets the console show the buyer's and merchant's notes (they're private to the resolver and merchant).
   const signedIn = !!addr && session.get('resolver')?.address.toLowerCase() === addr.toLowerCase()
   const [signing, setSigning] = useState(false)
@@ -40,6 +47,13 @@ export default function Resolve() {
         {signErr && <Result msg={{ ok: false, text: signErr }} />}
       </div>
       {err && <p className="err">{err}</p>}
+      {otherWallet && !!sbData?.orders.length && (
+        <div className="card resolvecall">
+          <p><b>Trying the sandbox?</b> {sbData.orders.length === 1 ? 'Its dispute is' : `Its ${sbData.orders.length} disputes are`} decided by the
+            sandbox's own test resolver, not by {short(addr!)}.</p>
+          <button className="primary" onClick={switchToSandbox} disabled={w.busy}>Switch to the sandbox resolver</button>
+        </div>
+      )}
       {addr && data && data.orders.length === 0 && (
         <div className="card empty"><b>No open disputes.</b> <span className="muted">When a buyer disputes a payment at a shop that chose {short(addr)} as its resolver, it appears here.</span></div>
       )}

@@ -121,6 +121,14 @@ export const Result = ({ msg }: { msg: Msg }) => msg &&
 
 // ---------------------------------------------------------------- wallet
 // One wallet per role and page. A remembered test wallet reconnects by itself; other wallets ask again.
+/** Sandbox only: open the resolver console as the sandbox's shared test resolver. */
+export const openSandboxResolver = () => {
+  try { localStorage.setItem('held.walletKind.resolver', 'sandbox') } catch {}
+  location.hash = '#/resolve'
+}
+export const isSandboxShop = (cfg: Config | null, merchant: string) =>
+  !!cfg?.testnet && !!cfg.sandbox?.merchant && cfg.sandbox.merchant.toLowerCase() === merchant.toLowerCase()
+
 export function useWallet(role: W.Role) {
   const cfg = useConfig()
   const rememberKey = role === 'buyer' ? 'held.walletKind' : `held.walletKind.${role}`
@@ -133,13 +141,25 @@ export function useWallet(role: W.Role) {
   const [toppingUp, setToppingUp] = useState(false)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => W.watchWallets(setInstalled), [])
-  // Testnet: top up a freshly connected wallet so trying Held never stalls on an empty balance.
+  // Testnet: top up a freshly connected wallet so trying Held never stalls on an empty balance. "Adding free test
+  // funds" shows from the first moment (not a false "$0.00, add funds" warning), and stays until the funds are
+  // actually visible: the faucet answers before the balance poll would notice.
   const topUp = async (w: W.Wallet) => {
-    if ((await getConfig()).testnet && (await W.tokenBalance(w.address)) < 1_000_000n) {
-      setToppingUp(true)
+    if (!(await getConfig()).testnet) return
+    setToppingUp(true)
+    try {
+      if ((await W.tokenBalance(w.address)) >= 1_000_000n) return
       await api('/faucet', { address: w.address }).catch(() => {})
-      setToppingUp(false)
-    }
+      const tokens = W.NET.tokens.map((t) => t.address)
+      for (let i = 0; i < 12; i++) {
+        const b = await W.tokenBalances(w.address, tokens).catch(() => null)
+        if (b) {
+          setBalances(Object.fromEntries(tokens.map((t, j) => [t.toLowerCase(), b[j]])))
+          if (b.some((x) => x >= 1_000_000n)) return
+        }
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+    } finally { setToppingUp(false) }
   }
   const sandboxKey = async () => {
     const sb = (await getConfig()).sandbox

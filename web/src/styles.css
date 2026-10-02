@@ -410,3 +410,5 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
   /* room under the footer so the floating buttons never cover its links */
   footer { margin-bottom: 72px } }
 @media (prefers-reduced-motion: reduce) { .fbfloat { transition: none } }
+.resolvecall { margin-top: 12px; padding: 14px 16px; border: 1px solid var(--lime); border-radius: 10px; background: var(--lime-soft) }
+.resolvecall p { margin: 0 0 10px; font-size: 14px }

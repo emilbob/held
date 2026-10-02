@@ -5,7 +5,7 @@ import { CountUp, useEntrance } from './anim.tsx'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
-import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, type Msg } from './ui.tsx'
+import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
 import { acceptedTokensOf, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
 
 export default function MerchantPage() {
@@ -229,6 +229,7 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
 }
 
 function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wallet: W.Wallet | null, merchant: Merchant, testnet: boolean }) {
+  const cfg = useConfig()
   const now = useNow()
   const [msg, setMsg] = useState<Msg>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -283,6 +284,7 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
         <div className="actions">
           <span className="muted">Disputed: the resolver ({short(merchant.resolver)}) decides. You can still refund the buyer.</span>
           <B k="refund" fn="refund" p={main} label="Refund buyer" done="Refunded to the buyer." />
+          {isSandboxShop(cfg, merchant.address) && <button className="primary" onClick={openSandboxResolver}>Decide as the resolver →</button>}
           <Notes notes={o.notes?.[main.id]} />
           {!o.notes?.[main.id]?.length && <p className="muted small">The buyer didn't leave a note.</p>}
           <form className="replyform" onSubmit={async (e) => {

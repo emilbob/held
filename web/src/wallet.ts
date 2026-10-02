@@ -59,6 +59,9 @@ export const explain = (err: unknown): string => {
     return 'Your wallet disconnected (for example after switching accounts). Click "Change wallet" and connect it again.'
   if (!name && /rate limit|exceeds defined limit|too many requests/i.test(`${e.shortMessage} ${e.message}`))
     return `Tempo's ${NET.testnet ? 'testnet' : 'network'} is busy right now (rate limited). Nothing was sent. Wait a few seconds and try again.`
+  // TIP-20 InsufficientBalance(uint256,uint256,address): viem may only show the raw selector for token reverts.
+  if (name === 'InsufficientBalance' || /0x832f98b5/.test(`${e.shortMessage} ${e.message}`))
+    return "This wallet doesn't have enough of that stablecoin yet. Nothing was sent. Wait for the balance to update, or choose another stablecoin."
   return (name && errorText[name]) || name || e.shortMessage || e.message || String(err)
 }
 

@@ -5,7 +5,7 @@ import { CountUp, useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
 import QRCode from 'qrcode'
 import * as W from './wallet.ts'
-import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Steps, Result, usd, short, countdown, duration, type Msg } from './ui.tsx'
+import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Steps, Result, usd, short, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
 import { noteMessage, NOTE_MAX, tokenSymbol, type Order, type OrderStatus } from '../../shared/api.ts'
 import type { Address } from 'viem'
 
@@ -110,6 +110,12 @@ export default function Pay({ id }: { id: string }) {
           </div>
         )}
         {status === 'disputed' && <div className="protect dispute"><b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.</div>}
+        {status === 'disputed' && isSandboxShop(cfg, order.merchant) && (
+          <div className="resolvecall">
+            <p><b>In the sandbox, you're the resolver too.</b> Read both sides and decide: refund the buyer or pay the merchant.</p>
+            <button className="primary" onClick={openSandboxResolver}>Decide this dispute as the resolver →</button>
+          </div>
+        )}
         {status === 'released' && <div className="protect done"><b>Delivery confirmed.</b> The merchant has been paid.</div>}
         {status === 'refunded' && <div className="protect done"><b>Refunded.</b> {usd(main!.amount)} was returned to the wallet that paid.</div>}
         {settled && <p className="askfb">How was paying with Held? <a href="#/feedback">Tell us in two minutes</a>: it decides what we build next.</p>}

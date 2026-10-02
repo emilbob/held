@@ -49,6 +49,7 @@ export default function App() {
         <span className="footlinks">{!route.startsWith('/resolve') && <a href="#/resolve">Resolver</a>}<a href="#/feedback">Feedback</a><a href="#/faq">FAQ</a><a href="#/terms">Terms</a><a href="#/privacy">Privacy</a><a href="https://x.com/tempoheld" target="_blank" rel="noopener noreferrer">X<span className="sr-only"> (@tempoheld, opens in a new tab)</span></a></span>
       </footer>
       <ToTop />
+      {!route.startsWith('/feedback') && <a href="#/feedback" className="fbfloat">Feedback</a>}
     </>
   )
 }

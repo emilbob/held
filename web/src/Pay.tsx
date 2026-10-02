@@ -112,6 +112,7 @@ export default function Pay({ id }: { id: string }) {
         {status === 'disputed' && <div className="protect dispute"><b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.</div>}
         {status === 'released' && <div className="protect done"><b>Delivery confirmed.</b> The merchant has been paid.</div>}
         {status === 'refunded' && <div className="protect done"><b>Refunded.</b> {usd(main!.amount)} was returned to the wallet that paid.</div>}
+        {settled && <p className="askfb">How was paying with Held? <a href="#/feedback">Tell us in two minutes</a>: it decides what we build next.</p>}
         {order.underpaid && <p className="warn">This order was underpaid ({usd(main!.amount)} of {usd(order.amount)}).</p>}
       </div>
 

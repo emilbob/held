@@ -57,6 +57,7 @@ export default function Landing() {
           {sandbox && <a href="#/sandbox"><button className="primary cta">Try the sandbox</button></a>}
           <a href="#/merchant"><button className={`cta ${sandbox ? '' : 'primary'}`}>Start accepting payments</button></a>
         </div>
+        <p className="askfb">Held is in beta, and your feedback decides what we build next. <a href="#/feedback">Tell us what you think</a>.</p>
       </section>
     </div>
   )

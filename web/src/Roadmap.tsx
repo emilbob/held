@@ -19,7 +19,7 @@ const stages = [
     items: [
       'Real stablecoins on Tempo mainnet (USDC.e, USDT0)',
       'Orders capped at $250 while the contract is unaudited',
-      'No fees: you only pay Tempo\'s network fees, cents or less',
+      'No Held fee until mid-2027: you only pay Tempo\'s network fees, cents or less',
     ],
   },
   {
@@ -29,6 +29,7 @@ const stages = [
       'Multisig resolver',
       'Refunds to an address the buyer chooses, so payments sent from an exchange are protected too',
       'Higher order limits',
+      'From mid-2027: a 1% fee on released payments, written into each shop\'s contract when it\'s set up. Refunds are always free',
     ],
   },
 ]

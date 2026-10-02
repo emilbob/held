@@ -59,7 +59,9 @@ const sections: [string, [string, ReactNode][]][] = [
   ]],
   ['Costs and the beta', [
     ['What does Held cost?',
-      <>Nothing during the beta. You only pay Tempo's network fee for each transaction, a cent or less, in stablecoins.</>],
+      <>Nothing until mid-2027. You only pay Tempo's network fee for each transaction, a cent or less, in stablecoins.
+        After that, Held plans a 1% fee on released payments, fixed in each shop's contract when it's set up so it can never
+        be raised. Refunds are always free. See the <a href="#/roadmap">roadmap</a>.</>],
     ['Is this real money?',
       NET.testnet
         ? <>Not on this site: it runs on Tempo testnet with free test funds. A free beta on mainnet is next on the <a href="#/roadmap">roadmap</a>.</>

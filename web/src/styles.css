@@ -366,3 +366,6 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 @media (prefers-reduced-motion: reduce) { .scroll-cue i::after { animation: none; top: 20px } }
 /* Very small phones (320px): Beta tag + three nav links still fit on one line. */
 @media (max-width: 360px) { header { gap: 8px; padding: 10px 12px } header nav { gap: 10px; font-size: 13px } header .beta { margin-left: -2px } }
+/* Loading placeholder: invisible for the first 300 ms, so quick loads go straight to the right screen. */
+.card.loading { animation: lateshow .2s .3s both }
+@keyframes lateshow { from { opacity: 0 } to { opacity: 1 } }

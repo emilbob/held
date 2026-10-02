@@ -145,10 +145,13 @@ export function useWallet(role: W.Role) {
     const sb = (await getConfig()).sandbox
     return role === 'merchant' ? sb?.merchantKey : role === 'resolver' ? sb?.resolverKey : undefined
   }
+  // True while a remembered in-browser wallet reconnects, so pages don't flash "connect a wallet" first.
+  const [restoring, setRestoring] = useState(() => { const k = localStorage.getItem(rememberKey); return k === 'demo' || k === 'sandbox' })
   useEffect(() => {
     const k = localStorage.getItem(rememberKey)
-    if (k === 'demo') W.connect('demo', undefined, role).then((w) => { setWallet(w); topUp(w) })
-    if (k === 'sandbox') sandboxKey().then((key) => W.connect('sandbox', undefined, role, key)).then((w) => { setWallet(w); topUp(w) }, () => localStorage.removeItem(rememberKey))
+    const done = () => setRestoring(false)
+    if (k === 'demo') W.connect('demo', undefined, role).then((w) => { setWallet(w); topUp(w) }).finally(done)
+    if (k === 'sandbox') sandboxKey().then((key) => W.connect('sandbox', undefined, role, key)).then((w) => { setWallet(w); topUp(w) }, () => localStorage.removeItem(rememberKey)).finally(done)
   }, [])
   useEffect(() => {
     if (!wallet) return
@@ -183,7 +186,7 @@ export function useWallet(role: W.Role) {
     return () => { p.removeListener('accountsChanged', onAccounts); p.removeListener('disconnect', onDisconnect) }
   }, [wallet])
   const sandbox = !!cfg?.testnet && !!cfg.sandbox?.arbiter && role !== 'buyer'
-  return { wallet, balance, balances, toppingUp, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
+  return { wallet, restoring, balance, balances, toppingUp, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
 }
 
 export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, note?: string }) {

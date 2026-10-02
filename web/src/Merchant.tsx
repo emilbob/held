@@ -34,6 +34,10 @@ export default function MerchantPage() {
   // The sandbox wallet's key is in the browser anyway, so skip the sign-in click for it.
   useEffect(() => { if (w.wallet?.kind === 'sandbox' && !signedIn && !signing) signIn() }, [w.wallet?.address, signedIn])
 
+  // One steady placeholder while a remembered wallet reconnects or the shop loads, instead of flashing
+  // the connect and sign-in screens on the way to the dashboard.
+  const autoSignIn = w.wallet?.kind === 'sandbox' && !signedIn && !msg
+  if (w.restoring || (signedIn && !me) || autoSignIn) return <div className="narrow"><div className="card loading" aria-busy="true"><p className="muted">Loading your shop…</p></div></div>
   if (!w.wallet) return (
     <div className="narrow">
       <div className="card">

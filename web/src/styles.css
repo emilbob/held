@@ -259,7 +259,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .walletbox .actions .paywith button { width: auto }
 
 /* Footer links and the terms / privacy pages */
-.footlinks { display: flex; gap: 14px; flex-wrap: wrap }
+.footlinks { display: flex; gap: 11px; flex-wrap: wrap }
 .legal h2 { font-size: 15px; margin: 18px 0 6px; color: var(--ink) }
 .legal p, .legal li { font-size: 14px; line-height: 1.55 }
 .legal ul { padding-left: 20px; margin: 6px 0 }

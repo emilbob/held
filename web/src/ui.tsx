@@ -165,11 +165,19 @@ export function useWallet(role: W.Role) {
     const sb = (await getConfig()).sandbox
     return role === 'merchant' ? sb?.merchantKey : role === 'resolver' ? sb?.resolverKey : undefined
   }
-  // True while a remembered in-browser wallet reconnects, so pages don't flash "connect a wallet" first.
-  const [restoring, setRestoring] = useState(() => { const k = localStorage.getItem(rememberKey); return k === 'demo' || k === 'sandbox' })
+  // A browser wallet (MetaMask) also remembers which one and which account, to reconnect it quietly on reload.
+  const injectedKey = `${rememberKey}.injected`
+  // True while a remembered wallet reconnects, so pages don't flash "connect a wallet" first.
+  const [restoring, setRestoring] = useState(() => ['demo', 'sandbox', 'injected'].includes(localStorage.getItem(rememberKey) ?? ''))
   useEffect(() => {
     const k = localStorage.getItem(rememberKey)
     const done = () => setRestoring(false)
+    if (k === 'injected') {
+      let saved: { rdns: string, address: string } | null = null
+      try { saved = JSON.parse(localStorage.getItem(injectedKey) || 'null') } catch {}
+      if (!saved) done()
+      else W.reconnectInjected(saved.rdns, saved.address).then((w) => { if (w) { setWallet(w); topUp(w) } }, () => {}).finally(done)
+    }
     if (k === 'demo') W.connect('demo', undefined, role).then((w) => { setWallet(w); topUp(w) }).finally(done)
     if (k === 'sandbox') sandboxKey().then((key) => W.connect('sandbox', undefined, role, key)).then((w) => { setWallet(w); topUp(w) }, () => localStorage.removeItem(rememberKey)).finally(done)
   }, [])
@@ -184,12 +192,13 @@ export function useWallet(role: W.Role) {
     try {
       const w = await W.connect(kind, injected, role, kind === 'sandbox' ? await sandboxKey() : undefined)
       localStorage.setItem(rememberKey, kind)
+      if (kind === 'injected') localStorage.setItem(injectedKey, JSON.stringify({ rdns: injected?.rdns ?? 'injected', address: w.address }))
       setWallet(w)
       await topUp(w)
     } catch (e) { setError(W.explain(e)) }
     setBusy(false)
   }
-  const disconnect = () => { localStorage.removeItem(rememberKey); setWallet(null); setBalances(null) }
+  const disconnect = () => { localStorage.removeItem(rememberKey); localStorage.removeItem(injectedKey); setWallet(null); setBalances(null) }
   // External wallets: if the wallet disconnects or switches to another account, drop the stale connection so the
   // page asks again instead of failing on the next action.
   useEffect(() => {

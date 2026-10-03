@@ -121,6 +121,28 @@ function demoAccount(role: Role) {
   return privateKeyToAccount(k)
 }
 
+// Reload: quietly reconnect a browser wallet (MetaMask) the page used before, as most dApps do. eth_accounts never
+// opens a popup; it only answers if the wallet still allows this site. Returns null, so the page asks again, unless
+// it's the same wallet, the same account and already on this network: never a silent switch of account or network.
+export async function reconnectInjected(rdns: string, address: string): Promise<Wallet | null> {
+  const iw = await new Promise<InjectedWallet | undefined>((resolve) => {
+    let stop = () => {}
+    const t = setTimeout(() => { stop(); resolve(undefined) }, 1500)
+    stop = watchWallets((ws) => {
+      const hit = ws.find((x) => x.rdns === rdns)
+      if (hit) { clearTimeout(t); setTimeout(() => stop()); resolve(hit) }
+    })
+  })
+  if (!iw) return null
+  const [accounts, chainId] = await Promise.all([
+    iw.provider.request({ method: 'eth_accounts' }).catch(() => [] as string[]),
+    iw.provider.request({ method: 'eth_chainId' }).catch(() => null),
+  ])
+  if (accounts[0]?.toLowerCase() !== address.toLowerCase() || Number(chainId) !== NET.chainId) return null
+  return { kind: 'injected', name: iw.name, address: accounts[0] as Address, provider: iw.provider,
+    client: createWalletClient({ account: accounts[0] as Address, chain, transport: custom(iw.provider) }) }
+}
+
 export async function connect(kind: WalletKind, injected?: InjectedWallet, role: Role = 'buyer', sandboxKey?: Hex): Promise<Wallet> {
   // Testnet sandbox: a shared, PUBLIC test key for the sandbox shop's merchant or resolver.
   if (kind === 'sandbox') {

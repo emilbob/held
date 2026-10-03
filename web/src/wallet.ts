@@ -133,6 +133,10 @@ export async function connect(kind: WalletKind, injected?: InjectedWallet, role:
   }
   if (kind === 'tempo') {
     const provider = await tempoWalletProvider()
+    // The SDK remembers one connected account per site, shared by every tab and role, and eth_requestAccounts
+    // returns it without asking. Forget it first, so pressing "Tempo Wallet" always lets you pick the account (a
+    // resolver tab must not silently become the buyer's account).
+    await provider.request({ method: 'wallet_disconnect' } as never).catch(() => {})
     const [address] = await provider.request({ method: 'eth_requestAccounts' })
     return { kind, name: 'Tempo Wallet', address, provider, client: createWalletClient({ account: address, chain: tempoChain, transport: custom(provider) }) as Wallet['client'] }
   }

@@ -9,6 +9,9 @@ const go = (role: 'merchant' | 'resolver', hash: string) => {
   location.hash = hash
 }
 
+// Own shop: forget the remembered sandbox merchant, or #/merchant would reopen the Sandbox Shop.
+const ownShop = () => { try { localStorage.removeItem('held.walletKind.merchant') } catch {} }
+
 export default function Sandbox() {
   const cfg = useConfig()
   const root = useRef<HTMLDivElement>(null)
@@ -50,7 +53,7 @@ export default function Sandbox() {
           </li>
         </ol>
         <p className="muted small">Shared by everyone, so you'll see other visitors' sandbox orders. The sandbox merchant and resolver
-          use public test keys that hold only test funds; they're never offered on mainnet. Want your own shop? <a href="#/merchant">Set one up</a>:
+          use public test keys that hold only test funds; they're never offered on mainnet. Want your own shop? <a href="#/merchant" onClick={ownShop}>Set one up</a>:
           it takes a few minutes once.</p>
         <p className="tryfeedback">Tried it? <a href="#/feedback">Tell us what you think</a>: what would stop you using Held?</p>
       </div>

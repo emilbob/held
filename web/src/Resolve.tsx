@@ -46,6 +46,12 @@ export default function Resolve() {
           </p>
         )}
         {signErr && <Result msg={{ ok: false, text: signErr }} />}
+        {w.wallet?.kind === 'sandbox' && (
+          <div className="resolvecall">
+            <p><b>You're the sandbox's shared test resolver.</b> It decides only the Sandbox Shop's disputes.</p>
+            <button className="primary" onClick={w.disconnect}>Use your own resolver wallet →</button>
+          </div>
+        )}
       </div>
       {err && <p className="err">{err}</p>}
       {otherWallet && !!sbData?.orders.length && (

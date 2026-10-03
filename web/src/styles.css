@@ -422,3 +422,4 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .ink { color: var(--ink) }
 .feedback .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; font-size: 13.5px; color: var(--ink); cursor: pointer }
 .feedback .check input { width: auto; margin-top: 2px; accent-color: var(--lime) }
+.resolvecall.top { margin: 0 0 14px }

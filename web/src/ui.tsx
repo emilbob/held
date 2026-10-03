@@ -205,8 +205,7 @@ export function useWallet(role: W.Role) {
     p.on('disconnect', onDisconnect)
     return () => { p.removeListener('accountsChanged', onAccounts); p.removeListener('disconnect', onDisconnect) }
   }, [wallet])
-  const sandbox = !!cfg?.testnet && !!cfg.sandbox?.arbiter && role !== 'buyer'
-  return { wallet, restoring, balance, balances, toppingUp, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
+  return { wallet, restoring, balance, balances, toppingUp, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, role }
 }
 
 export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, note?: string }) {
@@ -217,9 +216,9 @@ export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, not
   )
   return (
     <div className="actions picker">
-      {/* Testnet sandbox first: someone trying the sandbox shouldn't reach for their own wallet by mistake. */}
-      {w.sandbox && <button className="primary" onClick={() => w.connect('sandbox')} disabled={w.busy}>Sandbox {w.role} (shared, no setup)</button>}
-      <button className={w.sandbox ? 'ghost' : 'primary'} onClick={() => w.connect('tempo')} disabled={w.busy}>{w.busy && !w.sandbox ? 'Connecting…' : 'Tempo Wallet'}</button>
+      {/* No sandbox button here: the sandbox is entered only from #/sandbox, so a real merchant or resolver is never
+          steered into the shared test shop. */}
+      <button className="primary" onClick={() => w.connect('tempo')} disabled={w.busy}>{w.busy ? 'Connecting…' : 'Tempo Wallet'}</button>
       {w.installed.map((iw) => (
         <button key={iw.rdns} className="ghost" onClick={() => w.connect('injected', iw)} disabled={w.busy}>
           {iw.icon && <img src={iw.icon} alt="" className="wicon" />}{iw.name}

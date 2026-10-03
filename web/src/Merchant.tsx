@@ -176,6 +176,7 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
   const more = Math.min(PAGE, all.length - shown.length)
   const heldTotal = orders.flatMap((o) => o.payments).filter((p) => ['held', 'disputed'].includes(p.status)).reduce((a, p) => a + Number(p.amount), 0)
   const link = (o: Order) => `${location.origin}/#/pay/${o.key ?? o.id}`
+  const showTokens = () => { if (w.wallet) W.showTokensInWallet(w.wallet, acceptedTokensOf(m)).catch(() => {}) }
   // Draw the dashboard once its orders are in: drawing the shell first made the entrance replay over it ("refresh").
   if (data === null && !err) return <Loading />
 
@@ -191,7 +192,8 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
         : <p className="askfb top">Held is in beta: your feedback decides what we build next. <a href="#/feedback">Tell us what you need</a></p>}
       <section className="summary">
         <div><label>{m.name}</label><a href={addrUrl(m.address)} target="_blank">{short(m.address)}</a></div>
-        <div><label>Balance</label><b>{w.balance === null ? '…' : <CountUp value={Number(w.balance)} format={usd} />}</b></div>
+        <div><label>Balance</label><b>{w.balance === null ? '…' : <CountUp value={Number(w.balance)} format={usd} />}</b>
+          {w.wallet?.kind === 'injected' && <button type="button" className="ghost small showtokens" onClick={showTokens}>See it in {w.wallet.name}</button>}</div>
         <div><label>Held for buyers</label><b><CountUp value={heldTotal} format={usd} /></b></div>
         <div><label>Protection window</label>{duration(m.window)}</div>
         <div><label>Your arbiter</label><a href={addrUrl(m.arbiter)} target="_blank">{short(m.arbiter)}</a></div>
@@ -248,6 +250,9 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
   const left = main ? main.windowEndsAt - now : 0
   const status: OrderStatus = o.status === 'held' && main && left <= 0 ? 'releasable' : o.status
   const isMe = wallet?.address.toLowerCase() === merchant.address.toLowerCase()
+  const [copied, setCopied] = useState(false)
+  const copyLink = () => navigator.clipboard.writeText(`${location.origin}/#/pay/${o.key ?? o.id}`)
+    .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }, () => {})
 
   // Signed by the merchant's wallet; the contract decides what's allowed.
   const act = async (key: string, fn: W.ArbiterFn, p: Payment, done: string) => {
@@ -267,7 +272,11 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
         <div className="item">{o.item}</div>
         <div className="amount">{usd(o.amount)}</div>
         <Badge status={status} />
-        <a className="buyerlink" href={`#/pay/${o.key ?? o.id}`}>Buyer page →</a>
+        {/* Sandbox: one person plays every role, so jump to the buyer page. A real shop sends the link to its buyer
+            instead; opening it here would put merchant and buyer in one window. */}
+        {isSandboxShop(cfg, merchant.address)
+          ? <a className="buyerlink" href={`#/pay/${o.key ?? o.id}`}>Buyer page →</a>
+          : <button type="button" className="ghost small buyerlink" onClick={copyLink}>{copied ? 'Copied ✓' : 'Copy buyer link'}</button>}
       </div>
       <div className="meta">
         {o.linkId && <>From checkout link · </>}Pay-to address <code title={o.address}>{short(o.address)}</code>

@@ -53,6 +53,8 @@ export default function Pay({ id }: { id: string }) {
   const merchantHere = session.get()?.address.toLowerCase() === order.merchant.toLowerCase()
   const back = <a className="back" href="#/merchant">← Back to your orders</a>
   const accepted = order.merchantInfo.acceptedTokens
+  const me = wallet?.address.toLowerCase()
+  const ownRole = !me ? null : me === order.merchant.toLowerCase() ? 'merchant' : me === order.merchantInfo.resolver.toLowerCase() ? 'resolver' : null
   const sym = (t: string) => tokenSymbol(W.NET, t)
   const accepts = accepted.map(sym).join(', ').replace(/, ([^,]*)$/, ' or $1')
   // Pay with: the stablecoin the buyer picked, else the first accepted one they hold enough of.
@@ -142,7 +144,12 @@ export default function Pay({ id }: { id: string }) {
             {!w.toppingUp && w.balances && bal(payToken) < BigInt(order.amount) && (
               <p className="warn small">This wallet has {usd(bal(payToken))} {sym(payToken)}. {enough.length ? `Choose ${sym(enough[0])} above.` : `Add ${usd(order.amount)} in ${accepts} first.`}</p>
             )}
-            <button className="primary" disabled={!!busy || w.toppingUp || (!!w.balances && bal(payToken) < BigInt(order.amount))} onClick={() => run('pay', () => W.transfer(wallet, order.address, order.amount, payToken))}>
+            {/* Several wallets (e.g. synced passkeys) make it easy to pay from the wrong one: say which one pays, and refuse
+                this shop's own merchant or resolver wallet, which must never also be its buyer. */}
+            {ownRole
+              ? <p className="warn">This wallet ({short(wallet.address)}) is this shop's {ownRole}. Pay from your own wallet: press <i>Change wallet</i> above.</p>
+              : <p className="payingfrom">Paying from <b>{short(wallet.address)}</b> <span className="muted">({wallet.name})</span></p>}
+            <button className="primary" disabled={!!busy || !!ownRole || w.toppingUp || (!!w.balances && bal(payToken) < BigInt(order.amount))} onClick={() => run('pay', () => W.transfer(wallet, order.address, order.amount, payToken))}>
               {busy === 'pay' ? 'Sending…' : `Pay ${usd(order.amount)}${accepted.length > 1 ? ` in ${sym(payToken)}` : ''}`}
             </button>
             {w.testnet && W.WRONG_TOKEN && (

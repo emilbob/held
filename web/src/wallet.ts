@@ -7,6 +7,7 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { tempo, tempoModerato } from 'viem/chains'
 import { pickNetwork } from '../../shared/network.ts'
+import { tokenSymbol } from '../../shared/api.ts'
 
 declare global {
   interface Window { ethereum?: EIP1193Provider }
@@ -150,6 +151,18 @@ export async function connect(kind: WalletKind, injected?: InjectedWallet, role:
       nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 18 }, rpcUrls: [NET.rpc], blockExplorerUrls: [explorer] }] })
   }
   return { kind, name: injected?.name ?? 'Browser wallet', address, provider: eth, client: createWalletClient({ account: address, chain, transport: custom(eth) }) }
+}
+
+// Browser wallets (MetaMask) don't list Tempo's stablecoins, and may suggest the MAINNET pathUSD (balance 0) on testnet.
+// Switch to this network first, then ask the wallet to show each token, so the merchant sees the money they hold.
+export async function showTokensInWallet(wallet: Wallet, tokens: Address[]) {
+  const eth = wallet.provider
+  if (wallet.kind !== 'injected' || !eth) return
+  await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${NET.chainId.toString(16)}` }] })
+  for (const address of tokens) {
+    const symbol = tokenSymbol(NET, address)
+    await eth.request({ method: 'wallet_watchAsset', params: { type: 'ERC20', options: { address, symbol, decimals: 6 } } } as never)
+  }
 }
 
 export const tokenBalance = (address: Address, token: Address = PATHUSD) =>

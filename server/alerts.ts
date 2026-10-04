@@ -1,6 +1,6 @@
 // Dispute alerts: an email to Held's owner when a buyer disputes a payment at a shop whose resolver is the network's
 // default resolver (the owner's wallet), so a dispute never waits unseen. Sent via Resend (RESEND_API_KEY) to
-// ALERT_EMAIL; without both, alerts are off. The email has the order number, amount and a link: no notes, no buyer data.
+// ALERT_EMAIL; without both, alerts are off. Sender: ALERT_FROM (a verified Resend domain), else Resend's test sender. The email has the order number, amount and a link: no notes, no buyer data.
 // At most once: sent after the dispute is saved, and a failed send is only logged (the resolver console still lists it).
 import { formatUnits } from 'viem'
 import type { Db, Network } from '../shared/api.ts'
@@ -25,7 +25,7 @@ export async function alertDisputes(s: Db, network: Network, paymentIds: string[
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ from: 'Held alerts <onboarding@resend.dev>', to: [to], subject, text }),
+      body: JSON.stringify({ from: process.env.ALERT_FROM || 'Held alerts <onboarding@resend.dev>', to: [to], subject, text }),
       signal: AbortSignal.timeout(5000),
     })
     if (!r.ok) console.error('dispute alert failed', r.status, await r.text())

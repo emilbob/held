@@ -33,7 +33,8 @@ export default function Resolve() {
   useEntrance(root, ':scope > .card', !addr || data !== null, { stagger: 0.07 })
   return (
     <div className={w.wallet ? 'dash' : 'narrow'} ref={root}>
-      {session.get()?.address && <a className="back" href="#/merchant">← Back to your orders</a>}
+      {/* Only in the sandbox, where you play merchant and resolver: a real resolver has no orders of their own. */}
+      {w.wallet?.kind === 'sandbox' && session.get()?.address && <a className="back" href="#/merchant">← Back to your orders</a>}
       <div className="card">
         <h1>Resolve disputes</h1>
         <p>Connect the resolver wallet. You'll see open disputes for every merchant who chose it. The contract lets you do only

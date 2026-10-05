@@ -6,7 +6,7 @@
 // Every step is skipped if already done and saved after each one, so a reload never repeats a finished step.
 import { VirtualMaster } from 'ox/tempo'
 import { Actions } from 'viem/tempo'
-import { isAddressEqual, type Abi, type Address, type Hex, type PublicClient } from 'viem'
+import { encodeDeployData, isAddressEqual, type Abi, type Address, type Hex, type PublicClient } from 'viem'
 import arbiterJson from '../../shared/HeldArbiter.json' with { type: 'json' }
 import type { Wallet } from './wallet.ts'
 
@@ -83,7 +83,12 @@ export async function runSetup(p: {
   const current = state.arbiter && (await pub.getCode({ address: state.arbiter })) !== undefined &&
     (await pub.readContract({ address: state.arbiter, abi: arbiter.abi, functionName: 'VERSION' }).catch(() => 0n)) === 2n
   if (!current) {
-    const hash = await wallet.client.deployContract({ abi: arbiter.abi, bytecode: arbiter.bytecode, args: [me, p.resolver, p.tokens, BigInt(p.window)] })
+    const args = [me, p.resolver, p.tokens, BigInt(p.window)] as const
+    // Tempo Wallet (Accounts SDK 0.18) drops the bytecode of a transaction without `to` and sends an empty call to
+    // 0x0, so a plain deploy "succeeds" without creating anything. An explicit create call (no `to`) goes through.
+    const hash = wallet.kind === 'tempo' && wallet.provider
+      ? await wallet.provider.request({ method: 'eth_sendTransaction', params: [{ from: me, calls: [{ data: encodeDeployData({ abi: arbiter.abi, bytecode: arbiter.bytecode, args }) }] }] } as never) as Hex
+      : await wallet.client.deployContract({ abi: arbiter.abi, bytecode: arbiter.bytecode, args })
     const rc = await wait(hash, 'Deploying the arbiter')
     if (!rc.contractAddress) throw new Error('Deploying the arbiter returned no address.')
     state.arbiter = rc.contractAddress

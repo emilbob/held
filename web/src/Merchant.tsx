@@ -348,6 +348,7 @@ function Links() {
   const [busy, setBusy] = useState(false)
   const [formErr, setFormErr] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null) // link id waiting for "Remove for good?"
   const copy = (key: string, text: string) => navigator.clipboard.writeText(text)
     .then(() => { setCopied(key); setTimeout(() => setCopied(null), 1800) }, () => setCopied('failed'))
 
@@ -357,6 +358,7 @@ function Links() {
     setBusy(false)
   }
   const toggle = async (l: CheckoutLinkView) => { await api(`/links/${l.id}`, { active: !l.active }).catch(() => {}); refresh() }
+  const remove = async (l: CheckoutLinkView) => { await api(`/links/${l.id}`, { removed: true }).catch(() => {}); setRemoving(null); refresh() }
   const links = data?.links ?? []
 
   const renderLink = (l: CheckoutLinkView) => (
@@ -366,7 +368,15 @@ function Links() {
         <div className="amount">{usd(l.amount)}</div>
         <span className="muted small">{l.orders} order{l.orders === 1 ? '' : 's'} · {l.paid} paid</span>
         <button className="ghost small" onClick={() => toggle(l)}>{l.active ? 'Turn off' : 'Turn on'}</button>
+        <button className="ghost small" onClick={() => setRemoving(l.id)}>Remove</button>
       </div>
+      {removing === l.id && (
+        <div className="removeask">
+          <span className="small">Remove this link for good? Buyers who open it will see it's no longer available. Its orders stay in your Orders list.</span>
+          <button className="danger small" onClick={() => remove(l)}>Remove link</button>
+          <button className="ghost small" onClick={() => setRemoving(null)}>Cancel</button>
+        </div>
+      )}
       {l.active ? (
         <>
           <code className="addr">{linkUrl(l.id)}</code>

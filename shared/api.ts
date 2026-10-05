@@ -64,6 +64,7 @@ export interface CheckoutLink {
   item: string
   amount: string // base units (6 decimals)
   active: boolean
+  removed?: boolean // taken off the merchant's dashboard (and off for buyers); kept so its orders still point to it
   createdAt: number
 }
 export interface CheckoutLinkView extends CheckoutLink { orders: number, paid: number }

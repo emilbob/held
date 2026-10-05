@@ -12,7 +12,7 @@
 //                                          (a numeric id works for the order's own merchant, and for pre-key orders)
 //   GET  /api/links                        the signed-in merchant's checkout links (with order counts)
 //   POST /api/links {item, amount}         create a reusable checkout link for one product at a fixed price
-//   POST /api/links/:id {active}           turn a link on or off (its merchant only)
+//   POST /api/links/:id {active|removed}   turn a link on or off, or remove it (its merchant only)
 //   GET  /api/links/:id                    public: what the link sells, for the buyer
 //   POST /api/links/:id/orders             public: a buyer opened the link -> a fresh order for them
 //   GET  /api/disputes?resolver=0x…        disputed payments a resolver decides; with that resolver's session, plus notes
@@ -230,7 +230,7 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const s = await load()
       const address = sessionOf(s, headers)
       if (!address) return ok({ error: 'Sign in with your merchant wallet.' }, 401)
-      const mine = Object.values(s.links ?? {}).filter((l) => l.merchant.toLowerCase() === address.toLowerCase())
+      const mine = Object.values(s.links ?? {}).filter((l) => !l.removed && l.merchant.toLowerCase() === address.toLowerCase())
       const views: CheckoutLinkView[] = mine.sort((a, b) => b.createdAt - a.createdAt).map((l) => {
         const orders = Object.values(s.orders).filter((o) => o.linkId === l.id).map((o) => orderView(s, o))
         return { ...l, orders: orders.length, paid: orders.filter((o) => o.status !== 'awaiting_payment').length }
@@ -243,7 +243,9 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
         const link = s.links?.[lk[1]]
         const address = sessionOf(s, headers)
         if (!link || !address || link.merchant.toLowerCase() !== address.toLowerCase()) return null
-        link.active = body.active === true
+        // Removing is for good: the link is also off for buyers, and can't be turned back on.
+        if (body.removed === true) { link.removed = true; link.active = false }
+        else if (!link.removed) link.active = body.active === true
         return link
       })
       return r ? ok(r) : ok({ error: 'Only the merchant who made this link can change it.' }, 401)

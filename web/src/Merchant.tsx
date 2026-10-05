@@ -76,6 +76,20 @@ function feeText(fee: Config['fee']): string {
 
 const Loading = () => <div className="narrow"><div className="card loading" aria-busy="true"><p className="muted">Loading your shop…</p></div></div>
 
+/** A duration picked on a slider that snaps to `steps` (seconds). */
+function StepSlider({ id, label, steps, value, onChange, disabled }: { id: string, label: string, steps: number[], value: number, onChange: (s: number) => void, disabled?: boolean }) {
+  // A value between stops (e.g. a network default) shows at the nearest stop.
+  const at = steps.reduce((best, s, i) => (Math.abs(s - value) < Math.abs(steps[best] - value) ? i : best), 0)
+  return (
+    <div className="stepslider">
+      <label htmlFor={id}>{label}: <b className="ink">{duration(steps[at])}</b></label>
+      <input id={id} type="range" min={0} max={steps.length - 1} step={1} value={at} disabled={disabled}
+        aria-valuetext={duration(steps[at])} onChange={(e) => onChange(steps[Number(e.target.value)])} />
+      <div className="ends muted small"><span>{duration(steps[0])}</span><span>{duration(steps[steps.length - 1])}</span></div>
+    </div>
+  )
+}
+
 const PAGE = 20
 type OrderFilter = 'action' | 'unpaid' | 'settled' | 'all'
 const FILTERS: [OrderFilter, string][] = [['action', 'Needs action'], ['unpaid', 'Awaiting payment'], ['settled', 'Settled'], ['all', 'All']]
@@ -92,10 +106,14 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
   const saveKey = `held.setup.${wallet.address.toLowerCase()}`
   const saved = (): SetupState => { try { return JSON.parse(localStorage.getItem(saveKey) || '{}') } catch { return {} } }
   const [name, setName] = useState('')
-  const windows = cfg.testnet ? [300, 86400, 7 * 86400] : [86400, 7 * 86400, 14 * 86400]
+  // Slider stops (seconds). Testnet starts in minutes so the whole flow can be tried quickly.
+  const H = 3600, D = 86400
+  const windows = cfg.testnet ? [300, 600, 1800, H, 6 * H, 12 * H, D, 2 * D, 3 * D, 5 * D, 7 * D, 10 * D, 14 * D]
+    : [D, 2 * D, 3 * D, 5 * D, 7 * D, 10 * D, 14 * D, 21 * D, 30 * D]
   const [window, setWindow] = useState(cfg.defaultWindow)
   // The resolver's deadline (contract v3): undecided disputes refund the buyer after it. Testnet offers a short one to try it.
-  const resolveWindows = cfg.testnet ? [600, 3 * 86400, 7 * 86400] : [3 * 86400, 7 * 86400, 14 * 86400]
+  const resolveWindows = cfg.testnet ? [600, 1800, H, 6 * H, 12 * H, D, 2 * D, 3 * D, 5 * D, 7 * D, 14 * D]
+    : [D, 2 * D, 3 * D, 5 * D, 7 * D, 10 * D, 14 * D, 21 * D, 30 * D]
   const [resolveWindow, setResolveWindow] = useState(cfg.defaultResolveWindow)
   const [resolver, setResolver] = useState<string>(cfg.defaultResolver)
   const [step, setStep] = useState<SetupStep | null>(null)
@@ -127,14 +145,8 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
         <p className="muted">One time, from your wallet ({short(wallet.address)}). Your checkout address and your own arbiter contract: Held's server never holds your keys or your funds.</p>
         <label htmlFor="shopname">Shop name</label>
         <input id="shopname" value={name} onChange={(e) => setName(e.target.value)} placeholder="My shop" maxLength={60} disabled={!!step} />
-        <label id="windowlabel">Protection window (how long buyers can dispute)</label>
-        <div className="choices" role="group" aria-labelledby="windowlabel">
-          {windows.map((s) => <button type="button" key={s} aria-pressed={window === s} className={window === s ? 'primary' : 'ghost'} disabled={!!step} onClick={() => setWindow(s)}>{duration(s)}</button>)}
-        </div>
-        <label id="resolvelabel">Resolver's deadline (how long disputes can take)</label>
-        <div className="choices" role="group" aria-labelledby="resolvelabel">
-          {resolveWindows.map((s) => <button type="button" key={s} aria-pressed={resolveWindow === s} className={resolveWindow === s ? 'primary' : 'ghost'} disabled={!!step} onClick={() => setResolveWindow(s)}>{duration(s)}</button>)}
-        </div>
+        <StepSlider id="window" label="Protection window (how long buyers can dispute)" steps={windows} value={window} onChange={setWindow} disabled={!!step} />
+        <StepSlider id="resolve" label="Resolver's deadline (how long disputes can take)" steps={resolveWindows} value={resolveWindow} onChange={setResolveWindow} disabled={!!step} />
         <p className="muted small">If the resolver hasn't decided a dispute by then, the buyer gets their money back. Buyers see this deadline at checkout.</p>
         <details>
           <summary>Resolver (who decides disputes)</summary>

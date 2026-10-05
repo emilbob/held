@@ -170,6 +170,10 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 .setup label { margin-top: 14px }
 .setup input { width: 100% }
 .choices { display: flex; gap: 8px; flex-wrap: wrap }
+.stepslider { margin-top: 14px; display: grid; gap: 6px }
+.stepslider input[type=range] { width: 100%; accent-color: var(--lime); cursor: pointer }
+.stepslider input[type=range]:disabled { cursor: default }
+.stepslider .ends { display: flex; justify-content: space-between }
 .setup details { margin-top: 14px }
 .setup summary { cursor: pointer; color: var(--muted); font-size: 13px }
 .setupsteps { margin: 16px 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; color: var(--muted) }

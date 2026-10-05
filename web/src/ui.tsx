@@ -48,7 +48,7 @@ export const countdown = (secs: number) => {
   return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}:${String(s).padStart(2, '0')}`
 }
 export const duration = (secs: number) =>
-  secs % 86400 === 0 ? `${secs / 86400} day${secs === 86400 ? '' : 's'}` : secs % 3600 === 0 ? `${secs / 3600} hours` : `${Math.round(secs / 60)} minutes`
+  secs % 86400 === 0 ? `${secs / 86400} day${secs === 86400 ? '' : 's'}` : secs % 3600 === 0 ? `${secs / 3600} hour${secs === 3600 ? '' : 's'}` : `${Math.round(secs / 60)} minutes`
 
 // ---------------------------------------------------------------- hooks
 export function usePoll<T>(fn: () => Promise<T>, ms: number, deps: DependencyList): [T | null, string | null, () => void] {

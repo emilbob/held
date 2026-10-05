@@ -25,7 +25,7 @@ export async function merchantSession(app: string, name = 'E2E Test Shop'): Prom
   }
   const r = await runSetup({ wallet: { kind: 'demo', name, address: acct.address, client: walletFor(acct) } as never, pub: pub as never,
     // The testnet test resolver (key in .state), never the real default resolver.
-    resolver: requireState().resolver, tokens: TOKENS, window: 300, fee: network.fee, state: saved, save, onStep: () => {} })
+    resolver: requireState().resolver, tokens: TOKENS, window: 300, resolveWindow: 600, fee: network.fee, state: saved, save, onStep: () => {} })
 
   const host = new URL(app).host, issued = Math.floor(Date.now() / 1000)
   const signature = await acct.signMessage({ message: signInMessage(acct.address, host, issued) })

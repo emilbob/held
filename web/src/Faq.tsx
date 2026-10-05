@@ -17,7 +17,8 @@ const sections: [string, [string, ReactNode][]][] = [
         it themselves once the protection window ends.</>],
     ['Something is wrong with my order.',
       <>Open a dispute on your order page before the protection window ends. The payment then stays frozen until the shop's resolver
-        decides: refund you, or pay the merchant. The merchant can also refund you at any time.</>],
+        decides: refund you, or pay the merchant. The merchant can also refund you at any time, and if you sort it out with the
+        merchant you can withdraw your dispute, which pays them.</>],
     ['How long am I protected?',
       <>Each shop sets its protection window ({NET.testnet ? 'from 5 minutes on testnet' : 'from 1 to 14 days, usually 7'}). Your
         order page shows exactly how much time is left.</>],
@@ -52,7 +53,9 @@ const sections: [string, [string, ReactNode][]][] = [
       <>Your money stays held on Tempo, and the contract keeps working without Held. Anyone can still confirm, dispute or refund
         under the same rules by calling the contract directly, though for now that takes a developer tool.</>],
     ['What if the resolver never decides a dispute?',
-      <>The payment stays held until the resolver decides or the merchant refunds. Nobody else can move it.</>],
+      <>Each shop sets a deadline for its resolver at setup ({NET.testnet ? 'from 10 minutes on testnet' : '3, 7 or 14 days'}), shown on
+        the order. If the resolver hasn't decided by then, the buyer gets their money back: anyone can trigger the refund, and it always
+        goes to the wallet that paid. After the deadline the resolver can no longer pay the merchant.</>],
     ['Has the contract been audited?',
       <>Not yet. It's tested extensively, including randomized tests of every rule, but an independent audit comes after the beta.
         Until then orders are capped at {NET.testnet ? '$250 on mainnet' : usd(NET.maxOrder)}. See the <a href="#/roadmap">roadmap</a>.</>],

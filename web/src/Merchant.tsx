@@ -94,6 +94,9 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
   const [name, setName] = useState('')
   const windows = cfg.testnet ? [300, 86400, 7 * 86400] : [86400, 7 * 86400, 14 * 86400]
   const [window, setWindow] = useState(cfg.defaultWindow)
+  // The resolver's deadline (contract v3): undecided disputes refund the buyer after it. Testnet offers a short one to try it.
+  const resolveWindows = cfg.testnet ? [600, 3 * 86400, 7 * 86400] : [3 * 86400, 7 * 86400, 14 * 86400]
+  const [resolveWindow, setResolveWindow] = useState(cfg.defaultResolveWindow)
   const [resolver, setResolver] = useState<string>(cfg.defaultResolver)
   const [step, setStep] = useState<SetupStep | null>(null)
   const [mining, setMining] = useState<MiningProgress | null>(null)
@@ -106,7 +109,7 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
     if (!/^0x[0-9a-fA-F]{40}$/.test(resolver)) return setMsg({ ok: false, text: 'The resolver must be a wallet address (0x…).' })
     abort.current = new AbortController()
     try {
-      const r = await runSetup({ wallet, pub: W.pub as never, resolver: resolver as Address, tokens: cfg.tokens.map((t) => t.address), window, fee: cfg.fee, state: saved(),
+      const r = await runSetup({ wallet, pub: W.pub as never, resolver: resolver as Address, tokens: cfg.tokens.map((t) => t.address), window, resolveWindow, fee: cfg.fee, state: saved(),
         save: (s) => localStorage.setItem(saveKey, JSON.stringify(s)), onStep: setStep, onProgress: setMining, signal: abort.current.signal })
       await api('/merchants', { name: name || 'My shop', arbiter: r.arbiter, masterId: r.masterId })
       localStorage.removeItem(saveKey)
@@ -128,6 +131,11 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
         <div className="choices" role="group" aria-labelledby="windowlabel">
           {windows.map((s) => <button type="button" key={s} aria-pressed={window === s} className={window === s ? 'primary' : 'ghost'} disabled={!!step} onClick={() => setWindow(s)}>{duration(s)}</button>)}
         </div>
+        <label id="resolvelabel">Resolver's deadline (how long disputes can take)</label>
+        <div className="choices" role="group" aria-labelledby="resolvelabel">
+          {resolveWindows.map((s) => <button type="button" key={s} aria-pressed={resolveWindow === s} className={resolveWindow === s ? 'primary' : 'ghost'} disabled={!!step} onClick={() => setResolveWindow(s)}>{duration(s)}</button>)}
+        </div>
+        <p className="muted small">If the resolver hasn't decided a dispute by then, the buyer gets their money back. Buyers see this deadline at checkout.</p>
         <details>
           <summary>Resolver (who decides disputes)</summary>
           <p className="muted small">Held's resolver by default. It can only refund the buyer or pay you, never anything else.</p>
@@ -311,7 +319,9 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
       )}
       {main && status === 'disputed' && (
         <div className="actions">
-          <span className="muted">Disputed: the resolver ({short(merchant.resolver)}) decides. Agree with the buyer? <b className="ink">Refund buyer</b> ends the dispute right away.</span>
+          <span className="muted">Disputed: the resolver ({short(merchant.resolver)}) decides
+            {main.resolveBy ? (main.deadlinePassed ? '. Their deadline has passed, so the buyer gets a refund.' : <> within <b className="ink">{countdown(main.resolveBy - now)}</b>, or the buyer is refunded</> ) : ''}.
+            {' '}Agree with the buyer? <b className="ink">Refund buyer</b> ends the dispute right away.</span>
           <B k="refund" fn="refund" p={main} label="Refund buyer" done="Refunded to the buyer." />
           {isSandboxShop(cfg, merchant.address) && <button className="primary" onClick={openSandboxResolver}>Decide as the resolver →</button>}
           <Notes notes={o.notes?.[main.id]} me="merchant" />

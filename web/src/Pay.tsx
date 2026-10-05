@@ -49,6 +49,11 @@ export default function Pay({ id }: { id: string }) {
   // Paid out or refunded: nothing left for the buyer to do (unless a wrong-token payment still needs returning).
   const settled = (status === 'released' || status === 'refunded') && !wrong.some((p) => p.status === 'held')
   const arbiter = order.merchantInfo.arbiter
+  // v3 shops: the resolver must decide within resolveWindow, else the buyer can take a refund; the buyer can also
+  // withdraw their dispute. Older shops have neither.
+  const resolveWindow = order.merchantInfo.resolveWindow
+  const deadlineLeft = main?.resolveBy ? main.resolveBy - now : null
+  const deadlinePassed = deadlineLeft !== null && deadlineLeft <= 0
   // The sandbox shop is paid with a test wallet; a real shop with Tempo Wallet or a browser wallet.
   const sandbox = isSandboxShop(cfg, order.merchant)
   const choice = sandbox ? 'test' : 'real'
@@ -99,7 +104,8 @@ export default function Pay({ id }: { id: string }) {
         {status === 'awaiting_payment' && (
           <>
             <p className="protect"><b>Protected by Held.</b> Your payment is held onchain for {duration(order.merchantInfo.window)} or until you
-              confirm delivery. If something goes wrong, open a dispute: the funds can only go back to you or to the merchant.</p>
+              confirm delivery. If something goes wrong, open a dispute: the funds can only go back to you or to the merchant.
+              {resolveWindow ? <> The resolver has {duration(resolveWindow)} to decide; if they don't, you get your money back.</> : null}</p>
             <div className="payto">
               {qr && <img src={qr} alt="Payment QR code" />}
               <div>
@@ -120,7 +126,10 @@ export default function Pay({ id }: { id: string }) {
             {status === 'held' ? <> Protection window: <b>{countdown(left)}</b> left.</> : <> The protection window is over; the merchant can now be paid.</>}
           </div>
         )}
-        {status === 'disputed' && <div className="protect dispute"><b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.</div>}
+        {status === 'disputed' && <div className="protect dispute"><b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.
+          {deadlineLeft !== null && (deadlinePassed
+            ? <><br /><b>The resolver's deadline has passed:</b> the money can now only go back to you.</>
+            : <><br />The resolver has <b>{countdown(deadlineLeft)}</b> left to decide. If they don't, you get your money back.</>)}</div>}
         {status === 'disputed' && main && (order.notes?.[main.id]?.length
           ? <Notes notes={order.notes[main.id]} me={isPayer ? 'buyer' : undefined} />
           : <p className="muted small">No notes yet. The merchant's replies will show here.</p>)}
@@ -198,15 +207,30 @@ export default function Pay({ id }: { id: string }) {
           <p className="muted">Only the wallet that paid ({short(main.payer)}) can confirm or dispute.</p>
         ))}
 
-        {/* Dispute open: the paying wallet can keep its side of the story going. Only the resolver (or a merchant's
-            refund) ends it; a satisfied buyer says so here, and the resolver can then pay the merchant. */}
-        {wallet && main && status === 'disputed' && isPayer && (() => {
+        {/* v3 shops: past the deadline any wallet can trigger the buyer's refund (it always goes to the wallet that paid);
+            before it, the paying wallet can withdraw its dispute by paying the merchant itself. */}
+        {wallet && main && status === 'disputed' && deadlinePassed && (
+          <div className="actions">
+            <button className="primary" disabled={!!busy} onClick={() => run('deadline', callArbiter('refund', main.receipt), 'Refunded to the wallet that paid.')}>
+              {busy === 'deadline' ? 'Refunding…' : isPayer ? 'Get my refund' : `Refund the buyer (${short(main.payer)})`}
+            </button>
+          </div>
+        )}
+        {wallet && main && status === 'disputed' && isPayer && resolveWindow && (
+          <div className="actions">
+            <button className="ghost" disabled={!!busy} onClick={() => run('withdraw', callArbiter('release', main.receipt), 'Dispute withdrawn: the merchant has been paid.')}>
+              {busy === 'withdraw' ? 'Paying…' : 'Sorted it out? Withdraw dispute and pay the merchant'}
+            </button>
+          </div>
+        )}
+        {/* Dispute open: the paying wallet can keep its side of the story going, until the resolver's deadline. */}
+        {wallet && main && status === 'disputed' && isPayer && !deadlinePassed && (() => {
           const mine = (order.notes?.[main.id] ?? []).filter((n) => n.by === 'buyer').length
           return mine < NOTES_PER_SIDE ? (
             <form className="replyform" onSubmit={(e) => { e.preventDefault()
               run('note', () => sendNote(main.id, followUp.trim()).then(() => setFollowUp('')), 'Note sent to the merchant and the resolver.') }}>
               <label htmlFor="followup" className="muted small">Add a note for the merchant and the resolver ({NOTES_PER_SIDE - mine} left).
-                Sorted it out with the merchant? Say so here: the resolver can then pay them.</label>
+                {resolveWindow ? null : 'Sorted it out with the merchant? Say so here: the resolver can then pay them.'}</label>
               <textarea id="followup" value={followUp} onChange={(e) => setFollowUp(e.target.value)} maxLength={NOTE_MAX} rows={2} />
               <button className="small" disabled={!!busy || !followUp.trim()}>{busy === 'note' ? 'Sending…' : 'Send note'}</button>
             </form>

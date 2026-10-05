@@ -35,6 +35,9 @@ interface ITIP20Transfer {
 ///   - release: the buyer can confirm delivery at any time; after the protection window anyone can release.
 ///   - dispute: only the original payer, only inside the window, only once.
 ///   - a disputed payment is decided once by the resolver: release to the merchant or refund the payer.
+///   - the payer can withdraw their dispute by releasing the payment to the merchant themselves.
+///   - the resolver has `resolveWindow` from the dispute to decide; after that anyone can refund the payer, and the
+///     resolver can no longer release: an undecided dispute always ends with the buyer's money back.
 ///   - the merchant can refund voluntarily while the payment is not settled.
 ///   - a payment in a token the merchant doesn't accept is never released to the merchant: it can only be refunded,
 ///     by the payer at any time or by the merchant.
@@ -49,9 +52,12 @@ interface ITIP20Transfer {
 /// the merchant, the constructor creates a TIP-403 whitelist holding only this contract (admin: this contract, which
 /// has no code to change it), and the merchant's receive policy uses it as its sender policy: every other sender's
 /// payment is still held.
+///
+/// v3 also adds the resolver deadline (`resolveWindow`, fixed per shop) and lets the buyer withdraw a dispute.
 contract HeldArbiter {
     uint256 public constant VERSION = 3;
     uint256 public constant MAX_FEE_BPS = 1000; // 10%: a hard ceiling on what any shop's fee can be set to
+    uint64 public constant MAX_RESOLVE_WINDOW = 90 days; // a buyer's money is never stuck in a dispute longer than this
     IReceivePolicyGuard public constant GUARD = IReceivePolicyGuard(0xB10C000000000000000000000000000000000000);
     IAddressRegistry public constant REGISTRY = IAddressRegistry(0xfDC0000000000000000000000000000000000000);
     ITIP403Registry public constant POLICIES = ITIP403Registry(0x403c000000000000000000000000000000000000);
@@ -76,6 +82,7 @@ contract HeldArbiter {
     address public immutable merchant;
     address public immutable resolver;
     uint64 public immutable protectionWindow;
+    uint64 public immutable resolveWindow; // how long the resolver has to decide a dispute (v3)
     // Accepted stablecoins: token0 is always set; token1 / token2 are address(0) when unused.
     address public immutable token0;
     address public immutable token1;
@@ -91,6 +98,7 @@ contract HeldArbiter {
     uint64 public payoutPolicyId;
 
     mapping(bytes32 => Status) public statusOf;
+    mapping(bytes32 => uint64) public disputedAt; // when the dispute was opened (v3); 0 if never disputed
 
     event Disputed(bytes32 indexed id, address indexed originator);
     event Released(bytes32 indexed id, address indexed caller, uint256 amount);
@@ -107,10 +115,11 @@ contract HeldArbiter {
     error BadConfig();
 
     constructor(
-        address merchant_, address resolver_, address[] memory tokens_, uint64 protectionWindow_,
+        address merchant_, address resolver_, address[] memory tokens_, uint64 protectionWindow_, uint64 resolveWindow_,
         address feeRecipient_, uint16 feeBps_, uint64 feeStart_, uint256 feeCap_
     ) {
         if (merchant_ == address(0) || resolver_ == address(0) || tokens_.length == 0 || tokens_.length > 3) revert BadConfig();
+        if (resolveWindow_ == 0 || resolveWindow_ > MAX_RESOLVE_WINDOW) revert BadConfig();
         if (feeBps_ > MAX_FEE_BPS || (feeBps_ > 0 && feeRecipient_ == address(0))) revert BadConfig();
         if (feeRecipient_ == merchant_ || feeRecipient_ == address(this)) revert BadConfig();
         for (uint256 i; i < tokens_.length; i++) {
@@ -120,6 +129,7 @@ contract HeldArbiter {
         merchant = merchant_;
         resolver = resolver_;
         protectionWindow = protectionWindow_;
+        resolveWindow = resolveWindow_;
         token0 = tokens_[0];
         token1 = tokens_.length > 1 ? tokens_[1] : address(0);
         token2 = tokens_.length > 2 ? tokens_[2] : address(0);
@@ -158,6 +168,12 @@ contract HeldArbiter {
         return decode(receipt).blockedAt + protectionWindow;
     }
 
+    /// When the resolver's time to decide this payment's dispute ends (0 if it isn't disputed).
+    function resolveDeadline(bytes calldata receipt) public view returns (uint64) {
+        uint64 at = disputedAt[keccak256(receipt)];
+        return at == 0 ? 0 : at + resolveWindow;
+    }
+
     /// The fee a release of `amount` would pay right now (0 before feeStart or when the shop has no fee).
     function feeFor(uint256 amount) public view returns (uint256 fee) {
         if (feeBps == 0 || block.timestamp < feeStart) return 0;
@@ -176,17 +192,20 @@ contract HeldArbiter {
         if (s == Status.Disputed) revert AlreadyDisputed();
         if (s != Status.None) revert AlreadySettled();
         statusOf[id] = Status.Disputed;
+        disputedAt[id] = uint64(block.timestamp);
         emit Disputed(id, r.originator);
     }
 
-    /// Pay the merchant. Buyer confirmation any time; permissionless after the window;
-    /// resolver only if disputed. Never for a token the shop doesn't accept (those can only be refunded).
+    /// Pay the merchant. Buyer confirmation any time (also withdrawing their own dispute); permissionless after the
+    /// window; the resolver only if disputed and before the resolve deadline. Never for a token the shop doesn't
+    /// accept (those can only be refunded).
     function release(bytes calldata receipt) external {
         (bytes32 id, Receipt memory r) = _load(receipt);
         if (!accepts(r.token)) revert NotAllowed();
         Status s = statusOf[id];
         if (s == Status.Disputed) {
-            if (msg.sender != resolver) revert NotAllowed();
+            bool byResolver = msg.sender == resolver && block.timestamp < uint256(disputedAt[id]) + resolveWindow;
+            if (msg.sender != r.originator && !byResolver) revert NotAllowed();
         } else if (s == Status.None) {
             bool windowOver = block.timestamp >= uint256(r.blockedAt) + protectionWindow;
             if (msg.sender != r.originator && !windowOver) revert NotAllowed();
@@ -208,14 +227,15 @@ contract HeldArbiter {
         emit Released(id, msg.sender, amount);
     }
 
-    /// Refund the original payer. Merchant voluntarily, resolver if disputed,
-    /// or the payer themselves if they sent a token the merchant doesn't accept.
+    /// Refund the original payer. Merchant voluntarily, resolver if disputed, anyone once a dispute's resolve
+    /// deadline has passed, or the payer themselves if they sent a token the merchant doesn't accept.
     function refund(bytes calldata receipt) external {
         (bytes32 id, Receipt memory r) = _load(receipt);
         Status s = statusOf[id];
         if (s == Status.Released || s == Status.Refunded) revert AlreadySettled();
         bool ok = msg.sender == merchant
             || (s == Status.Disputed && msg.sender == resolver)
+            || (s == Status.Disputed && block.timestamp >= uint256(disputedAt[id]) + resolveWindow)
             || (msg.sender == r.originator && !accepts(r.token));
         if (!ok) revert NotAllowed();
         statusOf[id] = Status.Refunded;

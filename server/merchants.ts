@@ -11,6 +11,8 @@ import type { Merchant, Network } from '../shared/api.ts'
 
 const arbiter = arbiterJson as { abi: Abi, bytecode: Hex }
 const MIN_WINDOW = { testnet: 60, mainnet: 24 * 3600 }
+// The resolver's deadline: long enough to read both sides (mainnet), at most what the contract allows (90 days).
+const MIN_RESOLVE_WINDOW = { testnet: 60, mainnet: 24 * 3600 }
 
 export type Verified = { ok: true, merchant: Omit<Merchant, 'name' | 'registeredAt'> } | { ok: false, error: string }
 
@@ -19,10 +21,10 @@ export async function verifyMerchant(address: Address, arbiterAddress: Address, 
   const code = await pub.getCode({ address: arbiterAddress })
   if (!code || code === '0x') return fail('No contract at the arbiter address.')
 
-  type View = 'merchant' | 'resolver' | 'acceptedTokens' | 'protectionWindow' | 'VERSION' | 'feeRecipient' | 'feeBps' | 'feeStart' | 'feeCap' | 'payoutPolicyId'
+  type View = 'merchant' | 'resolver' | 'acceptedTokens' | 'protectionWindow' | 'resolveWindow' | 'VERSION' | 'feeRecipient' | 'feeBps' | 'feeStart' | 'feeCap' | 'payoutPolicyId'
   const read = (functionName: View) => pub.readContract({ address: arbiterAddress, abi: arbiter.abi, functionName }) as Promise<unknown>
-  const [merchant, resolver, tokens, window, version, feeRecipient, feeBps, feeStart, feeCap, payoutPolicyId] = await Promise.all(
-    (['merchant', 'resolver', 'acceptedTokens', 'protectionWindow', 'VERSION', 'feeRecipient', 'feeBps', 'feeStart', 'feeCap', 'payoutPolicyId'] as View[]).map(read))
+  const [merchant, resolver, tokens, window, resolveWindow, version, feeRecipient, feeBps, feeStart, feeCap, payoutPolicyId] = await Promise.all(
+    (['merchant', 'resolver', 'acceptedTokens', 'protectionWindow', 'resolveWindow', 'VERSION', 'feeRecipient', 'feeBps', 'feeStart', 'feeCap', 'payoutPolicyId'] as View[]).map(read))
     .catch(() => [] as unknown[])
   if (typeof merchant !== 'string' || version !== 3n) return fail('The arbiter is not a current HeldArbiter (v3). Run setup again.')
   if (!isAddressEqual(merchant as Address, address)) return fail("The arbiter's merchant is not your wallet.")
@@ -32,6 +34,8 @@ export async function verifyMerchant(address: Address, arbiterAddress: Address, 
   if (isAddressEqual(resolver as Address, zeroAddress)) return fail('The arbiter has no resolver.')
   const minWindow = network.testnet ? MIN_WINDOW.testnet : MIN_WINDOW.mainnet
   if (Number(window) < minWindow) return fail(`The protection window must be at least ${minWindow} seconds.`)
+  const minResolve = network.testnet ? MIN_RESOLVE_WINDOW.testnet : MIN_RESOLVE_WINDOW.mainnet
+  if (Number(resolveWindow) < minResolve) return fail(`The resolver's deadline must be at least ${minResolve} seconds.`)
   // The fee is part of the deal Held lists: it must be exactly this network's (a shop can't opt out or redirect it).
   const fee = network.fee
   if (!isAddressEqual(feeRecipient as Address, fee.recipient) || Number(feeBps) !== fee.bps || feeStart !== BigInt(fee.start) || feeCap !== BigInt(fee.cap))
@@ -39,7 +43,7 @@ export async function verifyMerchant(address: Address, arbiterAddress: Address, 
 
   // Byte-for-byte: deploying the genuine HeldArbiter with these parameters must produce exactly the deployed code.
   const deployData = encodeDeployData({ abi: arbiter.abi, bytecode: arbiter.bytecode,
-    args: [merchant as Address, resolver as Address, accepted, window as bigint, fee.recipient, fee.bps, BigInt(fee.start), BigInt(fee.cap)] })
+    args: [merchant as Address, resolver as Address, accepted, window as bigint, resolveWindow as bigint, fee.recipient, fee.bps, BigInt(fee.start), BigInt(fee.cap)] })
   const { data: expected } = await pub.call({ data: deployData })
   if (!expected || expected.toLowerCase() !== code.toLowerCase()) return fail('The arbiter is not the genuine HeldArbiter contract.')
 
@@ -51,5 +55,5 @@ export async function verifyMerchant(address: Address, arbiterAddress: Address, 
     return fail("Your wallet's receive policy doesn't hold payments for this arbiter yet.")
 
   return { ok: true, merchant: { address, masterId, arbiter: arbiterAddress, resolver: resolver as Address,
-    acceptedTokens: accepted, window: Number(window) } }
+    acceptedTokens: accepted, window: Number(window), resolveWindow: Number(resolveWindow) } }
 }

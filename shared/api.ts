@@ -25,12 +25,14 @@ export interface StoredPayment {
   amount: string // base units (6 decimals)
   heldAt: number
   windowEndsAt: number
+  resolveBy?: number // disputed at a v3 shop: the resolver's deadline (unix); after it anyone can refund the payer
   txHash: Hex
   status: PaymentStatus
   history: HistoryEntry[]
 }
 export interface Payment extends StoredPayment {
   releasable: boolean
+  deadlinePassed: boolean // disputed and past resolveBy: the resolver can only refund now, and anyone can trigger it
 }
 
 // A merchant registered after the server verified their setup on-chain (see server/merchants.ts).
@@ -43,6 +45,7 @@ export interface Merchant {
   acceptedTokens: Address[] // stablecoins this shop accepts (v2 arbiter: up to 3)
   acceptedToken?: Address // v1 shops (one token); read through acceptedTokensOf()
   window: number // protection window, seconds
+  resolveWindow?: number // v3 shops: how long the resolver has to decide a dispute, seconds
   registeredAt: number
 }
 
@@ -73,7 +76,7 @@ export interface PublicLink { id: string, item: string, amount: string, active: 
 
 // What the API returns: the order, its merchant, its payments and one derived status.
 export interface Order extends StoredOrder {
-  merchantInfo: Pick<Merchant, 'name' | 'arbiter' | 'resolver' | 'window' | 'acceptedTokens'>
+  merchantInfo: Pick<Merchant, 'name' | 'arbiter' | 'resolver' | 'window' | 'resolveWindow' | 'acceptedTokens'>
   notes?: Record<string, Note[]> // by payment id; only for the order's merchant and the merchant's resolver
   status: OrderStatus
   underpaid: boolean
@@ -108,6 +111,7 @@ export interface Network {
   maxOrder: string // launch cap: the most one order or checkout link may charge, base units (6 decimals)
   defaultResolver: Address // suggested at merchant setup; merchants may choose another
   defaultWindow: number // seconds
+  defaultResolveWindow: number // seconds: the resolver's deadline suggested at setup (contract v3)
   // Held's fee (contract v3), written into every new shop's arbiter and never changeable for that shop: `bps` of each
   // released payment (max `cap` base units per payment, "0" = no cap) goes to `recipient`, from unix time `start` on.
   // Refunds never pay it. Testnet: a placeholder wallet with the fee on from the start, to exercise the split.

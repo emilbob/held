@@ -57,7 +57,7 @@ try {
   const merchantWallet = { kind: 'demo', name: 'test merchant', address: mAcct.address, client: walletFor(mAcct) } as never
   const t0 = Date.now(); let steps: string[] = []
   const setup = await runSetup({ wallet: merchantWallet, pub: pub as never, resolver: TEST_RESOLVER, tokens: TOKENS,
-    window: 120, fee: network.fee, state: {}, save: () => {}, onStep: (s) => steps.push(s) })
+    window: 120, resolveWindow: 120, fee: network.fee, state: {}, save: () => {}, onStep: (s) => steps.push(s) })
   check('setup from the merchant wallet: mine, register, deploy, policy', steps.join(',') === 'mine,register,deploy,policy,done', `${steps.join(' > ')} in ${Math.round((Date.now() - t0) / 1000)}s, arbiter ${setup.arbiter}`)
 
   // ---------------------------------------------------------------- auth + registration (and what must be refused)
@@ -78,13 +78,13 @@ try {
   const tampered = (arb.bytecode.slice(0, -40) + (arb.bytecode.at(-40) === 'a' ? 'b' : 'a') + arb.bytecode.slice(-39)) as Hex
   const f = network.fee
   const feeArgs = [f.recipient, f.bps, BigInt(f.start), BigInt(f.cap)] as const
-  const tHash = await retry(() => walletFor(mAcct).deployContract({ abi: arb.abi, bytecode: tampered, args: [mAcct.address, TEST_RESOLVER, TOKENS, 120n, ...feeArgs] }))
+  const tHash = await retry(() => walletFor(mAcct).deployContract({ abi: arb.abi, bytecode: tampered, args: [mAcct.address, TEST_RESOLVER, TOKENS, 120n, 120n, ...feeArgs] }))
   const tAddr = (await pub.waitForTransactionReceipt({ hash: tHash })).contractAddress!
   const fake = await call('POST', '/merchants', { name: 'x', arbiter: tAddr, masterId: setup.masterId }, token)
   check('register with a tampered arbiter (1 byte changed) -> refused', fake.status === 422 && /genuine/.test((fake.body as any).error), (fake.body as any).error)
 
   // The genuine code with the fee switched off (v3): a shop can't opt out of, or redirect, Held's fee.
-  const nHash = await retry(() => walletFor(mAcct).deployContract({ abi: arb.abi, bytecode: arb.bytecode, args: [mAcct.address, TEST_RESOLVER, TOKENS, 120n, '0x0000000000000000000000000000000000000000', 0, 0n, 0n] }))
+  const nHash = await retry(() => walletFor(mAcct).deployContract({ abi: arb.abi, bytecode: arb.bytecode, args: [mAcct.address, TEST_RESOLVER, TOKENS, 120n, 120n, '0x0000000000000000000000000000000000000000', 0, 0n, 0n] }))
   const nAddr = (await pub.waitForTransactionReceipt({ hash: nHash })).contractAddress!
   const noFee = await call('POST', '/merchants', { name: 'x', arbiter: nAddr, masterId: setup.masterId }, token)
   check('register a genuine arbiter with no fee -> refused', noFee.status === 422 && /fee/.test((noFee.body as any).error), (noFee.body as any).error)
@@ -148,8 +148,8 @@ try {
   const disputes = await call<{ orders: Order[] }>('GET', `/disputes?resolver=${TEST_RESOLVER}`)
   check("C is on the resolver's list", disputes.body.orders.some((x) => x.id === C.id))
 
-  // Dispute notes: the payer's must be signed by the paying wallet; the merchant replies with its session; only the
-  // merchant and the resolver (signed in) can read them.
+  // Dispute notes: the payer's must be signed by the paying wallet; the merchant replies with its session; the buyer's
+  // own link (unguessable key), the merchant and the signed-in resolver can read them.
   const cPay = (await waitStatus(C.key!, 'disputed')).payments[0]
   const reason = 'Nothing arrived by the promised date.'
   const fakeSig = await privateKeyToAccount(generatePrivateKey()).signMessage({ message: noteMessage(C.id, cPay.id, reason) })
@@ -158,7 +158,7 @@ try {
   check('buyer note signed by the paying wallet -> accepted', (await call('POST', '/notes', { paymentId: cPay.id, text: reason, signature: goodSig })).status === 201)
   check('stranger cannot reply -> 401', (await call('POST', '/notes', { paymentId: cPay.id, text: 'hi' }, sTok)).status === 401)
   check('merchant replies with its session', (await call('POST', '/notes', { paymentId: cPay.id, text: 'Shipped, tracking TR123.' }, token)).status === 201)
-  check('public order page has no notes', !(await call<Order>('GET', `/orders/${C.key}`)).body.notes)
+  check("the buyer's own link shows both notes", (await call<Order>('GET', `/orders/${C.key}`)).body.notes?.[cPay.id]?.length === 2)
   const mList = (await call<{ orders: Order[] }>('GET', '/orders', undefined, token)).body.orders.find((x) => x.id === C.id)
   check('merchant sees both notes', mList?.notes?.[cPay.id]?.map((n) => n.by).join() === 'buyer,merchant')
   check('resolver list without sign-in has no notes', !disputes.body.orders.find((x) => x.id === C.id)?.notes)
@@ -171,6 +171,36 @@ try {
   check('merchant cannot release a disputed payment (contract)', merchantTakes === 'reverted', merchantTakes)
   check("resolver refunds C from the resolver's wallet", (await act(rw, setup.arbiter, 'refund', rC)) === 'success')
   check('C -> refunded', (await waitStatus(C.key!, 'refunded')).status === 'refunded')
+
+  // ---------------------------------------------------------------- v3: buyer withdraws a dispute; resolver deadline
+  const G = (await call<Order>('POST', '/orders', { amount: '2', item: 'Order G' }, token)).body
+  const H = (await call<Order>('POST', '/orders', { amount: '2', item: 'Order H' }, token)).body
+  check('order shows the shop\'s resolver deadline', G.merchantInfo?.resolveWindow === 120, G.merchantInfo?.resolveWindow)
+  const rG = await pay(G); await waitStatus(G.key!, 'held')
+  check('buyer disputes G', (await act(bw, setup.arbiter, 'dispute', rG)) === 'success')
+  await waitStatus(G.key!, 'disputed')
+  check('buyer withdraws the dispute: G released to the merchant', (await act(bw, setup.arbiter, 'release', rG)) === 'success')
+  check('G -> released', (await waitStatus(G.key!, 'released')).status === 'released')
+
+  const rH = await pay(H); await waitStatus(H.key!, 'held')
+  check('buyer disputes H', (await act(bw, setup.arbiter, 'dispute', rH)) === 'success')
+  const oH = await waitStatus(H.key!, 'disputed')
+  const hPay = oH.payments[0]
+  const onchainDeadline = await pub.readContract({ address: setup.arbiter, abi: arb.abi, functionName: 'resolveDeadline', args: [rH] }) as bigint
+  check('indexer deadline = contract deadline', hPay.resolveBy === Number(onchainDeadline) && hPay.deadlinePassed === false, { indexer: hPay.resolveBy, contract: String(onchainDeadline) })
+  await fund(stranger.address) // so a refusal below is the contract's, not an empty wallet's
+  const strangerEarly = await act(walletFor(stranger), setup.arbiter, 'refund', rH).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
+  check('before the deadline a stranger cannot refund (contract)', strangerEarly === 'reverted', strangerEarly)
+  log(`  waiting for H's resolver deadline (${Math.max(0, Number(onchainDeadline) - Math.floor(Date.now() / 1000))}s)…`)
+  while (Math.floor(Date.now() / 1000) <= Number(onchainDeadline) + 2) await new Promise((res) => setTimeout(res, 2000))
+  const hNoteSig = await buyer.signMessage({ message: noteMessage(H.id, hPay.id, 'late note') })
+  check('notes close at the deadline -> 409', (await call('POST', '/notes', { paymentId: hPay.id, text: 'late note', signature: hNoteSig })).status === 409)
+  check('after the deadline the order says so', (await call<Order>('GET', `/orders/${H.key}`)).body.payments[0]?.deadlinePassed === true)
+  const lateRelease = await act(rw, setup.arbiter, 'release', rH).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
+  check('after the deadline the resolver cannot pay the merchant (contract)', lateRelease === 'reverted', lateRelease)
+  const bH0 = await bal(buyer.address)
+  check('after the deadline a stranger triggers the refund', (await act(walletFor(stranger), setup.arbiter, 'refund', rH)) === 'success')
+  check('H -> refunded, 100% to the buyer', (await waitStatus(H.key!, 'refunded')).status === 'refunded' && (await bal(buyer.address)) - bH0 === 2_000_000n)
 
   // ---------------------------------------------------------------- v2: several stablecoins, fee tokens, wrong tokens, launch cap
   const T1 = TOKENS[1]

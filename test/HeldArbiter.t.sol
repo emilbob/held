@@ -32,6 +32,7 @@ contract HeldArbiterTest is Test {
     uint64 constant REJECT_ALL = 0;
     uint64 constant ALLOW_ALL = 1;
     uint64 constant WINDOW = 7 days;
+    uint64 constant RESOLVE = 7 days; // the resolver's time to decide a dispute (v3)
 
     // The demo merchant from deployment.json. Its salt is public (revealed onchain at registration), so the tests
     // can register the same virtual master and pay real per-order virtual addresses.
@@ -78,7 +79,7 @@ contract HeldArbiterTest is Test {
     // ------------------------------------------------------------------ helpers
 
     function _deploy(uint16 bps, uint64 feeStart, uint256 cap) internal returns (HeldArbiter) {
-        return new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(usd2), address(usd3)), WINDOW, feeWallet, bps, feeStart, cap);
+        return new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(usd2), address(usd3)), WINDOW, RESOLVE, feeWallet, bps, feeStart, cap);
     }
 
     /// Point the merchant's receive policy at a fresh arbiter (as a merchant re-running setup would).
@@ -269,8 +270,8 @@ contract HeldArbiterTest is Test {
         bytes memory r = _payOrder(15e6);
         vm.prank(buyer);
         arbiter.dispute(r);
-        _expectRevert(HeldArbiter.NotAllowed.selector, buyer, Fn.Release, r);
         _expectRevert(HeldArbiter.NotAllowed.selector, MERCHANT, Fn.Release, r);
+        _expectRevert(HeldArbiter.NotAllowed.selector, stranger, Fn.Release, r);
         vm.warp(block.timestamp + WINDOW + 30 days);
         _expectRevert(HeldArbiter.NotAllowed.selector, stranger, Fn.Release, r);
         _expectRevert(HeldArbiter.NotAllowed.selector, MERCHANT, Fn.Release, r);
@@ -527,7 +528,7 @@ contract HeldArbiterTest is Test {
     }
 
     function test_SingleTokenShop() public {
-        HeldArbiter one = new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(0), address(0)), WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
+        HeldArbiter one = new HeldArbiter(MERCHANT, resolver, _list(address(usd), address(0), address(0)), WINDOW, RESOLVE, feeWallet, FEE_BPS, FEE_START, 0);
         address[] memory t = one.acceptedTokens();
         assertEq(t.length, 1);
         assertEq(one.token1(), address(0));
@@ -542,19 +543,133 @@ contract HeldArbiterTest is Test {
         address[] memory zero = new address[](2);
         zero[0] = address(usd);
         address[] memory ok = _list(address(usd), address(0), address(0));
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, none, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, four, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, dup, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, zero, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(address(0), resolver, ok, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, address(0), ok, WINDOW, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, none, WINDOW, RESOLVE, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, four, WINDOW, RESOLVE, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, dup, WINDOW, RESOLVE, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, zero, WINDOW, RESOLVE, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(address(0), resolver, ok, WINDOW, RESOLVE, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, address(0), ok, WINDOW, RESOLVE, feeWallet, FEE_BPS, FEE_START, 0);
         // Fee settings: above the 10% ceiling, a fee with no wallet, or the merchant as its own fee wallet.
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, feeWallet, 1001, FEE_START, 0);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, address(0), FEE_BPS, FEE_START, 0);
-        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, MERCHANT, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, RESOLVE, feeWallet, 1001, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, RESOLVE, address(0), FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, RESOLVE, MERCHANT, FEE_BPS, FEE_START, 0);
+        // Resolver deadline: zero (instant refund) or longer than 90 days.
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, 0, feeWallet, FEE_BPS, FEE_START, 0);
+        vm.expectRevert(HeldArbiter.BadConfig.selector); new HeldArbiter(MERCHANT, resolver, ok, WINDOW, 90 days + 1, feeWallet, FEE_BPS, FEE_START, 0);
         // A shop with no fee at all needs no fee wallet.
-        HeldArbiter free = new HeldArbiter(MERCHANT, resolver, ok, WINDOW, address(0), 0, 0, 0);
+        HeldArbiter free = new HeldArbiter(MERCHANT, resolver, ok, WINDOW, RESOLVE, address(0), 0, 0, 0);
         assertEq(free.feeFor(1_000e6), 0);
+    }
+
+    // ------------------------------------------------------------------ dispute withdraw + resolver deadline (v3)
+
+    function _disputed(uint256 amount) internal returns (bytes memory r) {
+        r = _payOrder(amount);
+        vm.prank(buyer);
+        arbiter.dispute(r);
+    }
+
+    function test_BuyerWithdrawsDispute_ReleasesToMerchant() public {
+        bytes memory r = _disputed(15e6);
+        uint256 before = usd.balanceOf(MERCHANT);
+        vm.expectEmit(true, true, false, true, address(arbiter));
+        emit Released(keccak256(r), buyer, 15e6);
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(MERCHANT) - before, 15e6);
+        assertEq(uint8(arbiter.statusOf(keccak256(r))), uint8(HeldArbiter.Status.Released));
+    }
+
+    function test_BuyerCanWithdrawEvenAfterDeadline() public {
+        bytes memory r = _disputed(15e6);
+        vm.warp(block.timestamp + RESOLVE + 1 days);
+        uint256 before = usd.balanceOf(MERCHANT);
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(MERCHANT) - before, 15e6);
+    }
+
+    function test_ResolveDeadlineView() public {
+        bytes memory r = _payOrder(15e6);
+        assertEq(arbiter.resolveDeadline(r), 0, "no deadline before a dispute");
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(buyer);
+        arbiter.dispute(r);
+        assertEq(arbiter.disputedAt(keccak256(r)), block.timestamp);
+        assertEq(arbiter.resolveDeadline(r), block.timestamp + RESOLVE);
+    }
+
+    function test_Deadline_NobodyButResolverRefundsBefore() public {
+        bytes memory r = _disputed(15e6);
+        vm.warp(block.timestamp + RESOLVE - 1);
+        _expectRevert(HeldArbiter.NotAllowed.selector, stranger, Fn.Refund, r);
+        _expectRevert(HeldArbiter.NotAllowed.selector, buyer, Fn.Refund, r);
+    }
+
+    function test_Deadline_AnyoneRefundsThePayerAfter() public {
+        bytes memory r = _disputed(15e6);
+        vm.warp(block.timestamp + RESOLVE);
+        uint256 before = usd.balanceOf(buyer);
+        vm.expectEmit(true, true, true, true, address(arbiter));
+        emit Refunded(keccak256(r), stranger, buyer, 15e6);
+        vm.prank(stranger);
+        arbiter.refund(r);
+        assertEq(usd.balanceOf(buyer) - before, 15e6, "the payer gets 100% back");
+        assertEq(usd.balanceOf(stranger), 1_000_000e6, "the caller gains nothing");
+    }
+
+    function test_Deadline_BuyerCanTriggerOwnRefund() public {
+        bytes memory r = _disputed(15e6);
+        vm.warp(block.timestamp + RESOLVE);
+        uint256 before = usd.balanceOf(buyer);
+        vm.prank(buyer);
+        arbiter.refund(r);
+        assertEq(usd.balanceOf(buyer) - before, 15e6);
+    }
+
+    function test_Deadline_ResolverCanNoLongerRelease() public {
+        bytes memory r = _disputed(15e6);
+        vm.warp(block.timestamp + RESOLVE);
+        _expectRevert(HeldArbiter.NotAllowed.selector, resolver, Fn.Release, r);
+        _expectRevert(HeldArbiter.NotAllowed.selector, MERCHANT, Fn.Release, r);
+        vm.prank(resolver);
+        arbiter.refund(r); // refunding is still allowed: it's the default outcome anyway
+        assertEq(uint8(arbiter.statusOf(keccak256(r))), uint8(HeldArbiter.Status.Refunded));
+    }
+
+    function test_Deadline_ResolverReleasesUntilLastSecond() public {
+        bytes memory r = _disputed(15e6);
+        vm.warp(block.timestamp + RESOLVE - 1);
+        uint256 before = usd.balanceOf(MERCHANT);
+        vm.prank(resolver);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(MERCHANT) - before, 15e6);
+    }
+
+    function test_Deadline_UndisputedPaymentHasNone() public {
+        bytes memory r = _payOrder(15e6);
+        vm.warp(block.timestamp + RESOLVE + WINDOW);
+        _expectRevert(HeldArbiter.NotAllowed.selector, stranger, Fn.Refund, r); // only release after the window
+    }
+
+    function test_Deadline_RefundAfterDeadlinePaysNoFee() public {
+        _useArbiter(_deploy(FEE_BPS, 0, 0)); // fee on from the start
+        bytes memory r = _disputed(100e6);
+        vm.warp(block.timestamp + RESOLVE);
+        uint256 before = usd.balanceOf(buyer);
+        vm.prank(stranger);
+        arbiter.refund(r);
+        assertEq(usd.balanceOf(buyer) - before, 100e6);
+        assertEq(usd.balanceOf(feeWallet), 0);
+    }
+
+    function testFuzz_DeadlineBoundary(uint64 elapsed) public {
+        bytes memory r = _disputed(15e6);
+        elapsed = uint64(bound(elapsed, 0, 2 * RESOLVE));
+        vm.warp(block.timestamp + elapsed);
+        vm.prank(stranger);
+        if (elapsed < RESOLVE) { vm.expectRevert(HeldArbiter.NotAllowed.selector); arbiter.refund(r); }
+        else arbiter.refund(r);
     }
 
     // ------------------------------------------------------------------ fee (v3)

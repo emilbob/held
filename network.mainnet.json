@@ -21,6 +21,7 @@
   "maxOrder": "250000000",
   "defaultResolver": "0xcFbD7f2A368347d71A2e22fEC1C9206601d781B9",
   "defaultWindow": 604800,
+  "defaultResolveWindow": 604800,
   "fee": {
     "recipient": "0x0000000000000000000000000000000000000000",
     "bps": 100,

@@ -34,7 +34,7 @@ if (!state.arbiter) {
 }
 const t0 = Date.now()
 const r = await runSetup({ wallet: { kind: 'demo', name: 'sandbox', address: merchant.address, client: walletFor(merchant) } as never,
-  pub: pub as never, resolver: resolver.address, tokens: TOKENS, window: 300, fee: network.fee, state, save,
+  pub: pub as never, resolver: resolver.address, tokens: TOKENS, window: 300, resolveWindow: 600, fee: network.fee, state, save,
   onStep: (s) => log(`  ${s}${s === 'done' ? ` (${Math.round((Date.now() - t0) / 1000)}s)` : ''}`) })
 log(`sandbox shop: merchant ${merchant.address}, arbiter ${r.arbiter}, resolver ${resolver.address}`)
 

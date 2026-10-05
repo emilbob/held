@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
 import * as W from './wallet.ts'
-import { api, session, signInWallet, usePoll, useWallet, useConfig, WalletPicker, Result, Notes, usd, short, txUrl, addrUrl, type Msg } from './ui.tsx'
+import { api, session, signInWallet, usePoll, useNow, useWallet, useConfig, countdown, WalletPicker, Result, Notes, usd, short, txUrl, addrUrl, type Msg } from './ui.tsx'
 import type { Order } from '../../shared/api.ts'
 
 export default function Resolve() {
@@ -73,7 +73,10 @@ export default function Resolve() {
 function Dispute({ order: o, wallet, signedIn, signIn, signing }: { order: Order, wallet: W.Wallet, signedIn: boolean, signIn: () => void, signing: boolean }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<Msg>(null)
+  const now = useNow()
   const p = o.payments.find((x) => x.status === 'disputed')!
+  // v3 shops: decide before resolveBy; after it the contract only lets anyone refund the buyer.
+  const late = !!p.resolveBy && now >= p.resolveBy
   const disputedTx = p.history.find((h) => h.status === 'disputed')?.tx
   const decide = async (fn: 'refund' | 'release', done: string) => {
     setBusy(fn); setMsg(null)
@@ -92,6 +95,9 @@ function Dispute({ order: o, wallet, signedIn, signIn, signing }: { order: Order
         {' '}· <a href={txUrl(p.txHash)} target="_blank">payment</a>{disputedTx && <> · <a href={txUrl(disputedTx)} target="_blank">dispute</a></>}
         {o.key && <> · <a href={`#/pay/${o.key}`}>Buyer page →</a></>}
       </div>
+      {p.resolveBy && (late
+        ? <p className="warn small">Your deadline to decide has passed: the buyer gets their money back. You can still refund now; paying the merchant is no longer possible.</p>
+        : <p className="muted small">Decide within <b className="ink">{countdown(p.resolveBy - now)}</b>. If you don't, the buyer gets their money back.</p>)}
       {/* Notes are private, so they come only with a sign-in. Ask for it right here, before the decision buttons,
           so nobody decides without reading both sides. */}
       {signedIn
@@ -105,7 +111,7 @@ function Dispute({ order: o, wallet, signedIn, signIn, signing }: { order: Order
         )}
       <div className="actions resolver">
         <button className={signedIn ? 'primary' : ''} disabled={!!busy} onClick={() => decide('refund', 'Refunded to the buyer.')}>{busy === 'refund' ? '…' : 'Refund buyer'}</button>
-        <button disabled={!!busy} onClick={() => decide('release', 'Paid to the merchant.')}>{busy === 'release' ? '…' : 'Pay merchant'}</button>
+        {!late && <button disabled={!!busy} onClick={() => decide('release', 'Paid to the merchant.')}>{busy === 'release' ? '…' : 'Pay merchant'}</button>}
       </div>
       <Result msg={msg} />
     </div>

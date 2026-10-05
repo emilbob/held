@@ -32,6 +32,8 @@ contract Handler is Test {
 
     struct P { bytes receipt; address payer; uint8 token; uint256 amount; }
     P[] public payments;
+    // Set if a dispute past its resolve deadline ever ended with the merchant by anyone but its payer.
+    bool public lateReleaseByOther;
     uint48 nextOrder = 5000;
 
     constructor(HeldArbiter a, address m, address r, address[] memory ps, address s, ITIP20[4] memory ts) {
@@ -73,9 +75,15 @@ contract Handler is Test {
         if (payments.length == 0) return;
         uint256 i = idx % payments.length;
         bytes memory r = payments[i].receipt;
-        vm.prank(_who(callerSeed, i));
+        address caller = _who(callerSeed, i);
+        bytes32 id = keccak256(r);
+        bool lateDispute = arbiter.statusOf(id) == HeldArbiter.Status.Disputed && block.timestamp >= arbiter.resolveDeadline(r);
+        vm.prank(caller);
         fn = fn % 3;
-        if (fn == 0) try arbiter.release(r) {} catch {}
+        if (fn == 0) {
+            try arbiter.release(r) {} catch {}
+            if (lateDispute && caller != payments[i].payer && arbiter.statusOf(id) == HeldArbiter.Status.Released) lateReleaseByOther = true;
+        }
         else if (fn == 1) try arbiter.refund(r) {} catch {}
         else try arbiter.dispute(r) {} catch {}
     }
@@ -91,6 +99,7 @@ contract HeldArbiterInvariantTest is Test {
     address constant MERCHANT = 0xeDaCEd839530f85591cC7b5db6C1d79a7e6563ed;
     bytes32 constant SALT = 0x000000000000000000000000000000000000000000000000000000013b771de3;
     uint64 constant WINDOW = 7 days;
+    uint64 constant RESOLVE = 3 days; // shorter than the handler's longest wait, so random runs cross deadlines
 
     Handler h;
     HeldArbiter arbiter;
@@ -112,7 +121,7 @@ contract HeldArbiterInvariantTest is Test {
         address[] memory accepted = new address[](3);
         for (uint256 i; i < 3; i++) accepted[i] = address(tokens[i]);
         // Fee on from the start (v3), so every random release exercises the split.
-        arbiter = new HeldArbiter(MERCHANT, resolver, accepted, WINDOW, feeWallet, FEE_BPS, uint64(block.timestamp), 0);
+        arbiter = new HeldArbiter(MERCHANT, resolver, accepted, WINDOW, RESOLVE, feeWallet, FEE_BPS, uint64(block.timestamp), 0);
         vm.startPrank(MERCHANT);
         StdPrecompiles.ADDRESS_REGISTRY.registerVirtualMaster(SALT);
         REG403.setReceivePolicy(arbiter.payoutPolicyId(), 1, address(arbiter));
@@ -160,6 +169,12 @@ contract HeldArbiterInvariantTest is Test {
         }
         assertEq(tokens[3].balanceOf(MERCHANT), start[MERCHANT][3], "merchant never receives an unaccepted token");
         assertEq(tokens[3].balanceOf(feeWallet), 0, "no fee is ever taken from an unaccepted token");
+    }
+
+    /// Past a dispute's resolve deadline only the buyer can still send the money to the merchant (withdrawing their
+    /// dispute); everyone else, the resolver included, can only refund.
+    function invariant_LateDisputeOnlyRefundsUnlessBuyerWithdraws() public view {
+        assertFalse(h.lateReleaseByOther(), "an expired dispute reached the merchant without the buyer");
     }
 
     /// The arbiter splits a release inside one transaction: it never ends a call holding any token.

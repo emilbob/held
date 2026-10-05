@@ -1,8 +1,8 @@
 // Merchant setup, run from the merchant's own wallet (nothing here touches Held's server or any shared key):
 //   1. mine a TIP-1022 salt for the checkout address (proof of work, in Web Workers; minutes)
 //   2. register the checkout address as a virtual-address master (one tx)
-//   3. deploy the merchant's own HeldArbiter (merchant, resolver, accepted stablecoins, protection window, and Held's
-//      fee settings, fixed for this shop) (one tx)
+//   3. deploy the merchant's own HeldArbiter (merchant, resolver, accepted stablecoins, protection window, resolver
+//      deadline, and Held's fee settings, fixed for this shop) (one tx)
 //   4. set the receive policy: hold every incoming payment, with that arbiter as the only recovery authority; only the
 //      arbiter's own payouts (the merchant's share of a release with a fee) pass straight through (one tx)
 // Every step is skipped if already done and saved after each one, so a reload never repeats a finished step.
@@ -52,7 +52,7 @@ async function mine(address: Address, onProgress: ((m: MiningProgress) => void) 
 }
 
 export async function runSetup(p: {
-  wallet: Wallet, pub: PublicClient, resolver: Address, tokens: Address[], window: number, fee: Network['fee'],
+  wallet: Wallet, pub: PublicClient, resolver: Address, tokens: Address[], window: number, resolveWindow: number, fee: Network['fee'],
   state: SetupState, save: (s: SetupState) => void,
   onStep: (s: SetupStep) => void, onProgress?: (m: MiningProgress) => void, signal?: AbortSignal,
 }): Promise<{ masterId: Hex, arbiter: Address }> {
@@ -87,7 +87,7 @@ export async function runSetup(p: {
     (await pub.readContract({ address: state.arbiter, abi: arbiter.abi, functionName: 'VERSION' }).catch(() => 0n)) === 3n
   if (!current) {
     const f = p.fee
-    const args = [me, p.resolver, p.tokens, BigInt(p.window), f.recipient, f.bps, BigInt(f.start), BigInt(f.cap)] as const
+    const args = [me, p.resolver, p.tokens, BigInt(p.window), BigInt(p.resolveWindow), f.recipient, f.bps, BigInt(f.start), BigInt(f.cap)] as const
     // Tempo Wallet (Accounts SDK 0.18) drops the bytecode of a transaction without `to` and sends an empty call to
     // 0x0, so a plain deploy "succeeds" without creating anything. An explicit create call (no `to`) goes through.
     const hash = wallet.kind === 'tempo' && wallet.provider

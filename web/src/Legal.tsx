@@ -38,7 +38,9 @@ export function Terms() {
           <li><b>Protection window:</b> the buyer can dispute until the window shown on the order ends. After that, anyone can release
             the payment to the merchant.</li>
           <li><b>Disputes:</b> decided by the resolver the merchant chose at setup. The resolver can only refund the buyer or pay the
-            merchant; that decision happens on-chain and is final.</li>
+            merchant; that decision happens on-chain and is final. The resolver must decide within the deadline the shop set; after it,
+            the buyer can take their money back and the merchant can no longer be paid. The buyer can withdraw their dispute, which pays
+            the merchant.</li>
           <li><b>Wrong token:</b> a payment in a token the shop doesn't accept is never paid to the merchant; the payer can take it back.</li>
         </ul>
 

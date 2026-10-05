@@ -62,7 +62,12 @@ export function createIndexer({ store }: { store: Db }) {
       const status = decisionStatus[l.eventName]
       if (p.history.some((h) => h.tx === l.transactionHash && h.status === status)) continue
       p.status = status
-      if (status === 'disputed') newDisputes.push(p.id)
+      if (status === 'disputed') {
+        newDisputes.push(p.id)
+        // v3 shops: the resolver's deadline counts from the dispute's block (rare event, so one extra call is fine).
+        const m = store.merchants[p.merchant.toLowerCase()]
+        if (m?.resolveWindow) p.resolveBy = Number((await pub.getBlock({ blockNumber: l.blockNumber })).timestamp) + m.resolveWindow
+      }
       p.history.push({ status, tx: l.transactionHash, by: 'caller' in l.args ? l.args.caller : l.args.originator, block: Number(l.blockNumber) })
     }
   }
@@ -101,10 +106,11 @@ export function orderView(store: Db, order: StoredOrder, now = Math.floor(Date.n
   const paid = payments.filter((p) => !p.wrongToken).reduce((a, p) => a + BigInt(p.amount), 0n)
   return {
     ...order,
-    merchantInfo: { name: m.name, arbiter: m.arbiter, resolver: m.resolver, window: m.window, acceptedTokens: acceptedTokensOf(m) },
+    merchantInfo: { name: m.name, arbiter: m.arbiter, resolver: m.resolver, window: m.window, resolveWindow: m.resolveWindow, acceptedTokens: acceptedTokensOf(m) },
     status,
     underpaid: main ? paid < BigInt(order.amount) : false,
     payments: payments.map(({ history, ...p }) => ({ ...p, history,
-      releasable: p.status === 'held' && now >= p.windowEndsAt })),
+      releasable: p.status === 'held' && now >= p.windowEndsAt,
+      deadlinePassed: p.status === 'disputed' && !!p.resolveBy && now >= p.resolveBy })),
   }
 }

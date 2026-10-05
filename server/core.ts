@@ -298,6 +298,7 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const order = pay && Object.values(s0.orders).find((o) => o.address.toLowerCase() === pay.recipient.toLowerCase())
       if (!pay || !order) return ok({ error: 'Payment not found.' }, 404)
       if (pay.status === 'released' || pay.status === 'refunded') return ok({ error: 'This payment is already settled.' }, 409)
+      if (pay.resolveBy && now() >= pay.resolveBy) return ok({ error: "The resolver's deadline has passed: notes are closed." }, 409)
       let by: Note['by'] | null = null
       if (typeof signature === 'string') {
         const valid = await pub.verifyMessage({ address: pay.payer, message: noteMessage(order.id, pay.id, text), signature: signature as Hex }).catch(() => false)

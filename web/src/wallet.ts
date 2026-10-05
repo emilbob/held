@@ -143,6 +143,17 @@ export async function reconnectInjected(rdns: string, address: string): Promise<
     client: createWalletClient({ account: accounts[0] as Address, chain, transport: custom(iw.provider) }) }
 }
 
+// Same for Tempo Wallet: the SDK remembers the connected account for this site, and eth_accounts returns it without a
+// popup. Only if it's still the account this role picked (the SDK holds one account shared by every role).
+export async function reconnectTempo(address: string): Promise<Wallet | null> {
+  const provider = await tempoWalletProvider()
+  const timeout = new Promise<string[]>((r) => setTimeout(() => r([]), 3000))
+  const [account] = await Promise.race([provider.request({ method: 'eth_accounts' }).catch(() => [] as string[]), timeout])
+  if (account?.toLowerCase() !== address.toLowerCase()) return null
+  return { kind: 'tempo', name: 'Tempo Wallet', address: account as Address, provider,
+    client: createWalletClient({ account: account as Address, chain: tempoChain, transport: custom(provider) }) as Wallet['client'] }
+}
+
 export async function connect(kind: WalletKind, injected?: InjectedWallet, role: Role = 'buyer', sandboxKey?: Hex): Promise<Wallet> {
   // Testnet sandbox: a shared, PUBLIC test key for the sandbox shop's merchant or resolver.
   if (kind === 'sandbox') {

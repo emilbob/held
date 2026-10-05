@@ -5,7 +5,7 @@ import { CountUp, useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
 import QRCode from 'qrcode'
 import * as W from './wallet.ts'
-import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Steps, Result, usd, short, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
+import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, walletFits, Badge, Steps, Result, usd, short, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
 import { noteMessage, NOTE_MAX, tokenSymbol, type Order, type OrderStatus } from '../../shared/api.ts'
 import type { Address } from 'viem'
 
@@ -48,9 +48,14 @@ export default function Pay({ id }: { id: string }) {
   // Paid out or refunded: nothing left for the buyer to do (unless a wrong-token payment still needs returning).
   const settled = (status === 'released' || status === 'refunded') && !wrong.some((p) => p.status === 'held')
   const arbiter = order.merchantInfo.arbiter
-  // This browser is signed in as the order's merchant (testing your own shop, or the sandbox): offer the way back.
-  // A real buyer never sees it.
-  const merchantHere = session.get()?.address.toLowerCase() === order.merchant.toLowerCase()
+  // The sandbox shop is paid with a test wallet; a real shop with Tempo Wallet or a browser wallet.
+  const sandbox = isSandboxShop(cfg, order.merchant)
+  const choice = sandbox ? 'test' : 'real'
+  // Only for paying: an order already paid stays with the wallet that paid it, whatever kind it is.
+  const wrongKind = status === 'awaiting_payment' && !!wallet && !walletFits(wallet.kind, choice)
+  // Sandbox only, and only if this browser is signed in as its merchant: the way back to the dashboard. Buyers of a
+  // real shop never see it.
+  const merchantHere = sandbox && session.get()?.address.toLowerCase() === order.merchant.toLowerCase()
   const back = <a className="back" href="#/merchant">← Back to your orders</a>
   const accepted = order.merchantInfo.acceptedTokens
   const me = wallet?.address.toLowerCase()
@@ -79,7 +84,6 @@ export default function Pay({ id }: { id: string }) {
 
   return (
     <div className="pay" ref={root}>
-      {merchantHere && back}
       <div className="card checkout">
         <Steps status={status} />
         <div className="merchant">{order.merchantInfo.name} · Order #{order.id}</div>
@@ -126,9 +130,9 @@ export default function Pay({ id }: { id: string }) {
 
       {!settled && <div className="card walletbox">
         <h2>Your wallet</h2>
-        <WalletPicker w={w} />
+        <WalletPicker w={w} choice={status === 'awaiting_payment' ? choice : 'any'} />
 
-        {wallet && status === 'awaiting_payment' && (
+        {wallet && !wrongKind && status === 'awaiting_payment' && (
           <div className="actions">
             {accepted.length > 1 && (
               <div className="paywith" role="group" aria-label="Pay with">
@@ -198,8 +202,8 @@ export default function Pay({ id }: { id: string }) {
         ))}
         <Result msg={msg} />
       </div>}
-      {/* After an action: the wallet box disappears once the order settles, so the way back lives out here. */}
-      {merchantHere && (msg?.ok || settled) && <p className="after">{back}</p>}
+      {/* Below the wallet box, so it's still there once the order settles and the box disappears. */}
+      {merchantHere && <p className="after">{back}</p>}
     </div>
   )
 }

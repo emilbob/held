@@ -165,18 +165,20 @@ export function useWallet(role: W.Role) {
     const sb = (await getConfig()).sandbox
     return role === 'merchant' ? sb?.merchantKey : role === 'resolver' ? sb?.resolverKey : undefined
   }
-  // A browser wallet (MetaMask) also remembers which one and which account, to reconnect it quietly on reload.
+  // A browser wallet (MetaMask) or Tempo Wallet also remembers which one and which account, to reconnect it quietly
+  // on reload or on the next page (connected on the landing, used on the dashboard).
   const injectedKey = `${rememberKey}.injected`
   // True while a remembered wallet reconnects, so pages don't flash "connect a wallet" first.
-  const [restoring, setRestoring] = useState(() => ['demo', 'sandbox', 'injected'].includes(localStorage.getItem(rememberKey) ?? ''))
+  const [restoring, setRestoring] = useState(() => ['demo', 'sandbox', 'injected', 'tempo'].includes(localStorage.getItem(rememberKey) ?? ''))
   useEffect(() => {
     const k = localStorage.getItem(rememberKey)
     const done = () => setRestoring(false)
-    if (k === 'injected') {
+    if (k === 'injected' || k === 'tempo') {
       let saved: { rdns: string, address: string } | null = null
       try { saved = JSON.parse(localStorage.getItem(injectedKey) || 'null') } catch {}
       if (!saved) done()
-      else W.reconnectInjected(saved.rdns, saved.address).then((w) => { if (w) { setWallet(w); topUp(w) } }, () => {}).finally(done)
+      else (k === 'tempo' ? W.reconnectTempo(saved.address) : W.reconnectInjected(saved.rdns, saved.address))
+        .then((w) => { if (w) { setWallet(w); topUp(w) } }, () => {}).finally(done)
     }
     if (k === 'demo') W.connect('demo', undefined, role).then((w) => { setWallet(w); topUp(w) }).finally(done)
     if (k === 'sandbox') sandboxKey().then((key) => W.connect('sandbox', undefined, role, key)).then((w) => { setWallet(w); topUp(w) }, () => localStorage.removeItem(rememberKey)).finally(done)
@@ -192,7 +194,7 @@ export function useWallet(role: W.Role) {
     try {
       const w = await W.connect(kind, injected, role, kind === 'sandbox' ? await sandboxKey() : undefined)
       localStorage.setItem(rememberKey, kind)
-      if (kind === 'injected') localStorage.setItem(injectedKey, JSON.stringify({ rdns: injected?.rdns ?? 'injected', address: w.address }))
+      if (kind === 'injected' || kind === 'tempo') localStorage.setItem(injectedKey, JSON.stringify({ rdns: kind === 'tempo' ? 'tempo' : injected?.rdns ?? 'injected', address: w.address }))
       setWallet(w)
       await topUp(w)
     } catch (e) { setError(W.explain(e)) }
@@ -217,8 +219,15 @@ export function useWallet(role: W.Role) {
   return { wallet, restoring, balance, balances, toppingUp, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, role }
 }
 
-export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, note?: string }) {
-  if (w.wallet) return (
+/** Which wallets a picker offers: 'test' only the test wallet in this browser (paying the sandbox shop), 'real' only
+ *  Tempo Wallet and browser wallets (paying a real shop), 'any' both (test wallet on testnet only). */
+export type WalletChoice = 'any' | 'test' | 'real'
+export const walletFits = (kind: W.WalletKind, choice: WalletChoice) =>
+  choice === 'any' || (choice === 'test' ? kind === 'demo' : kind === 'tempo' || kind === 'injected')
+
+export function WalletPicker({ w, note, choice = 'any' }: { w: ReturnType<typeof useWallet>, note?: string, choice?: WalletChoice }) {
+  // A connected wallet of a kind this picker doesn't offer (e.g. a test wallet on a real shop) counts as none.
+  if (w.wallet && walletFits(w.wallet.kind, choice)) return (
     <p className="walletline"><a href={addrUrl(w.wallet.address)} target="_blank">{short(w.wallet.address)}</a> · {w.balance === null ? '…' : usd(w.balance)} {W.NET.tokens.length > 1 ? 'in stablecoins' : W.NET.tokens[0].symbol}
       <span className="muted"> ({w.wallet.name})</span>
       {' '}<button className="secondary small" onClick={w.disconnect}>Change wallet</button></p>
@@ -227,14 +236,18 @@ export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, not
     <div className="actions picker">
       {/* No sandbox button here: the sandbox is entered only from #/sandbox, so a real merchant or resolver is never
           steered into the shared test shop. */}
-      <button className="primary" onClick={() => w.connect('tempo')} disabled={w.busy}>{w.busy ? 'Connecting…' : 'Tempo Wallet'}</button>
-      {w.installed.map((iw) => (
-        <button key={iw.rdns} className="ghost" onClick={() => w.connect('injected', iw)} disabled={w.busy}>
-          {iw.icon && <img src={iw.icon} alt="" className="wicon" />}{iw.name}
-        </button>
-      ))}
-      {w.testnet && <button className="secondary" onClick={() => w.connect('demo')} disabled={w.busy}>Test wallet in this browser</button>}
-      <p className="muted small">{note ?? 'Tempo Wallet signs with a passkey (Face ID / Touch ID). No extension, no seed phrase.'}</p>
+      {choice !== 'test' && <>
+        <button className="primary" onClick={() => w.connect('tempo')} disabled={w.busy}>{w.busy ? 'Connecting…' : 'Tempo Wallet'}</button>
+        {w.installed.map((iw) => (
+          <button key={iw.rdns} className="ghost" onClick={() => w.connect('injected', iw)} disabled={w.busy}>
+            {iw.icon && <img src={iw.icon} alt="" className="wicon" />}{iw.name}
+          </button>
+        ))}
+      </>}
+      {w.testnet && choice !== 'real' && <button className={choice === 'test' ? 'primary' : 'secondary'} onClick={() => w.connect('demo')} disabled={w.busy}>
+        {w.busy && choice === 'test' ? 'Connecting…' : 'Test wallet in this browser'}</button>}
+      <p className="muted small">{note ?? (choice === 'test' ? 'A throwaway wallet kept in this browser, topped up with free test funds.'
+        : 'Tempo Wallet signs with a passkey (Face ID / Touch ID). No extension, no seed phrase.')}</p>
       {w.error && <Result msg={{ ok: false, text: w.error }} />}
     </div>
   )

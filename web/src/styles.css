@@ -289,6 +289,10 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .landing2 .ctas { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px }
 .landing2 .cta { font-size: 15px; padding: 11px 22px; border-radius: 10px }
 .landing2 .hint { margin-top: 18px; font-size: 13px; color: var(--muted) }
+.landing2 .connectfirst { margin-top: 18px; max-width: 420px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface) }
+.landing2 .connectfirst > p { margin: 0 0 12px; font-size: 14px }
+.landing2 .connectfirst .picker p { margin: 4px 0 0 }
+.final .hint { text-align: center }
 
 .hero2 { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px; align-items: center; min-height: calc(100vh - 160px); padding: 24px 0 40px }
 .eyebrow { display: inline-flex; align-items: center; gap: 14px; font-size: 14px; color: var(--muted) }

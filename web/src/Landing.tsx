@@ -3,7 +3,7 @@
 // frame follows the step you're reading, the film, the guarantee, and a way in.
 import { useEffect, useRef, useState } from 'react'
 import Logo from './Logo.tsx'
-import { useConfig } from './ui.tsx'
+import { useConfig, useWallet, walletFits, WalletPicker } from './ui.tsx'
 import { LineReveal, Scramble, useEntrance, useMagnetic, useScrollEntrance } from './anim.tsx'
 import { HeldFrame, type FramePhase } from './HeldFrame.tsx'
 
@@ -28,6 +28,20 @@ export default function Landing() {
   const cta1 = useMagnetic<HTMLButtonElement>(), cta2 = useMagnetic<HTMLButtonElement>()
   useEntrance(hero, '.hero-copy > :not(h1):not(.ctas), .ctas .cta', true, { stagger: 0.09 })
   const sandbox = cfg?.testnet && cfg.sandbox?.arbiter
+  // "Start accepting payments" stays locked until the merchant connects a real wallet (Tempo Wallet or a browser
+  // wallet): the sandbox's shared merchant or a test wallet doesn't count. The dashboard then reopens that wallet.
+  const w = useWallet('merchant')
+  const ready = !!w.wallet && walletFits(w.wallet.kind, 'real')
+  const start = (ref?: typeof cta1) => (
+    <button ref={ref} className={`cta ${ref || !sandbox ? 'primary' : ''}`} disabled={!ready} aria-describedby={ready ? undefined : 'connectfirst'}
+      onClick={() => { location.hash = '#/merchant' }}>Start accepting payments</button>
+  )
+  const connect = !ready && !w.restoring && (
+    <div className="connectfirst">
+      <p id="connectfirst"><b>Connect your wallet first</b> to start accepting payments: Tempo Wallet or a browser wallet like MetaMask.</p>
+      <WalletPicker w={w} choice="real" note="Use a wallet dedicated to your shop: it becomes your checkout address." />
+    </div>
+  )
   return (
     <div className="landing2">
       <section className="hero2" ref={hero}>
@@ -37,9 +51,10 @@ export default function Landing() {
           <p className="lede">Held sets up a merchant checkout where Tempo holds the buyer's payment until delivery. The Held arbiter contract is the
             only way out: it can release the funds to the merchant or refund the buyer. No custodian. No platform risk.</p>
           <div className="ctas">
-            <a href="#/merchant"><button ref={cta1} className="primary cta">Start accepting payments</button></a>
+            {start(cta1)}
             {sandbox && <a href="#/sandbox"><button ref={cta2} className="cta">Try the sandbox (2 min)</button></a>}
           </div>
+          {connect}
           <p className="hint">Buying something? Open the checkout link your merchant sent you.</p>
         </div>
         <div className="hero-visual"><HeldFrame cycle className="frame-canvas" /></div>
@@ -55,8 +70,9 @@ export default function Landing() {
         <p>{sandbox ? 'A shop is already set up on Tempo testnet. Play merchant, buyer and resolver, and try to cheat: the contract refuses.' : 'Set up your shop from your own wallet in a few minutes.'}</p>
         <div className="ctas">
           {sandbox && <a href="#/sandbox"><button className="primary cta">Try the sandbox</button></a>}
-          <a href="#/merchant"><button className={`cta ${sandbox ? '' : 'primary'}`}>Start accepting payments</button></a>
+          {start()}
         </div>
+        {!ready && !w.restoring && <p className="hint">Connect your wallet at the top of this page to start accepting payments.</p>}
         <p className="askfb">Held is in beta, and your feedback decides what we build next. <a href="#/feedback">Tell us what you think</a>.</p>
       </section>
     </div>

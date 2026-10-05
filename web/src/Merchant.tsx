@@ -373,7 +373,8 @@ function Links() {
           <div className="actions">
             <button className="small" onClick={() => copy('url' + l.id, linkUrl(l.id))}>{copied === 'url' + l.id ? 'Copied ✓' : 'Copy link'}</button>
             <button className="small" onClick={() => copy('btn' + l.id, buttonHtml(l.id, l.amount))}>{copied === 'btn' + l.id ? 'Copied ✓' : 'Copy button code'}</button>
-            <span className="preview" dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
+            {/* Only a picture of the button: clicking it here would make the merchant a buyer and create a new order. */}
+            <span className="preview" title="Preview of the button for your website" aria-hidden="true" inert dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
           </div>
           {copied === 'failed' && <p className="muted small">Couldn't copy: select the link above instead.</p>}
         </>

@@ -42,7 +42,7 @@ export default function Resolve() {
         <WalletPicker w={w} note="Use the wallet merchants set as their resolver." />
         {w.wallet && !signedIn && (
           <p className="signin">
-            <button className="small" disabled={signing} onClick={signIn}>{signing ? 'Waiting for signature…' : 'Sign in to see the notes'}</button>
+            <button className="primary small" disabled={signing} onClick={signIn}>{signing ? 'Waiting for signature…' : 'Sign in to see the notes'}</button>
             {' '}<span className="muted small">Buyer and merchant notes are private: sign a message (free, moves no funds) to read them.</span>
           </p>
         )}
@@ -65,12 +65,12 @@ export default function Resolve() {
       {addr && data && data.orders.length === 0 && (
         <div className="card empty"><b>No open disputes.</b> <span className="muted">When a buyer disputes a payment at a shop that chose {short(addr)} as its resolver, it appears here.</span></div>
       )}
-      {w.wallet && data?.orders.map((o) => <Dispute key={o.id} order={o} wallet={w.wallet!} />)}
+      {w.wallet && data?.orders.map((o) => <Dispute key={o.id} order={o} wallet={w.wallet!} signedIn={signedIn} signIn={signIn} signing={signing} />)}
     </div>
   )
 }
 
-function Dispute({ order: o, wallet }: { order: Order, wallet: W.Wallet }) {
+function Dispute({ order: o, wallet, signedIn, signIn, signing }: { order: Order, wallet: W.Wallet, signedIn: boolean, signIn: () => void, signing: boolean }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<Msg>(null)
   const p = o.payments.find((x) => x.status === 'disputed')!
@@ -92,9 +92,19 @@ function Dispute({ order: o, wallet }: { order: Order, wallet: W.Wallet }) {
         {' '}· <a href={txUrl(p.txHash)} target="_blank">payment</a>{disputedTx && <> · <a href={txUrl(disputedTx)} target="_blank">dispute</a></>}
         {o.key && <> · <a href={`#/pay/${o.key}`}>Buyer page →</a></>}
       </div>
-      <Notes notes={o.notes?.[p.id]} />
+      {/* Notes are private, so they come only with a sign-in. Ask for it right here, before the decision buttons,
+          so nobody decides without reading both sides. */}
+      {signedIn
+        ? (o.notes?.[p.id]?.length ? <Notes notes={o.notes[p.id]} /> : <p className="muted small">Neither side left a note.</p>)
+        : (
+          <div className="resolvecall">
+            <p><b>Read both sides before you decide.</b> The buyer's and the merchant's notes are private: sign a message
+              (free, moves no funds) to see them.</p>
+            <button className="primary" disabled={signing} onClick={signIn}>{signing ? 'Waiting for signature…' : 'Sign in to read the notes'}</button>
+          </div>
+        )}
       <div className="actions resolver">
-        <button className="primary" disabled={!!busy} onClick={() => decide('refund', 'Refunded to the buyer.')}>{busy === 'refund' ? '…' : 'Refund buyer'}</button>
+        <button className={signedIn ? 'primary' : ''} disabled={!!busy} onClick={() => decide('refund', 'Refunded to the buyer.')}>{busy === 'refund' ? '…' : 'Refund buyer'}</button>
         <button disabled={!!busy} onClick={() => decide('release', 'Paid to the merchant.')}>{busy === 'release' ? '…' : 'Pay merchant'}</button>
       </div>
       <Result msg={msg} />

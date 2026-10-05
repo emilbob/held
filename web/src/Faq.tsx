@@ -81,7 +81,7 @@ export default function Faq() {
             {qs.map(([q, a]) => <details key={q}><summary>{q}</summary><p>{a}</p></details>)}
           </section>
         ))}
-        <p className="muted small">Something not answered here? <a href={CONTACT} target="_blank" rel="noopener noreferrer">Open an issue on GitHub</a>.</p>
+        <p className="muted small">Something not answered here? <a href="#/feedback">Send us feedback</a> or <a href={CONTACT} target="_blank" rel="noopener noreferrer">open an issue on GitHub</a>.</p>
       </div>
     </div>
   )

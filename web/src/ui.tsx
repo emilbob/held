@@ -121,6 +121,14 @@ export const Result = ({ msg }: { msg: Msg }) => msg &&
 
 // ---------------------------------------------------------------- wallet
 // One wallet per role and page. A remembered test wallet reconnects by itself; other wallets ask again.
+/** Sandbox only: open the resolver console as the sandbox's shared test resolver. */
+export const openSandboxResolver = () => {
+  try { localStorage.setItem('held.walletKind.resolver', 'sandbox') } catch {}
+  location.hash = '#/resolve'
+}
+export const isSandboxShop = (cfg: Config | null, merchant: string) =>
+  !!cfg?.testnet && !!cfg.sandbox?.merchant && cfg.sandbox.merchant.toLowerCase() === merchant.toLowerCase()
+
 export function useWallet(role: W.Role) {
   const cfg = useConfig()
   const rememberKey = role === 'buyer' ? 'held.walletKind' : `held.walletKind.${role}`
@@ -133,23 +141,45 @@ export function useWallet(role: W.Role) {
   const [toppingUp, setToppingUp] = useState(false)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => W.watchWallets(setInstalled), [])
-  // Testnet: top up a freshly connected wallet so trying Held never stalls on an empty balance.
+  // Testnet: top up a freshly connected wallet so trying Held never stalls on an empty balance. "Adding free test
+  // funds" shows from the first moment (not a false "$0.00, add funds" warning), and stays until the funds are
+  // actually visible: the faucet answers before the balance poll would notice.
   const topUp = async (w: W.Wallet) => {
-    if ((await getConfig()).testnet && (await W.tokenBalance(w.address)) < 1_000_000n) {
-      setToppingUp(true)
+    if (!(await getConfig()).testnet) return
+    setToppingUp(true)
+    try {
+      if ((await W.tokenBalance(w.address)) >= 1_000_000n) return
       await api('/faucet', { address: w.address }).catch(() => {})
-      setToppingUp(false)
-    }
+      const tokens = W.NET.tokens.map((t) => t.address)
+      for (let i = 0; i < 12; i++) {
+        const b = await W.tokenBalances(w.address, tokens).catch(() => null)
+        if (b) {
+          setBalances(Object.fromEntries(tokens.map((t, j) => [t.toLowerCase(), b[j]])))
+          if (b.some((x) => x >= 1_000_000n)) return
+        }
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+    } finally { setToppingUp(false) }
   }
   const sandboxKey = async () => {
     const sb = (await getConfig()).sandbox
     return role === 'merchant' ? sb?.merchantKey : role === 'resolver' ? sb?.resolverKey : undefined
   }
-  // True while a remembered in-browser wallet reconnects, so pages don't flash "connect a wallet" first.
-  const [restoring, setRestoring] = useState(() => { const k = localStorage.getItem(rememberKey); return k === 'demo' || k === 'sandbox' })
+  // A browser wallet (MetaMask) or Tempo Wallet also remembers which one and which account, to reconnect it quietly
+  // on reload or on the next page (connected on the landing, used on the dashboard).
+  const injectedKey = `${rememberKey}.injected`
+  // True while a remembered wallet reconnects, so pages don't flash "connect a wallet" first.
+  const [restoring, setRestoring] = useState(() => ['demo', 'sandbox', 'injected', 'tempo'].includes(localStorage.getItem(rememberKey) ?? ''))
   useEffect(() => {
     const k = localStorage.getItem(rememberKey)
     const done = () => setRestoring(false)
+    if (k === 'injected' || k === 'tempo') {
+      let saved: { rdns: string, address: string } | null = null
+      try { saved = JSON.parse(localStorage.getItem(injectedKey) || 'null') } catch {}
+      if (!saved) done()
+      else (k === 'tempo' ? W.reconnectTempo(saved.address) : W.reconnectInjected(saved.rdns, saved.address))
+        .then((w) => { if (w) { setWallet(w); topUp(w) } }, () => {}).finally(done)
+    }
     if (k === 'demo') W.connect('demo', undefined, role).then((w) => { setWallet(w); topUp(w) }).finally(done)
     if (k === 'sandbox') sandboxKey().then((key) => W.connect('sandbox', undefined, role, key)).then((w) => { setWallet(w); topUp(w) }, () => localStorage.removeItem(rememberKey)).finally(done)
   }, [])
@@ -164,12 +194,13 @@ export function useWallet(role: W.Role) {
     try {
       const w = await W.connect(kind, injected, role, kind === 'sandbox' ? await sandboxKey() : undefined)
       localStorage.setItem(rememberKey, kind)
+      if (kind === 'injected' || kind === 'tempo') localStorage.setItem(injectedKey, JSON.stringify({ rdns: kind === 'tempo' ? 'tempo' : injected?.rdns ?? 'injected', address: w.address }))
       setWallet(w)
       await topUp(w)
     } catch (e) { setError(W.explain(e)) }
     setBusy(false)
   }
-  const disconnect = () => { localStorage.removeItem(rememberKey); setWallet(null); setBalances(null) }
+  const disconnect = () => { localStorage.removeItem(rememberKey); localStorage.removeItem(injectedKey); setWallet(null); setBalances(null) }
   // External wallets: if the wallet disconnects or switches to another account, drop the stale connection so the
   // page asks again instead of failing on the next action.
   useEffect(() => {
@@ -185,35 +216,47 @@ export function useWallet(role: W.Role) {
     p.on('disconnect', onDisconnect)
     return () => { p.removeListener('accountsChanged', onAccounts); p.removeListener('disconnect', onDisconnect) }
   }, [wallet])
-  const sandbox = !!cfg?.testnet && !!cfg.sandbox?.arbiter && role !== 'buyer'
-  return { wallet, restoring, balance, balances, toppingUp, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, sandbox, role }
+  return { wallet, restoring, balance, balances, toppingUp, installed, busy, error, connect, disconnect, testnet: !!cfg?.testnet, role }
 }
 
-export function WalletPicker({ w, note }: { w: ReturnType<typeof useWallet>, note?: string }) {
-  if (w.wallet) return (
+/** Which wallets a picker offers: 'test' only the test wallet in this browser (paying the sandbox shop), 'real' only
+ *  Tempo Wallet and browser wallets (paying a real shop), 'any' both (test wallet on testnet only). */
+export type WalletChoice = 'any' | 'test' | 'real'
+export const walletFits = (kind: W.WalletKind, choice: WalletChoice) =>
+  choice === 'any' || (choice === 'test' ? kind === 'demo' : kind === 'tempo' || kind === 'injected')
+
+export function WalletPicker({ w, note, choice = 'any' }: { w: ReturnType<typeof useWallet>, note?: string, choice?: WalletChoice }) {
+  // A connected wallet of a kind this picker doesn't offer (e.g. a test wallet on a real shop) counts as none.
+  if (w.wallet && walletFits(w.wallet.kind, choice)) return (
     <p className="walletline"><a href={addrUrl(w.wallet.address)} target="_blank">{short(w.wallet.address)}</a> · {w.balance === null ? '…' : usd(w.balance)} {W.NET.tokens.length > 1 ? 'in stablecoins' : W.NET.tokens[0].symbol}
       <span className="muted"> ({w.wallet.name})</span>
       {' '}<button className="secondary small" onClick={w.disconnect}>Change wallet</button></p>
   )
   return (
     <div className="actions picker">
-      <button className="primary" onClick={() => w.connect('tempo')} disabled={w.busy}>{w.busy ? 'Connecting…' : 'Tempo Wallet'}</button>
-      {w.installed.map((iw) => (
-        <button key={iw.rdns} className="ghost" onClick={() => w.connect('injected', iw)} disabled={w.busy}>
-          {iw.icon && <img src={iw.icon} alt="" className="wicon" />}{iw.name}
-        </button>
-      ))}
-      {w.testnet && <button className="secondary" onClick={() => w.connect('demo')} disabled={w.busy}>Test wallet in this browser</button>}
-      {w.sandbox && <button className="secondary" onClick={() => w.connect('sandbox')} disabled={w.busy}>Sandbox {w.role} (shared, no setup)</button>}
-      <p className="muted small">{note ?? 'Tempo Wallet signs with a passkey (Face ID / Touch ID). No extension, no seed phrase.'}</p>
+      {/* No sandbox button here: the sandbox is entered only from #/sandbox, so a real merchant or resolver is never
+          steered into the shared test shop. */}
+      {choice !== 'test' && <>
+        <button className="primary" onClick={() => w.connect('tempo')} disabled={w.busy}>{w.busy ? 'Connecting…' : 'Tempo Wallet'}</button>
+        {w.installed.map((iw) => (
+          <button key={iw.rdns} className="ghost" onClick={() => w.connect('injected', iw)} disabled={w.busy}>
+            {iw.icon && <img src={iw.icon} alt="" className="wicon" />}{iw.name}
+          </button>
+        ))}
+      </>}
+      {w.testnet && choice !== 'real' && <button className={choice === 'test' ? 'primary' : 'secondary'} onClick={() => w.connect('demo')} disabled={w.busy}>
+        {w.busy && choice === 'test' ? 'Connecting…' : 'Test wallet in this browser'}</button>}
+      <p className="muted small">{note ?? (choice === 'test' ? 'A throwaway wallet kept in this browser, topped up with free test funds.'
+        : 'Tempo Wallet signs with a passkey (Face ID / Touch ID). No extension, no seed phrase.')}</p>
       {w.error && <Result msg={{ ok: false, text: w.error }} />}
     </div>
   )
 }
 
 // Dispute notes (merchant dashboard and resolver console).
-export const Notes = ({ notes }: { notes?: Note[] }) => notes?.length ? (
+// `me` names the viewer's own side "You".
+export const Notes = ({ notes, me }: { notes?: Note[], me?: Note['by'] }) => notes?.length ? (
   <div className="notes">
-    {notes.map((n, i) => <p key={i} className={`note ${n.by}`}><b>{n.by === 'buyer' ? 'Buyer' : 'Merchant'}:</b> {n.text}</p>)}
+    {notes.map((n, i) => <p key={i} className={`note ${n.by}`}><b>{n.by === me ? 'You' : n.by === 'buyer' ? 'Buyer' : 'Merchant'}:</b> {n.text}</p>)}
   </div>
 ) : null

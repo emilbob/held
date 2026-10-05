@@ -7,6 +7,7 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { tempo, tempoModerato } from 'viem/chains'
 import { pickNetwork } from '../../shared/network.ts'
+import { tokenSymbol } from '../../shared/api.ts'
 
 declare global {
   interface Window { ethereum?: EIP1193Provider }
@@ -59,6 +60,9 @@ export const explain = (err: unknown): string => {
     return 'Your wallet disconnected (for example after switching accounts). Click "Change wallet" and connect it again.'
   if (!name && /rate limit|exceeds defined limit|too many requests/i.test(`${e.shortMessage} ${e.message}`))
     return `Tempo's ${NET.testnet ? 'testnet' : 'network'} is busy right now (rate limited). Nothing was sent. Wait a few seconds and try again.`
+  // TIP-20 InsufficientBalance(uint256,uint256,address): viem may only show the raw selector for token reverts.
+  if (name === 'InsufficientBalance' || /0x832f98b5/.test(`${e.shortMessage} ${e.message}`))
+    return "This wallet doesn't have enough of that stablecoin yet. Nothing was sent. Wait for the balance to update, or choose another stablecoin."
   return (name && errorText[name]) || name || e.shortMessage || e.message || String(err)
 }
 
@@ -117,6 +121,39 @@ function demoAccount(role: Role) {
   return privateKeyToAccount(k)
 }
 
+// Reload: quietly reconnect a browser wallet (MetaMask) the page used before, as most dApps do. eth_accounts never
+// opens a popup; it only answers if the wallet still allows this site. Returns null, so the page asks again, unless
+// it's the same wallet, the same account and already on this network: never a silent switch of account or network.
+export async function reconnectInjected(rdns: string, address: string): Promise<Wallet | null> {
+  const iw = await new Promise<InjectedWallet | undefined>((resolve) => {
+    let stop = () => {}
+    const t = setTimeout(() => { stop(); resolve(undefined) }, 1500)
+    stop = watchWallets((ws) => {
+      const hit = ws.find((x) => x.rdns === rdns)
+      if (hit) { clearTimeout(t); setTimeout(() => stop()); resolve(hit) }
+    })
+  })
+  if (!iw) return null
+  const [accounts, chainId] = await Promise.all([
+    iw.provider.request({ method: 'eth_accounts' }).catch(() => [] as string[]),
+    iw.provider.request({ method: 'eth_chainId' }).catch(() => null),
+  ])
+  if (accounts[0]?.toLowerCase() !== address.toLowerCase() || Number(chainId) !== NET.chainId) return null
+  return { kind: 'injected', name: iw.name, address: accounts[0] as Address, provider: iw.provider,
+    client: createWalletClient({ account: accounts[0] as Address, chain, transport: custom(iw.provider) }) }
+}
+
+// Same for Tempo Wallet: the SDK remembers the connected account for this site, and eth_accounts returns it without a
+// popup. Only if it's still the account this role picked (the SDK holds one account shared by every role).
+export async function reconnectTempo(address: string): Promise<Wallet | null> {
+  const provider = await tempoWalletProvider()
+  const timeout = new Promise<string[]>((r) => setTimeout(() => r([]), 3000))
+  const [account] = await Promise.race([provider.request({ method: 'eth_accounts' }).catch(() => [] as string[]), timeout])
+  if (account?.toLowerCase() !== address.toLowerCase()) return null
+  return { kind: 'tempo', name: 'Tempo Wallet', address: account as Address, provider,
+    client: createWalletClient({ account: account as Address, chain: tempoChain, transport: custom(provider) }) as Wallet['client'] }
+}
+
 export async function connect(kind: WalletKind, injected?: InjectedWallet, role: Role = 'buyer', sandboxKey?: Hex): Promise<Wallet> {
   // Testnet sandbox: a shared, PUBLIC test key for the sandbox shop's merchant or resolver.
   if (kind === 'sandbox') {
@@ -130,6 +167,10 @@ export async function connect(kind: WalletKind, injected?: InjectedWallet, role:
   }
   if (kind === 'tempo') {
     const provider = await tempoWalletProvider()
+    // The SDK remembers one connected account per site, shared by every tab and role, and eth_requestAccounts
+    // returns it without asking. Forget it first, so pressing "Tempo Wallet" always lets you pick the account (a
+    // resolver tab must not silently become the buyer's account).
+    await provider.request({ method: 'wallet_disconnect' } as never).catch(() => {})
     const [address] = await provider.request({ method: 'eth_requestAccounts' })
     return { kind, name: 'Tempo Wallet', address, provider, client: createWalletClient({ account: address, chain: tempoChain, transport: custom(provider) }) as Wallet['client'] }
   }
@@ -143,6 +184,18 @@ export async function connect(kind: WalletKind, injected?: InjectedWallet, role:
       nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 18 }, rpcUrls: [NET.rpc], blockExplorerUrls: [explorer] }] })
   }
   return { kind, name: injected?.name ?? 'Browser wallet', address, provider: eth, client: createWalletClient({ account: address, chain, transport: custom(eth) }) }
+}
+
+// Browser wallets (MetaMask) don't list Tempo's stablecoins, and may suggest the MAINNET pathUSD (balance 0) on testnet.
+// Switch to this network first, then ask the wallet to show each token, so the merchant sees the money they hold.
+export async function showTokensInWallet(wallet: Wallet, tokens: Address[]) {
+  const eth = wallet.provider
+  if (wallet.kind !== 'injected' || !eth) return
+  await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${NET.chainId.toString(16)}` }] })
+  for (const address of tokens) {
+    const symbol = tokenSymbol(NET, address)
+    await eth.request({ method: 'wallet_watchAsset', params: { type: 'ERC20', options: { address, symbol, decimals: 6 } } } as never)
+  }
 }
 
 export const tokenBalance = (address: Address, token: Address = PATHUSD) =>

@@ -3,7 +3,7 @@
 // The two keys are PUBLIC TESTNET KEYS on purpose: they're written to network.testnet.json (`sandbox`) and bundled into the
 // testnet site. They hold only free test funds and are never offered when network.testnet is false. Held's server
 // still holds no keys; it only refuses to re-register the sandbox address with a different arbiter.
-// Usage: node scripts/sandbox-setup.ts [server...]   (default: http://localhost:8787 https://held-lilac.vercel.app)
+// Usage: node scripts/sandbox-setup.ts [server...]   (default: http://localhost:8787 https://getheld.xyz)
 import { readFileSync, writeFileSync } from 'node:fs'
 import { Actions } from 'viem/tempo'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
@@ -15,7 +15,7 @@ import { signInMessage, type Network } from '../shared/api.ts'
 const FILE = new URL('../network.testnet.json', import.meta.url)
 const net: Network = JSON.parse(readFileSync(FILE, 'utf8'))
 if (!net.testnet) throw new Error('The sandbox is testnet only.')
-const servers = process.argv.slice(2).length ? process.argv.slice(2) : ['http://localhost:8787', 'https://held-lilac.vercel.app']
+const servers = process.argv.slice(2).length ? process.argv.slice(2) : ['http://localhost:8787', 'https://getheld.xyz']
 
 const merchantKey = (net.sandbox?.merchantKey ?? generatePrivateKey()) as Hex
 const resolverKey = (net.sandbox?.resolverKey ?? generatePrivateKey()) as Hex

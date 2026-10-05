@@ -1,6 +1,6 @@
 # Held: 3-minute demo video script (live dApp, Tempo testnet)
 
-Everything runs on the live site, **held-lilac.vercel.app**, using the **sandbox** (a shop that's already set up), so
+Everything runs on the live site, **getheld.xyz**, using the **sandbox** (a shop that's already set up), so
 nothing in the recording waits on mining. Every step below has been run on the live site.
 
 ## Before you record (10 minutes)
@@ -10,11 +10,11 @@ nothing in the recording waits on mining. Every step below has been run on the l
 2. **Tempo Wallet:** in that profile, open wallet.tempo.xyz and log in to your **buying** account
    (`emilbob03@gmail.com`, the one with test funds), not the resolver account.
 3. **Open these tabs, in this order:**
-   1. `held-lilac.vercel.app/#/sandbox`: click **Open the Sandbox Shop** once, so the dashboard is signed in.
+   1. `getheld.xyz/#/sandbox`: click **Open the Sandbox Shop** once, so the dashboard is signed in.
    2. `docs/demo/tote-co.html` (open the file in Chrome: the merchant's own website with the "Pay with Held" button).
       Its button uses a "Held tote bag, $18" link made in advance on the Sandbox Shop; the link you create on camera
       at 0:25 is the same product, so the cut is seamless.
-   3. `held-lilac.vercel.app/#/sandbox`: click **Open the resolver console** once (signs in as the sandbox resolver),
+   3. `getheld.xyz/#/sandbox`: click **Open the resolver console** once (signs in as the sandbox resolver),
       then leave the tab on the console.
    4. The explorer page for the Sandbox Shop's arbiter:
       `explore.testnet.tempo.xyz/address/0xf7d20fc2785d42bbfc08c2910903b27248ef7291`
@@ -43,7 +43,7 @@ nothing in the recording waits on mining. Every step below has been run on the l
 | 2:05 | Tab 3: resolver console | Point at the buyer's note, then the two buttons | "The dispute goes to the resolver the merchant chose. The contract gives them exactly two options: refund the buyer or pay the merchant. Nothing else, so even a stolen resolver key can't take the money." |
 | 2:20 | Resolver console | **Refund buyer**, then back to the buyer page | "Refunded, straight back to the wallet that paid." (**Refunded. $18.00 was returned**) |
 | 2:30 | Tab 4: explorer | Scroll the arbiter's transactions | "Everything you saw is on-chain, on Tempo testnet: held, released, disputed, refunded." |
-| 2:40 | Held landing page | Point at **Try the sandbox (2 min)** | "It's only possible on Tempo: receive policies let the chain itself hold a plain payment. Merchants set up in minutes, buyers just hit send, and nobody but the buyer or the merchant can ever get the money. Try it yourself at held-lilac.vercel.app." |
+| 2:40 | Held landing page | Point at **Try the sandbox (2 min)** | "It's only possible on Tempo: receive policies let the chain itself hold a plain payment. Merchants set up in minutes, buyers just hit send, and nobody but the buyer or the merchant can ever get the money. Try it yourself at getheld.xyz." |
 | 2:55 | End card | — | "Held: buyer protection for stablecoin payments." |
 
 ## Optional extras (if you have time, or for a longer cut)

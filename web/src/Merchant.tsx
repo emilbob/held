@@ -5,8 +5,8 @@ import { CountUp, useEntrance } from './anim.tsx'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
-import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, type Msg } from './ui.tsx'
-import { acceptedTokensOf, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
+import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
+import { acceptedTokensOf, NOTE_MAX, NOTES_PER_SIDE, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
 
 export default function MerchantPage() {
   const cfg = useConfig()
@@ -41,6 +41,7 @@ export default function MerchantPage() {
   if (!w.wallet) return (
     <div className="narrow">
       <div className="card">
+        <p className="kicker">For merchants</p>
         <h1>Accept stablecoin payments with buyer protection</h1>
         <p>Connect the wallet that will be your shop's checkout address. Buyers pay it; every payment is held until they
           confirm delivery or the protection window ends. You can refund anytime, and only you and the buyer's wallet ever receive the money.</p>
@@ -51,6 +52,7 @@ export default function MerchantPage() {
   if (!signedIn || !me) return (
     <div className="narrow">
       <div className="card">
+        <p className="kicker">For merchants</p>
         <h1>Sign in</h1>
         <WalletPicker w={w} />
         <p className="muted">Sign a message to prove this wallet is yours. It's free and moves no funds.</p>
@@ -117,6 +119,7 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
   return (
     <div className="narrow">
       <form className="card setup" onSubmit={start}>
+        <p className="kicker">For merchants</p>
         <h1>Set up your shop</h1>
         <p className="muted">One time, from your wallet ({short(wallet.address)}). Your checkout address and your own arbiter contract: Held's server never holds your keys or your funds.</p>
         <label htmlFor="shopname">Shop name</label>
@@ -184,15 +187,24 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
   const more = Math.min(PAGE, all.length - shown.length)
   const heldTotal = orders.flatMap((o) => o.payments).filter((p) => ['held', 'disputed'].includes(p.status)).reduce((a, p) => a + Number(p.amount), 0)
   const link = (o: Order) => `${location.origin}/#/pay/${o.key ?? o.id}`
+  const showTokens = () => { if (w.wallet) W.showTokensInWallet(w.wallet, acceptedTokensOf(m)).catch(() => {}) }
   // Draw the dashboard once its orders are in: drawing the shell first made the entrance replay over it ("refresh").
   if (data === null && !err) return <Loading />
 
   return (
     <div className="dash" ref={root}>
+      <p className="kicker">For merchants · {m.name} dashboard</p>
       <h1 className="sr-only">{m.name} dashboard</h1>
+      {w.wallet?.kind === 'sandbox'
+        ? <div className="resolvecall top">
+            <p><b>This is the shared Sandbox Shop.</b> Everyone trying Held uses it, with public test keys.</p>
+            <button className="primary" onClick={w.disconnect}>Set up your own shop →</button>
+          </div>
+        : <p className="askfb top">Held is in beta: your feedback decides what we build next. <a href="#/feedback">Tell us what you need</a></p>}
       <section className="summary">
         <div><label>{m.name}</label><a href={addrUrl(m.address)} target="_blank">{short(m.address)}</a></div>
-        <div><label>Balance</label><b>{w.balance === null ? '…' : <CountUp value={Number(w.balance)} format={usd} />}</b></div>
+        <div><label>Balance</label><b>{w.balance === null ? '…' : <CountUp value={Number(w.balance)} format={usd} />}</b>
+          {w.wallet?.kind === 'injected' && <button type="button" className="ghost small showtokens" onClick={showTokens}>See it in {w.wallet.name}</button>}</div>
         <div><label>Held for buyers</label><b><CountUp value={heldTotal} format={usd} /></b></div>
         <div><label>Protection window</label>{duration(m.window)}</div>
         <div><label>Your arbiter</label><a href={addrUrl(m.arbiter)} target="_blank">{short(m.arbiter)}</a></div>
@@ -200,9 +212,9 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
       </section>
 
       <form className="card neworder" onSubmit={create}>
-        <h2>New order</h2>
+        <div className="nohead"><h2>New order</h2><span className="muted small">For one buyer: send them its buyer page</span></div>
         <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Item" aria-label="Item" required />
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (USD)" aria-label="Amount in USD" inputMode="decimal" className="amt" required />
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Price (USD, total)" aria-label="Price in USD, the total the buyer pays" inputMode="decimal" className="amt" required />
         <button disabled={busy}>{busy ? 'Creating…' : 'Create order'}</button>
         {formErr && <span className="err">{formErr}</span>}
         {created && (
@@ -239,6 +251,7 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
 }
 
 function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wallet: W.Wallet | null, merchant: Merchant, testnet: boolean }) {
+  const cfg = useConfig()
   const now = useNow()
   const [msg, setMsg] = useState<Msg>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -248,6 +261,9 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
   const left = main ? main.windowEndsAt - now : 0
   const status: OrderStatus = o.status === 'held' && main && left <= 0 ? 'releasable' : o.status
   const isMe = wallet?.address.toLowerCase() === merchant.address.toLowerCase()
+  const [copied, setCopied] = useState(false)
+  const copyLink = () => navigator.clipboard.writeText(`${location.origin}/#/pay/${o.key ?? o.id}`)
+    .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }, () => {})
 
   // Signed by the merchant's wallet; the contract decides what's allowed.
   const act = async (key: string, fn: W.ArbiterFn, p: Payment, done: string) => {
@@ -267,7 +283,11 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
         <div className="item">{o.item}</div>
         <div className="amount">{usd(o.amount)}</div>
         <Badge status={status} />
-        <a className="buyerlink" href={`#/pay/${o.key ?? o.id}`}>Buyer page →</a>
+        {/* Sandbox: one person plays every role, so jump to the buyer page. A real shop sends the link to its buyer
+            instead; opening it here would put merchant and buyer in one window. */}
+        {isSandboxShop(cfg, merchant.address)
+          ? <a className="buyerlink" href={`#/pay/${o.key ?? o.id}`}>Buyer page →</a>
+          : <button type="button" className="ghost small buyerlink" onClick={copyLink}>{copied ? 'Copied ✓' : 'Copy buyer link'}</button>}
       </div>
       <div className="meta">
         {o.linkId && <>From checkout link · </>}Pay-to address <code title={o.address}>{short(o.address)}</code>
@@ -291,19 +311,23 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
       )}
       {main && status === 'disputed' && (
         <div className="actions">
-          <span className="muted">Disputed: the resolver ({short(merchant.resolver)}) decides. You can still refund the buyer.</span>
+          <span className="muted">Disputed: the resolver ({short(merchant.resolver)}) decides. Agree with the buyer? <b className="ink">Refund buyer</b> ends the dispute right away.</span>
           <B k="refund" fn="refund" p={main} label="Refund buyer" done="Refunded to the buyer." />
-          <Notes notes={o.notes?.[main.id]} />
+          {isSandboxShop(cfg, merchant.address) && <button className="primary" onClick={openSandboxResolver}>Decide as the resolver →</button>}
+          <Notes notes={o.notes?.[main.id]} me="merchant" />
           {!o.notes?.[main.id]?.length && <p className="muted small">The buyer didn't leave a note.</p>}
-          <form className="replyform" onSubmit={async (e) => {
-            e.preventDefault(); setMsg(null)
-            try { await api('/notes', { paymentId: main.id, text: reply }); setReply(''); setMsg({ ok: true, text: 'Your reply was sent to the resolver.' }) }
-            catch (x) { setMsg({ ok: false, text: (x as Error).message }) }
-          }}>
-            <label htmlFor={'reply' + o.id} className="muted small">Your side, for the resolver (e.g. tracking number):</label>
-            <textarea id={'reply' + o.id} value={reply} onChange={(e) => setReply(e.target.value)} maxLength={500} rows={2} />
-            <button className="small" disabled={!reply.trim()}>Send reply</button>
-          </form>
+          {(o.notes?.[main.id] ?? []).filter((n) => n.by === 'merchant').length < NOTES_PER_SIDE ? (
+            <form className="replyform" onSubmit={async (e) => {
+              e.preventDefault(); setMsg(null)
+              try { await api('/notes', { paymentId: main.id, text: reply }); setReply(''); setMsg({ ok: true, text: 'Your reply was sent to the buyer and the resolver.' }) }
+              catch (x) { setMsg({ ok: false, text: (x as Error).message }) }
+            }}>
+              <label htmlFor={'reply' + o.id} className="muted small">Your side, for the buyer and the resolver (e.g. tracking number,
+                {' '}{NOTES_PER_SIDE - (o.notes?.[main.id] ?? []).filter((n) => n.by === 'merchant').length} left):</label>
+              <textarea id={'reply' + o.id} value={reply} onChange={(e) => setReply(e.target.value)} maxLength={NOTE_MAX} rows={2} />
+              <button className="small" disabled={!reply.trim()}>Send reply</button>
+            </form>
+          ) : <p className="muted small">You've sent the maximum of {NOTES_PER_SIDE} replies. The resolver will decide.</p>}
         </div>
       )}
       {wrong.map((p) => (
@@ -338,6 +362,7 @@ function Links() {
   const [busy, setBusy] = useState(false)
   const [formErr, setFormErr] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null) // link id waiting for "Remove for good?"
   const copy = (key: string, text: string) => navigator.clipboard.writeText(text)
     .then(() => { setCopied(key); setTimeout(() => setCopied(null), 1800) }, () => setCopied('failed'))
 
@@ -347,6 +372,7 @@ function Links() {
     setBusy(false)
   }
   const toggle = async (l: CheckoutLinkView) => { await api(`/links/${l.id}`, { active: !l.active }).catch(() => {}); refresh() }
+  const remove = async (l: CheckoutLinkView) => { await api(`/links/${l.id}`, { removed: true }).catch(() => {}); setRemoving(null); refresh() }
   const links = data?.links ?? []
 
   const renderLink = (l: CheckoutLinkView) => (
@@ -356,14 +382,23 @@ function Links() {
         <div className="amount">{usd(l.amount)}</div>
         <span className="muted small">{l.orders} order{l.orders === 1 ? '' : 's'} · {l.paid} paid</span>
         <button className="ghost small" onClick={() => toggle(l)}>{l.active ? 'Turn off' : 'Turn on'}</button>
+        <button className="ghost small" onClick={() => setRemoving(l.id)}>Remove</button>
       </div>
+      {removing === l.id && (
+        <div className="removeask">
+          <span className="small">Remove this link for good? Buyers who open it will see it's no longer available. Its orders stay in your Orders list.</span>
+          <button className="danger small" onClick={() => remove(l)}>Remove link</button>
+          <button className="ghost small" onClick={() => setRemoving(null)}>Cancel</button>
+        </div>
+      )}
       {l.active ? (
         <>
           <code className="addr">{linkUrl(l.id)}</code>
           <div className="actions">
             <button className="small" onClick={() => copy('url' + l.id, linkUrl(l.id))}>{copied === 'url' + l.id ? 'Copied ✓' : 'Copy link'}</button>
             <button className="small" onClick={() => copy('btn' + l.id, buttonHtml(l.id, l.amount))}>{copied === 'btn' + l.id ? 'Copied ✓' : 'Copy button code'}</button>
-            <span className="preview" dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
+            {/* Only a picture of the button: clicking it here would make the merchant a buyer and create a new order. */}
+            <span className="preview" title="Preview of the button for your website" aria-hidden="true" inert dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
           </div>
           {copied === 'failed' && <p className="muted small">Couldn't copy: select the link above instead.</p>}
         </>
@@ -374,7 +409,7 @@ function Links() {
   return (
     <section className="card links">
       <h2>Checkout links</h2>
-      <p className="muted small">A reusable link for one product at a fixed price. Every buyer who opens it gets their own protected order.
+      <p className="muted small"><b className="ink">One link for many buyers.</b> A reusable link for one product at a fixed price. Every buyer who opens it gets their own protected order.
         Share it anywhere, or put the "Pay with Held" button on your website.</p>
       <form className="neworder" onSubmit={create}>
         <input value={item} onChange={(e) => setItem(e.target.value)} placeholder="Product" aria-label="Product" required />

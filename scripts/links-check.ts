@@ -1,9 +1,9 @@
 // Checkout-link rules against a Held server, signed in as the sandbox merchant (public testnet key).
-// Usage: npm run test:links   (APP=https://held-lilac.vercel.app npm run test:links for the live site)
+// Usage: npm run test:links   (APP=https://getheld.xyz npm run test:links for the live site)
 import { readFileSync } from 'node:fs'
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts'
 import { signInMessage } from '../shared/api.ts'
-const APP = process.env.APP || 'http://localhost:8787', API = `${APP}/api`, HOST = new URL(APP).host, n = JSON.parse(readFileSync('network.json', 'utf8'))
+const APP = process.env.APP || 'http://localhost:8787', API = `${APP}/api`, HOST = new URL(APP).host, n = JSON.parse(readFileSync('network.testnet.json', 'utf8'))
 const call = async (method: string, p: string, body?: unknown, token?: string, ip?: string) => {
   const r = await fetch(API + p, { method, headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }), ...(ip && { 'x-forwarded-for': ip }) }, body: body ? JSON.stringify(body) : undefined })
   return { status: r.status, body: await r.json() as any }
@@ -34,6 +34,12 @@ check('turned-off link makes no orders -> 410', (await call('POST', `/links/${L.
 const list = (await call('GET', '/links', undefined, tok)).body.links.find((x: any) => x.id === L.id)
 check('dashboard list counts its orders', list?.orders === 2 && list?.active === false, list)
 check("stranger's link list is empty of it", !(await call('GET', '/links', undefined, stranger)).body.links.some((x: any) => x.id === L.id))
+const R = (await call('POST', '/links', { item: 'Sandbox remove me', amount: '1' }, tok)).body
+check('stranger cannot remove a link -> 401', (await call('POST', `/links/${R.id}`, { removed: true }, stranger)).status === 401)
+check('merchant removes a link', (await call('POST', `/links/${R.id}`, { removed: true }, tok)).body.removed === true)
+check('removed link is gone from the dashboard', !(await call('GET', '/links', undefined, tok)).body.links.some((x: any) => x.id === R.id))
+check('removed link makes no orders -> 410', (await call('POST', `/links/${R.id}/orders`, {}, undefined, '10.0.0.5')).status === 410)
+check("removed link can't be turned back on", (await call('POST', `/links/${R.id}`, { active: true }, tok)).body.active === false)
 check('unknown link -> 404', (await call('POST', '/links/AAAAAAAA/orders', {}, undefined, '10.0.0.4')).status === 404)
 console.log(`${results.filter(Boolean).length}/${results.length} checks passed`)
 process.exit(results.every(Boolean) ? 0 : 1)

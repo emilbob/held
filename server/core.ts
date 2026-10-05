@@ -12,7 +12,7 @@
 //                                          (a numeric id works for the order's own merchant, and for pre-key orders)
 //   GET  /api/links                        the signed-in merchant's checkout links (with order counts)
 //   POST /api/links {item, amount}         create a reusable checkout link for one product at a fixed price
-//   POST /api/links/:id {active}           turn a link on or off (its merchant only)
+//   POST /api/links/:id {active|removed}   turn a link on or off, or remove it (its merchant only)
 //   GET  /api/links/:id                    public: what the link sells, for the buyer
 //   POST /api/links/:id/orders             public: a buyer opened the link -> a fresh order for them
 //   GET  /api/disputes?resolver=0x…        disputed payments a resolver decides; with that resolver's session, plus notes
@@ -26,8 +26,9 @@ import { isAddress, parseUnits, type Address, type Hex } from 'viem'
 import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
+import { alertDisputes } from './alerts.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
-import { signInMessage, noteMessage, NOTE_MAX, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
+import { signInMessage, noteMessage, NOTE_MAX, NOTES_PER_SIDE, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
 // 1..65535, so no two databases (local, live, previews) hand out the same order addresses.
 export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
@@ -43,6 +44,9 @@ export interface DbAdapter {
   lock<T>(fn: (io: DbIO) => Promise<T>, opts: { wait: boolean }): Promise<T | undefined>
   rateLimit(key: string, ms: number): Promise<boolean>
   cleanup?(): Promise<{ sessions: number, ratelimits: number }>
+  // Feedback lives outside the Db snapshot: append one, list all (newest first).
+  addFeedback(f: Feedback): Promise<void>
+  listFeedback(): Promise<Feedback[]>
 }
 export interface DbIO { read(): Promise<Db | null>, write(d: Db): Promise<void> }
 // Optional housekeeping (daily job): drop expired sessions and rate-limit rows. Returns how many rows went.
@@ -61,7 +65,7 @@ const priceError = (amount: unknown, network: Network, what: string) => {
   if (parseUnits(String(amount), 6) > BigInt(network.maxOrder)) return `${what} can be at most $${Number(network.maxOrder) / 1e6} for now (launch limit).`
   return null
 }
-// Dispute notes are only for the order's merchant and resolver.
+// Dispute notes are only for the order's buyer page (its unguessable key), its merchant and its resolver.
 const withNotes = (s: Db, o: Order): Order => {
   const notes = Object.fromEntries(o.payments.filter((p) => s.notes?.[p.id]?.length).map((p) => [p.id, s.notes![p.id]]))
   return Object.keys(notes).length ? { ...o, notes } : o
@@ -98,11 +102,16 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
     lastSync = Date.now()
     try {
       // If another invocation is already syncing, just read what it wrote.
+      let saved: { s: Db, disputes: string[] } | undefined
       await db.lock(async (io) => {
         const s = await load(io)
-        head = await createIndexer({ store: s }).sync()
+        const indexer = createIndexer({ store: s })
+        head = await indexer.sync()
         await io.write(s)
+        saved = { s, disputes: indexer.newDisputes }
       }, { wait: false })
+      // After the lock (the save is committed), so a dispute is alerted at most once.
+      if (saved) await alertDisputes(saved.s, network, saved.disputes)
       lastErr = null
     } catch (e) { lastErr = errText(e) }
   }
@@ -196,8 +205,11 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const ref = m[1]
       let o = /^\d+$/.test(ref) ? s.orders[ref] : Object.values(s.orders).find((x) => x.key === ref)
       // By number only for orders made before keys existed, or for the order's own signed-in merchant.
-      if (o && /^\d+$/.test(ref) && o.key && sessionOf(s, headers)?.toLowerCase() !== o.merchant.toLowerCase()) o = undefined
-      return o ? ok(orderView(s, o)) : ok({ error: 'Order not found' }, 404)
+      const isMerchant = !!o && sessionOf(s, headers)?.toLowerCase() === o.merchant.toLowerCase()
+      if (o && /^\d+$/.test(ref) && o.key && !isMerchant) o = undefined
+      // Notes by key (the buyer's own link) or for the merchant; never by a guessable order number.
+      if (!o) return ok({ error: 'Order not found' }, 404)
+      return ok(!/^\d+$/.test(ref) || isMerchant ? withNotes(s, orderView(s, o)) : orderView(s, o))
     }
     // ---------------------------------------------------------------- checkout links
     if (path === '/api/links' && method === 'POST') {
@@ -221,7 +233,7 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const s = await load()
       const address = sessionOf(s, headers)
       if (!address) return ok({ error: 'Sign in with your merchant wallet.' }, 401)
-      const mine = Object.values(s.links ?? {}).filter((l) => l.merchant.toLowerCase() === address.toLowerCase())
+      const mine = Object.values(s.links ?? {}).filter((l) => !l.removed && l.merchant.toLowerCase() === address.toLowerCase())
       const views: CheckoutLinkView[] = mine.sort((a, b) => b.createdAt - a.createdAt).map((l) => {
         const orders = Object.values(s.orders).filter((o) => o.linkId === l.id).map((o) => orderView(s, o))
         return { ...l, orders: orders.length, paid: orders.filter((o) => o.status !== 'awaiting_payment').length }
@@ -234,7 +246,9 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
         const link = s.links?.[lk[1]]
         const address = sessionOf(s, headers)
         if (!link || !address || link.merchant.toLowerCase() !== address.toLowerCase()) return null
-        link.active = body.active === true
+        // Removing is for good: the link is also off for buyers, and can't be turned back on.
+        if (body.removed === true) { link.removed = true; link.active = false }
+        else if (!link.removed) link.active = body.active === true
         return link
       })
       return r ? ok(r) : ok({ error: 'Only the merchant who made this link can change it.' }, 401)
@@ -270,8 +284,9 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const s = await load()
       const theirs = new Set(Object.values(s.merchants).filter((mm) => mm.resolver.toLowerCase() === resolver.toLowerCase()).map((mm) => mm.address.toLowerCase()))
       const isResolver = sessionOf(s, headers)?.toLowerCase() === resolver.toLowerCase()
+      // Buyer-page keys (the unguessable #/pay/<key> links) and notes only for the signed-in resolver; this list is public.
       const orders = Object.values(s.orders).filter((o) => theirs.has(o.merchant.toLowerCase())).map((o) => orderView(s, o))
-        .map((o) => (isResolver ? withNotes(s, o) : o))
+        .map((o) => (isResolver ? withNotes(s, o) : (({ key: _key, ...rest }) => rest)(o)))
       return ok({ orders: orders.filter((o) => o.payments.some((p) => p.status === 'disputed')).sort((a, b) => b.id - a.id), notes: isResolver })
     }
     if (path === '/api/notes' && method === 'POST') {
@@ -291,12 +306,31 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       if (!by) return ok({ error: 'Only the wallet that paid (signed) or the merchant can add a note.' }, 401)
       const r = await mutate((s) => {
         const list = ((s.notes ??= {})[pay.id] ??= [])
-        if (list.filter((n) => n.by === by).length >= 5) return null
+        if (list.filter((n) => n.by === by).length >= NOTES_PER_SIDE) return null
         const note: Note = { by: by!, text, at: now() }
         list.push(note)
         return note
       })
       return r ? ok(r, 201) : ok({ error: 'Note limit reached for this payment.' }, 429)
+    }
+    if (path === '/api/feedback' && method === 'POST') {
+      const text = typeof body.text === 'string' ? body.text.trim() : ''
+      const contact = typeof body.contact === 'string' ? body.contact.trim() : ''
+      const role = (['buyer', 'merchant', 'looking'] as const).find((r) => r === body.role) ?? 'looking'
+      if (!text || text.length > FEEDBACK_MAX) return ok({ error: `Write your feedback (up to ${FEEDBACK_MAX} characters).` }, 400)
+      if (contact.length > CONTACT_MAX) return ok({ error: `Keep the contact under ${CONTACT_MAX} characters.` }, 400)
+      const quote = body.quote === true
+      const quoteName = quote && typeof body.quoteName === 'string' ? body.quoteName.trim().slice(0, QUOTE_NAME_MAX) : ''
+      if (!(await db.rateLimit(`feedback:${clientIp(headers)}`, 20_000))) return ok({ error: 'Thanks! Wait a few seconds before sending more.' }, 429)
+      await db.addFeedback({ at: now(), role, text, ...(contact && { contact }), ...(quote && { quote, ...(quoteName && { quoteName }) }) })
+      return ok({ ok: true }, 201)
+    }
+    if (path === '/api/feedback') {
+      // Owner only: a session of this network's default resolver (Held's own wallet).
+      const s = await load()
+      const who = sessionOf(s, headers)
+      if (!who || who.toLowerCase() !== network.defaultResolver.toLowerCase()) return ok({ error: "Sign in with Held's owner wallet." }, 401)
+      return ok({ feedback: await db.listFeedback() })
     }
     if (path === '/api/faucet' && method === 'POST') {
       if (!network.testnet) return ok({ error: 'No faucet on mainnet.' }, 404)

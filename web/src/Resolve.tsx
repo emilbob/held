@@ -4,12 +4,19 @@ import { useEffect, useRef, useState } from 'react'
 import { useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
 import * as W from './wallet.ts'
-import { api, session, signInWallet, usePoll, useWallet, WalletPicker, Result, Notes, usd, short, txUrl, addrUrl, type Msg } from './ui.tsx'
+import { api, session, signInWallet, usePoll, useWallet, useConfig, WalletPicker, Result, Notes, usd, short, txUrl, addrUrl, type Msg } from './ui.tsx'
 import type { Order } from '../../shared/api.ts'
 
 export default function Resolve() {
   const w = useWallet('resolver')
+  const cfg = useConfig()
   const addr = w.wallet?.address
+  // Testnet: if a non-sandbox wallet is connected, check whether the sandbox has disputes waiting, so someone trying
+  // the sandbox with their own wallet isn't told "No open disputes" while theirs waits for the sandbox resolver.
+  const sbResolver = cfg?.testnet ? cfg.sandbox?.resolver : undefined
+  const otherWallet = !!addr && !!sbResolver && addr.toLowerCase() !== sbResolver.toLowerCase()
+  const [sbData] = usePoll(() => (otherWallet ? api<{ orders: Order[] }>(`/disputes?resolver=${sbResolver}`, undefined, 'resolver') : Promise.resolve(null)), 8000, [otherWallet])
+  const switchToSandbox = async () => { w.disconnect(); await w.connect('sandbox') }
   // Signing in lets the console show the buyer's and merchant's notes (they're private to the resolver and merchant).
   const signedIn = !!addr && session.get('resolver')?.address.toLowerCase() === addr.toLowerCase()
   const [signing, setSigning] = useState(false)
@@ -26,6 +33,8 @@ export default function Resolve() {
   useEntrance(root, ':scope > .card', !addr || data !== null, { stagger: 0.07 })
   return (
     <div className={w.wallet ? 'dash' : 'narrow'} ref={root}>
+      {/* Only in the sandbox, where you play merchant and resolver: a real resolver has no orders of their own. */}
+      {w.wallet?.kind === 'sandbox' && session.get()?.address && <a className="back" href="#/merchant">← Back to your orders</a>}
       <div className="card">
         <h1>Resolve disputes</h1>
         <p>Connect the resolver wallet. You'll see open disputes for every merchant who chose it. The contract lets you do only
@@ -33,22 +42,35 @@ export default function Resolve() {
         <WalletPicker w={w} note="Use the wallet merchants set as their resolver." />
         {w.wallet && !signedIn && (
           <p className="signin">
-            <button className="small" disabled={signing} onClick={signIn}>{signing ? 'Waiting for signature…' : 'Sign in to see the notes'}</button>
+            <button className="primary small" disabled={signing} onClick={signIn}>{signing ? 'Waiting for signature…' : 'Sign in to see the notes'}</button>
             {' '}<span className="muted small">Buyer and merchant notes are private: sign a message (free, moves no funds) to read them.</span>
           </p>
         )}
         {signErr && <Result msg={{ ok: false, text: signErr }} />}
+        {w.wallet?.kind === 'sandbox' && (
+          <div className="resolvecall">
+            <p><b>You're the sandbox's shared test resolver.</b> It decides only the Sandbox Shop's disputes.</p>
+            <button className="primary" onClick={w.disconnect}>Use your own resolver wallet →</button>
+          </div>
+        )}
       </div>
       {err && <p className="err">{err}</p>}
+      {otherWallet && !!sbData?.orders.length && (
+        <div className="card resolvecall">
+          <p><b>Trying the sandbox?</b> {sbData.orders.length === 1 ? 'Its dispute is' : `Its ${sbData.orders.length} disputes are`} decided by the
+            sandbox's own test resolver, not by {short(addr!)}.</p>
+          <button className="primary" onClick={switchToSandbox} disabled={w.busy}>Switch to the sandbox resolver</button>
+        </div>
+      )}
       {addr && data && data.orders.length === 0 && (
         <div className="card empty"><b>No open disputes.</b> <span className="muted">When a buyer disputes a payment at a shop that chose {short(addr)} as its resolver, it appears here.</span></div>
       )}
-      {w.wallet && data?.orders.map((o) => <Dispute key={o.id} order={o} wallet={w.wallet!} />)}
+      {w.wallet && data?.orders.map((o) => <Dispute key={o.id} order={o} wallet={w.wallet!} signedIn={signedIn} signIn={signIn} signing={signing} />)}
     </div>
   )
 }
 
-function Dispute({ order: o, wallet }: { order: Order, wallet: W.Wallet }) {
+function Dispute({ order: o, wallet, signedIn, signIn, signing }: { order: Order, wallet: W.Wallet, signedIn: boolean, signIn: () => void, signing: boolean }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<Msg>(null)
   const p = o.payments.find((x) => x.status === 'disputed')!
@@ -68,10 +90,21 @@ function Dispute({ order: o, wallet }: { order: Order, wallet: W.Wallet }) {
       <div className="meta">
         Buyer <a href={addrUrl(p.payer)} target="_blank">{short(p.payer)}</a> · merchant <a href={addrUrl(o.merchant)} target="_blank">{short(o.merchant)}</a>
         {' '}· <a href={txUrl(p.txHash)} target="_blank">payment</a>{disputedTx && <> · <a href={txUrl(disputedTx)} target="_blank">dispute</a></>}
+        {o.key && <> · <a href={`#/pay/${o.key}`}>Buyer page →</a></>}
       </div>
-      <Notes notes={o.notes?.[p.id]} />
+      {/* Notes are private, so they come only with a sign-in. Ask for it right here, before the decision buttons,
+          so nobody decides without reading both sides. */}
+      {signedIn
+        ? (o.notes?.[p.id]?.length ? <Notes notes={o.notes[p.id]} /> : <p className="muted small">Neither side left a note.</p>)
+        : (
+          <div className="resolvecall">
+            <p><b>Read both sides before you decide.</b> The buyer's and the merchant's notes are private: sign a message
+              (free, moves no funds) to see them.</p>
+            <button className="primary" disabled={signing} onClick={signIn}>{signing ? 'Waiting for signature…' : 'Sign in to read the notes'}</button>
+          </div>
+        )}
       <div className="actions resolver">
-        <button className="primary" disabled={!!busy} onClick={() => decide('refund', 'Refunded to the buyer.')}>{busy === 'refund' ? '…' : 'Refund buyer'}</button>
+        <button className={signedIn ? 'primary' : ''} disabled={!!busy} onClick={() => decide('refund', 'Refunded to the buyer.')}>{busy === 'refund' ? '…' : 'Refund buyer'}</button>
         <button disabled={!!busy} onClick={() => decide('release', 'Paid to the merchant.')}>{busy === 'release' ? '…' : 'Pay merchant'}</button>
       </div>
       <Result msg={msg} />

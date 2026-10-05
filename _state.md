@@ -238,6 +238,19 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
 - Fee decided (research/business-model.md): contract v3, 1% on release only, refunds free, 0% until ~mid-2027 then 1%
   (immutable per shop), optional cap. Roadmap + FAQ updated and live (ee285f9). v3 to be built on a separate branch +
   separate testnet deployment; held-lilac/main stay unchanged in behavior until winners (~mid-Nov). Needs a fee wallet.
+- Domain: getheld.xyz bought Oct 2 (Vercel, $1.99 1st yr, $13/yr after; brand stays "Held"). Attached to project held
+  (apex) + www.getheld.xyz (308 -> apex); held-lilac.vercel.app keeps working (not redirected). og:url/og:image, uptime
+  monitor, demo script/page, script defaults switched to getheld.xyz. (held-lilac was flagged by MetaMask/Blockaid; a
+  new domain starts clean.)
+- Oct 2 (night): sandbox fixes after the user's manual test (all live, last e0a756b): test funds show progress and
+  Pay is disabled until funded (was clickable at $0 -> InsufficientBalance 0x832f98b5, now explained); sandbox
+  resolver made obvious (buttons on buyer page + dashboard, console hint when another wallet is connected, sandbox
+  wallet first in pickers); 6-step sandbox guide; navbar "Dashboard" + "Resolver" (Roadmap -> footer on phones,
+  tagline hidden < 1100px); checkout links reuse the browser's unpaid order; public /api/disputes no longer leaks
+  buyer-page keys (only the signed-in resolver gets them); resolver console back/buyer links; New order "Price (USD,
+  total)"; feedback "you can quote this" permission. npm run sandbox:reset (dry run; --yes deletes sandbox only).
+  Live double-check 19/19. User: Part 1 (sandbox) passed; Parts 2-3 on Oct 3 (docs/manual-test.md).
+  Before posting for traction: STOP resetting the sandbox (the data is the traction evidence).
 
 ## Oct 2: contract v3 (fee) on branch v3-fee (NOT merged, NOT deployed)
 - HeldArbiter v3: immutable fee (recipient, bps <= 10%, start time, cap); release before `start` or with fee 0 =

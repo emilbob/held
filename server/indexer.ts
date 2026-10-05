@@ -19,6 +19,7 @@ const decisionStatus = { Disputed: 'disputed', Released: 'released', Refunded: '
 const MAX_RANGE = 50_000n
 
 export function createIndexer({ store }: { store: Db }) {
+  const newDisputes: string[] = [] // payment ids that became disputed during this sync (for alerts)
   async function scanRange(fromBlock: bigint, toBlock: bigint) {
     const merchants = Object.values(store.merchants)
     if (!merchants.length) return
@@ -61,6 +62,7 @@ export function createIndexer({ store }: { store: Db }) {
       const status = decisionStatus[l.eventName]
       if (p.history.some((h) => h.tx === l.transactionHash && h.status === status)) continue
       p.status = status
+      if (status === 'disputed') newDisputes.push(p.id)
       p.history.push({ status, tx: l.transactionHash, by: 'caller' in l.args ? l.args.caller : l.args.originator, block: Number(l.blockNumber) })
     }
   }
@@ -81,7 +83,7 @@ export function createIndexer({ store }: { store: Db }) {
     return head
   }
 
-  return { sync }
+  return { sync, newDisputes }
 }
 
 // Order view = order + its merchant + its payments, with a single derived status for the UI.

@@ -64,6 +64,7 @@ export interface CheckoutLink {
   item: string
   amount: string // base units (6 decimals)
   active: boolean
+  removed?: boolean // taken off the merchant's dashboard (and off for buyers); kept so its orders still point to it
   createdAt: number
 }
 export interface CheckoutLinkView extends CheckoutLink { orders: number, paid: number }
@@ -125,12 +126,23 @@ export interface Config extends Network {
 export const signInMessage = (address: string, host: string, issued: number) =>
   `Sign in to Held\n\nWallet: ${address}\nSite: ${host}\nIssued: ${new Date(issued * 1000).toISOString()}\n\nThis signature only proves you control this wallet. It does not move funds.`
 
-// Dispute notes: what the buyer says went wrong, and the merchant's reply. Readable only by the merchant and the
-// resolver. A buyer's note is signed by the wallet that paid (this exact text), so nobody can speak for the buyer.
+// Feedback from anyone trying Held (#/feedback). Stored apart from the main Db (it only grows); readable only by
+// Held's owner (a session of the network's default resolver wallet). No account; the contact is optional.
+export type FeedbackRole = 'buyer' | 'merchant' | 'looking'
+// quote: the person allowed quoting this publicly, shown as quoteName (a first name or handle). Off by default.
+export interface Feedback { at: number, role: FeedbackRole, text: string, contact?: string, quote?: boolean, quoteName?: string }
+export const FEEDBACK_MAX = 1000
+export const CONTACT_MAX = 120
+export const QUOTE_NAME_MAX = 40
+
+// Dispute notes: what the buyer says went wrong, the merchant's replies, the buyer's follow-ups. Readable by the
+// order's buyer page, its merchant and the resolver. A buyer's note is signed by the wallet that paid (this exact
+// text), so nobody can speak for the buyer.
 export interface Note { by: 'buyer' | 'merchant', text: string, at: number }
 export const NOTE_MAX = 500
+export const NOTES_PER_SIDE = 5 // per payment, for the buyer and for the merchant
 export const noteMessage = (orderId: number, paymentId: string, text: string) =>
-  `Held dispute note\n\nOrder: #${orderId}\nPayment: ${paymentId}\n\n${text}\n\nOnly the merchant and the resolver can read this. It does not move funds.`
+  `Held dispute note\n\nOrder: #${orderId}\nPayment: ${paymentId}\n\n${text}\n\nThe merchant and the resolver will read this. It does not move funds.`
 
 // v1 shops stored one token; v2 shops store the list.
 export const acceptedTokensOf = (m: Pick<Merchant, 'acceptedTokens' | 'acceptedToken'>): Address[] =>

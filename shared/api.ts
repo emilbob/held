@@ -26,6 +26,7 @@ export interface StoredPayment {
   heldAt: number
   windowEndsAt: number
   resolveBy?: number // disputed at a v3 shop: the resolver's deadline (unix); after it anyone can refund the payer
+  fee?: string // v3: Held's fee taken from this payment's release (base units), from the FeeCharged event
   txHash: Hex
   status: PaymentStatus
   history: HistoryEntry[]

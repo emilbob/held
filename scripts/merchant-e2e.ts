@@ -137,6 +137,8 @@ try {
   const wantFee = feeOn ? 5_000_000n * BigInt(network.fee.bps) / 10_000n : 0n
   check(`release splits on chain: merchant +${Number(5_000_000n - wantFee) / 1e6}, fee wallet +${Number(wantFee) / 1e6}`,
     m1 - m0 === 5_000_000n - wantFee && f1 - f0 === wantFee, { merchant: String(m1 - m0), fee: String(f1 - f0) })
+  const feeSeen = (await waitStatus(A.key!, 'released')).payments[0]?.fee
+  check('indexer records the fee from FeeCharged (for the fee email)', feeSeen === (wantFee ? String(wantFee) : undefined), feeSeen)
 
   const rB = await pay(B); await waitStatus(B.key!, 'held')
   check('merchant refunds B from their own wallet', (await act(mw, setup.arbiter, 'refund', rB)) === 'success')

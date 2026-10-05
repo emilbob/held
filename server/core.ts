@@ -26,7 +26,7 @@ import { isAddress, parseUnits, type Address, type Hex } from 'viem'
 import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
-import { alertDisputes } from './alerts.ts'
+import { alertDisputes, alertFees } from './alerts.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
 import { signInMessage, noteMessage, NOTE_MAX, NOTES_PER_SIDE, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
@@ -102,16 +102,16 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
     lastSync = Date.now()
     try {
       // If another invocation is already syncing, just read what it wrote.
-      let saved: { s: Db, disputes: string[] } | undefined
+      let saved: { s: Db, disputes: string[], fees: string[] } | undefined
       await db.lock(async (io) => {
         const s = await load(io)
         const indexer = createIndexer({ store: s })
         head = await indexer.sync()
         await io.write(s)
-        saved = { s, disputes: indexer.newDisputes }
+        saved = { s, disputes: indexer.newDisputes, fees: indexer.newFees }
       }, { wait: false })
-      // After the lock (the save is committed), so a dispute is alerted at most once.
-      if (saved) await alertDisputes(saved.s, network, saved.disputes)
+      // After the lock (the save is committed), so a dispute or a fee is emailed at most once.
+      if (saved) await Promise.all([alertDisputes(saved.s, network, saved.disputes), alertFees(saved.s, network, saved.fees)])
       lastErr = null
     } catch (e) { lastErr = errText(e) }
   }

@@ -1,16 +1,16 @@
-12:02:27 PASS setup from the merchant wallet: mine, register, deploy, policy mine > register > deploy > policy > done in 117s, arbiter 0x32da0a1d89d9912e42d3b0b8814804c17c250455
-12:02:27 PASS register without sign-in -> 401 
-12:02:27 PASS sign-in with someone else's signature -> 401 
-12:02:27 PASS sign-in with an hour-old signature -> 401 
-12:02:27 PASS sign-in with a fresh signature -> session 
-12:02:28 PASS register with someone else's arbiter -> refused The arbiter is not a current HeldArbiter (v3). Run setup again.
-12:02:33 PASS register with a tampered arbiter (1 byte changed) -> refused The arbiter is not the genuine HeldArbiter contract.
-12:02:35 PASS register a genuine arbiter with no fee -> refused The arbiter's fee settings aren't Held's. Run setup again.
-12:02:38 PASS register the genuine setup -> accepted {
+12:16:30 PASS setup from the merchant wallet: mine, register, deploy, policy mine > register > deploy > policy > done in 39s, arbiter 0x339608bdae73f0f87e20955cc417afeffbae12ec
+12:16:30 PASS register without sign-in -> 401 
+12:16:31 PASS sign-in with someone else's signature -> 401 
+12:16:31 PASS sign-in with an hour-old signature -> 401 
+12:16:31 PASS sign-in with a fresh signature -> session 
+12:16:31 PASS register with someone else's arbiter -> refused The arbiter is not a current HeldArbiter (v3). Run setup again.
+12:16:36 PASS register with a tampered arbiter (1 byte changed) -> refused The arbiter is not the genuine HeldArbiter contract.
+12:16:40 PASS register a genuine arbiter with no fee -> refused The arbiter's fee settings aren't Held's. Run setup again.
+12:16:42 PASS register the genuine setup -> accepted {
   merchant: {
-    address: '0x7FE8AC400EC21706125FC98BB29cfb13A7456721',
-    masterId: '0xb2a6475b',
-    arbiter: '0x32da0a1d89d9912e42d3b0b8814804c17c250455',
+    address: '0x51C331387cB3C17B7f10ABB6cC4D9c26E36B1f03',
+    masterId: '0x8551ac63',
+    arbiter: '0x339608bdae73f0f87e20955cc417afeffbae12ec',
     resolver: '0x3a7E18E039B555e9A8eD2036ef13865147C1EDfF',
     acceptedTokens: [
       '0x20C0000000000000000000000000000000000000',
@@ -20,63 +20,64 @@
     window: 120,
     resolveWindow: 120,
     name: 'E2E Shop',
-    registeredAt: 1791201758
+    registeredAt: 1791202602
   }
 }
-12:02:38 PASS /me returns the merchant 
-12:02:38 PASS create order without sign-in -> 401 
-12:02:38 PASS signed-in non-merchant cannot create orders -> 401 
-12:02:38 PASS orders use the merchant arbiter 
-12:02:38 PASS order has an unguessable key (16+ chars) CSCXaUV4d1EBL-H2
-12:02:38 PASS public: the key opens the order 
-12:02:38 PASS public: the order number does not -> 404 
-12:02:38 PASS another signed-in wallet: order number -> 404 
-12:02:38 PASS the shop's merchant: order number -> 200 
-12:02:38 PASS another wallet doesn't see the merchant's orders 
-12:02:42 PASS A paid -> held (indexer follows the new merchant) 
-12:02:43 PASS merchant cannot release early (contract) reverted
-12:02:44 PASS buyer releases A 
-12:02:45 PASS A -> released 
-12:02:45 PASS release splits on chain: merchant +4.95, fee wallet +0.05 { merchant: '4950000', fee: '50000' }
-12:02:49 PASS merchant refunds B from their own wallet 
-12:02:51 PASS B -> refunded 
-12:02:54 PASS buyer disputes C 
-12:02:55 PASS C is on the resolver's list 
-12:02:56 PASS note signed by another wallet -> 401 
-12:02:56 PASS buyer note signed by the paying wallet -> accepted 
-12:02:56 PASS stranger cannot reply -> 401 
-12:02:56 PASS merchant replies with its session 
-12:02:56 PASS the buyer's own link shows both notes 
-12:02:56 PASS merchant sees both notes 
-12:02:56 PASS resolver list without sign-in has no notes 
-12:02:56 PASS signed-in resolver sees the notes 
-12:02:57 PASS merchant cannot release a disputed payment (contract) reverted
-12:02:58 PASS resolver refunds C from the resolver's wallet 
-12:02:59 PASS C -> refunded 
-12:02:59 PASS order shows the shop's resolver deadline 120
-12:03:03 PASS buyer disputes G 
-12:03:05 PASS buyer withdraws the dispute: G released to the merchant 
-12:03:07 PASS G -> released 
-12:03:10 PASS buyer disputes H 
-12:03:11 PASS indexer deadline = contract deadline { indexer: 1791201909, contract: '1791201909' }
-12:03:13 PASS before the deadline a stranger cannot refund (contract) reverted
-12:03:13   waiting for H's resolver deadline (116s)…
-12:05:13 PASS notes close at the deadline -> 409 
-12:05:13 PASS after the deadline the order says so 
-12:05:14 PASS after the deadline the resolver cannot pay the merchant (contract) reverted
-12:05:16 PASS after the deadline a stranger triggers the refund 
-12:05:17 PASS H -> refunded, 100% to the buyer 
-12:05:20 PASS D paid in the second stablecoin -> held, not a wrong token 
-12:05:20 PASS buyer releases D (second stablecoin reaches the merchant) 
-12:05:21 PASS D -> released 
-12:05:28 PASS buyer without pathUSD confirms delivery, fee paid in the second stablecoin 
-12:05:28 PASS …and never needed pathUSD 0n
-12:05:29 PASS E -> released 
-12:05:32 PASS wrong-token payment is flagged [ true ]
-12:05:32   waiting out the 120 s window…
-12:07:38 PASS wrong token cannot reach the merchant after the window (contract) reverted
-12:07:38 PASS payer gets the wrong token back 
-12:07:38 PASS order above the launch cap ($1000) -> 400 
-12:07:38 PASS checkout link above the launch cap -> 400 
-12:07:38 PASS order of $0 -> 400 
-12:07:38 63/63 checks passed
+12:16:42 PASS /me returns the merchant 
+12:16:42 PASS create order without sign-in -> 401 
+12:16:42 PASS signed-in non-merchant cannot create orders -> 401 
+12:16:42 PASS orders use the merchant arbiter 
+12:16:42 PASS order has an unguessable key (16+ chars) BnqwNzi4-Rp7ufkX
+12:16:42 PASS public: the key opens the order 
+12:16:42 PASS public: the order number does not -> 404 
+12:16:42 PASS another signed-in wallet: order number -> 404 
+12:16:42 PASS the shop's merchant: order number -> 200 
+12:16:42 PASS another wallet doesn't see the merchant's orders 
+12:16:45 PASS A paid -> held (indexer follows the new merchant) 
+12:16:46 PASS merchant cannot release early (contract) reverted
+12:16:47 PASS buyer releases A 
+12:16:47 PASS A -> released 
+12:16:48 PASS release splits on chain: merchant +4.95, fee wallet +0.05 { merchant: '4950000', fee: '50000' }
+12:16:48 PASS indexer records the fee from FeeCharged (for the fee email) 50000
+12:16:51 PASS merchant refunds B from their own wallet 
+12:16:52 PASS B -> refunded 
+12:16:56 PASS buyer disputes C 
+12:16:57 PASS C is on the resolver's list 
+12:16:57 PASS note signed by another wallet -> 401 
+12:16:57 PASS buyer note signed by the paying wallet -> accepted 
+12:16:57 PASS stranger cannot reply -> 401 
+12:16:57 PASS merchant replies with its session 
+12:16:58 PASS the buyer's own link shows both notes 
+12:16:58 PASS merchant sees both notes 
+12:16:58 PASS resolver list without sign-in has no notes 
+12:16:58 PASS signed-in resolver sees the notes 
+12:16:59 PASS merchant cannot release a disputed payment (contract) reverted
+12:17:00 PASS resolver refunds C from the resolver's wallet 
+12:17:00 PASS C -> refunded 
+12:17:00 PASS order shows the shop's resolver deadline 120
+12:17:03 PASS buyer disputes G 
+12:17:04 PASS buyer withdraws the dispute: G released to the merchant 
+12:17:06 PASS G -> released 
+12:17:09 PASS buyer disputes H 
+12:17:12 PASS indexer deadline = contract deadline { indexer: 1791202748, contract: '1791202748' }
+12:17:14 PASS before the deadline a stranger cannot refund (contract) reverted
+12:17:14   waiting for H's resolver deadline (114s)…
+12:19:12 PASS notes close at the deadline -> 409 
+12:19:12 PASS after the deadline the order says so 
+12:19:13 PASS after the deadline the resolver cannot pay the merchant (contract) reverted
+12:19:14 PASS after the deadline a stranger triggers the refund 
+12:19:16 PASS H -> refunded, 100% to the buyer 
+12:19:18 PASS D paid in the second stablecoin -> held, not a wrong token 
+12:19:20 PASS buyer releases D (second stablecoin reaches the merchant) 
+12:19:20 PASS D -> released 
+12:19:24 PASS buyer without pathUSD confirms delivery, fee paid in the second stablecoin 
+12:19:24 PASS …and never needed pathUSD 0n
+12:19:24 PASS E -> released 
+12:19:27 PASS wrong-token payment is flagged [ true ]
+12:19:27   waiting out the 120 s window…
+12:21:33 PASS wrong token cannot reach the merchant after the window (contract) reverted
+12:21:34 PASS payer gets the wrong token back 
+12:21:34 PASS order above the launch cap ($1000) -> 400 
+12:21:34 PASS checkout link above the launch cap -> 400 
+12:21:34 PASS order of $0 -> 400 
+12:21:34 64/64 checks passed

@@ -2,6 +2,7 @@
 // Sources:
 //   ReceivePolicyGuard.TransferBlocked(receiver = a merchant) -> a held payment (receipt bytes, amount, token)
 //   HeldArbiter.Disputed / Released / Refunded on each merchant's arbiter (id = keccak256(receipt)) -> decisions
+//   HeldArbiter.FeeCharged (v3) -> the fee taken from a release (for the owner's fee emails)
 // Payments match orders by address: each order has its own virtual address under its merchant's master.
 import { parseAbiItem, keccak256 } from 'viem'
 import { ReceivePolicyReceipt } from 'ox/tempo'
@@ -14,12 +15,14 @@ const arbiterEvents = [
   parseAbiItem('event Disputed(bytes32 indexed id, address indexed originator)'),
   parseAbiItem('event Released(bytes32 indexed id, address indexed caller, uint256 amount)'),
   parseAbiItem('event Refunded(bytes32 indexed id, address indexed caller, address indexed originator, uint256 amount)'),
+  parseAbiItem('event FeeCharged(bytes32 indexed id, address indexed token, address indexed recipient, uint256 fee)'),
 ] as const
 const decisionStatus = { Disputed: 'disputed', Released: 'released', Refunded: 'refunded' } as const satisfies Record<string, PaymentStatus>
 const MAX_RANGE = 50_000n
 
 export function createIndexer({ store }: { store: Db }) {
   const newDisputes: string[] = [] // payment ids that became disputed during this sync (for alerts)
+  const newFees: string[] = [] // payment ids whose release paid Held's fee during this sync (for fee emails)
   async function scanRange(fromBlock: bigint, toBlock: bigint) {
     const merchants = Object.values(store.merchants)
     if (!merchants.length) return
@@ -59,6 +62,10 @@ export function createIndexer({ store }: { store: Db }) {
       if (!arbiters.has(l.address.toLowerCase())) continue
       const p = store.payments[l.args.id]
       if (!p) continue
+      if (l.eventName === 'FeeCharged') {
+        if (p.fee === undefined) { p.fee = l.args.fee.toString(); newFees.push(p.id) } // once, even if a range is rescanned
+        continue
+      }
       const status = decisionStatus[l.eventName]
       if (p.history.some((h) => h.tx === l.transactionHash && h.status === status)) continue
       p.status = status
@@ -88,7 +95,7 @@ export function createIndexer({ store }: { store: Db }) {
     return head
   }
 
-  return { sync, newDisputes }
+  return { sync, newDisputes, newFees }
 }
 
 // Order view = order + its merchant + its payments, with a single derived status for the UI.

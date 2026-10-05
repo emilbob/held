@@ -33,8 +33,13 @@ export default function Landing() {
   const w = useWallet('merchant')
   const ready = !!w.wallet && walletFits(w.wallet.kind, 'real')
   const start = (ref?: typeof cta1) => (
-    <button ref={ref} className={`cta ${ref || !sandbox ? 'primary' : ''}`} disabled={!ready} aria-describedby={ready ? undefined : 'connectfirst'}
+    <button ref={ref} className={`cta ${ref || !sandbox || ready ? 'primary' : ''}`} disabled={!ready} aria-describedby={ready ? undefined : 'connectfirst'}
       onClick={() => { location.hash = '#/merchant' }}>Start accepting payments</button>
+  )
+  // With your own wallet connected you're setting up a real shop, so the shared sandbox is off until you disconnect.
+  const trySandbox = (label: string, ref?: typeof cta2) => sandbox && (
+    <button ref={ref} className={`cta ${!ref && !ready ? 'primary' : ''}`} disabled={ready} aria-describedby={ready ? 'ownwallet' : undefined}
+      onClick={() => { location.hash = '#/sandbox' }}>{label}</button>
   )
   const connect = !ready && !w.restoring && (
     <div className="connectfirst">
@@ -52,9 +57,15 @@ export default function Landing() {
             only way out: it can release the funds to the merchant or refund the buyer. No custodian. No platform risk.</p>
           <div className="ctas">
             {start(cta1)}
-            {sandbox && <a href="#/sandbox"><button ref={cta2} className="cta">Try the sandbox (2 min)</button></a>}
+            {trySandbox('Try the sandbox (2 min)', cta2)}
           </div>
           {connect}
+          {ready && (
+            <div className="connectfirst">
+              <p id="ownwallet">Connected with your own wallet: start accepting payments. {sandbox && 'The sandbox uses shared test wallets, so it\'s off while yours is connected.'}</p>
+              <WalletPicker w={w} choice="real" />
+            </div>
+          )}
           <p className="hint">Buying something? Open the checkout link your merchant sent you.</p>
         </div>
         <div className="hero-visual"><HeldFrame cycle className="frame-canvas" /></div>
@@ -69,7 +80,7 @@ export default function Landing() {
         <h2>See it work in two minutes.</h2>
         <p>{sandbox ? 'A shop is already set up on Tempo testnet. Play merchant, buyer and resolver, and try to cheat: the contract refuses.' : 'Set up your shop from your own wallet in a few minutes.'}</p>
         <div className="ctas">
-          {sandbox && <a href="#/sandbox"><button className="primary cta">Try the sandbox</button></a>}
+          {trySandbox('Try the sandbox')}
           {start()}
         </div>
         {!ready && !w.restoring && <p className="hint">Connect your wallet at the top of this page to start accepting payments.</p>}

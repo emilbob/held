@@ -258,7 +258,8 @@ Spec: ../research/final-direction.md (locked; the user approved it on Sep 24 wit
   Refunds unchanged (100% to payer). Constructor creates a TIP-403 whitelist holding only the arbiter (admin = arbiter,
   no code to edit it); merchant's receive policy uses it as sender policy so only the arbiter's payout passes.
   payoutPolicyId is storage (not immutable) so the byte-for-byte check works. Event FeeCharged.
-- network.*.json `fee`: testnet placeholder wallet 0x5b60...37e5 (key in .state/fee-placeholder.json), 1%, on from
+- network.*.json `fee`: testnet fee wallet 0x0eE2...2ff8 since Oct 5 (the user's own Tempo Wallet passkey account "Held fees";
+  the old placeholder 0x5b60...37e5 is retired, its key was exposed in a session), 1%, on from
   start=0; mainnet recipient = address(0) on purpose (constructor refuses) until the real fee wallet is set, start
   1814400000 (2027-07-01), 1%, no cap. Server refuses arbiters whose fee settings differ from the network's.
 - Setup screen shows the fee ("free until 1 July 2027, then 1%..." / testnet "1% of each released payment").

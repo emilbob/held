@@ -33,7 +33,7 @@
     "arbiter": "0x79a9a3381f672ab426a34a5f171b1f93e0003b94"
   },
   "fee": {
-    "recipient": "0x5b60526984b0C7dEc076B66C6DE61A9EEc7237e5",
+    "recipient": "0x0eE2F271D302aEdBc67F62c1FB67117EE7152ff8",
     "bps": 100,
     "start": 0,
     "cap": "0"

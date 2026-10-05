@@ -28,7 +28,7 @@ import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
 import { alertDisputes } from './alerts.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
-import { signInMessage, noteMessage, NOTE_MAX, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
+import { signInMessage, noteMessage, NOTE_MAX, NOTES_PER_SIDE, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
 // 1..65535, so no two databases (local, live, previews) hand out the same order addresses.
 export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
@@ -65,7 +65,7 @@ const priceError = (amount: unknown, network: Network, what: string) => {
   if (parseUnits(String(amount), 6) > BigInt(network.maxOrder)) return `${what} can be at most $${Number(network.maxOrder) / 1e6} for now (launch limit).`
   return null
 }
-// Dispute notes are only for the order's merchant and resolver.
+// Dispute notes are only for the order's buyer page (its unguessable key), its merchant and its resolver.
 const withNotes = (s: Db, o: Order): Order => {
   const notes = Object.fromEntries(o.payments.filter((p) => s.notes?.[p.id]?.length).map((p) => [p.id, s.notes![p.id]]))
   return Object.keys(notes).length ? { ...o, notes } : o
@@ -205,8 +205,11 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const ref = m[1]
       let o = /^\d+$/.test(ref) ? s.orders[ref] : Object.values(s.orders).find((x) => x.key === ref)
       // By number only for orders made before keys existed, or for the order's own signed-in merchant.
-      if (o && /^\d+$/.test(ref) && o.key && sessionOf(s, headers)?.toLowerCase() !== o.merchant.toLowerCase()) o = undefined
-      return o ? ok(orderView(s, o)) : ok({ error: 'Order not found' }, 404)
+      const isMerchant = !!o && sessionOf(s, headers)?.toLowerCase() === o.merchant.toLowerCase()
+      if (o && /^\d+$/.test(ref) && o.key && !isMerchant) o = undefined
+      // Notes by key (the buyer's own link) or for the merchant; never by a guessable order number.
+      if (!o) return ok({ error: 'Order not found' }, 404)
+      return ok(!/^\d+$/.test(ref) || isMerchant ? withNotes(s, orderView(s, o)) : orderView(s, o))
     }
     // ---------------------------------------------------------------- checkout links
     if (path === '/api/links' && method === 'POST') {
@@ -303,7 +306,7 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       if (!by) return ok({ error: 'Only the wallet that paid (signed) or the merchant can add a note.' }, 401)
       const r = await mutate((s) => {
         const list = ((s.notes ??= {})[pay.id] ??= [])
-        if (list.filter((n) => n.by === by).length >= 5) return null
+        if (list.filter((n) => n.by === by).length >= NOTES_PER_SIDE) return null
         const note: Note = { by: by!, text, at: now() }
         list.push(note)
         return note

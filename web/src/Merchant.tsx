@@ -6,7 +6,7 @@ import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
 import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
-import { acceptedTokensOf, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
+import { acceptedTokensOf, NOTE_MAX, NOTES_PER_SIDE, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
 
 export default function MerchantPage() {
   const cfg = useConfig()
@@ -300,20 +300,23 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
       )}
       {main && status === 'disputed' && (
         <div className="actions">
-          <span className="muted">Disputed: the resolver ({short(merchant.resolver)}) decides. You can still refund the buyer.</span>
+          <span className="muted">Disputed: the resolver ({short(merchant.resolver)}) decides. Agree with the buyer? <b className="ink">Refund buyer</b> ends the dispute right away.</span>
           <B k="refund" fn="refund" p={main} label="Refund buyer" done="Refunded to the buyer." />
           {isSandboxShop(cfg, merchant.address) && <button className="primary" onClick={openSandboxResolver}>Decide as the resolver →</button>}
-          <Notes notes={o.notes?.[main.id]} />
+          <Notes notes={o.notes?.[main.id]} me="merchant" />
           {!o.notes?.[main.id]?.length && <p className="muted small">The buyer didn't leave a note.</p>}
-          <form className="replyform" onSubmit={async (e) => {
-            e.preventDefault(); setMsg(null)
-            try { await api('/notes', { paymentId: main.id, text: reply }); setReply(''); setMsg({ ok: true, text: 'Your reply was sent to the resolver.' }) }
-            catch (x) { setMsg({ ok: false, text: (x as Error).message }) }
-          }}>
-            <label htmlFor={'reply' + o.id} className="muted small">Your side, for the resolver (e.g. tracking number):</label>
-            <textarea id={'reply' + o.id} value={reply} onChange={(e) => setReply(e.target.value)} maxLength={500} rows={2} />
-            <button className="small" disabled={!reply.trim()}>Send reply</button>
-          </form>
+          {(o.notes?.[main.id] ?? []).filter((n) => n.by === 'merchant').length < NOTES_PER_SIDE ? (
+            <form className="replyform" onSubmit={async (e) => {
+              e.preventDefault(); setMsg(null)
+              try { await api('/notes', { paymentId: main.id, text: reply }); setReply(''); setMsg({ ok: true, text: 'Your reply was sent to the buyer and the resolver.' }) }
+              catch (x) { setMsg({ ok: false, text: (x as Error).message }) }
+            }}>
+              <label htmlFor={'reply' + o.id} className="muted small">Your side, for the buyer and the resolver (e.g. tracking number,
+                {' '}{NOTES_PER_SIDE - (o.notes?.[main.id] ?? []).filter((n) => n.by === 'merchant').length} left):</label>
+              <textarea id={'reply' + o.id} value={reply} onChange={(e) => setReply(e.target.value)} maxLength={NOTE_MAX} rows={2} />
+              <button className="small" disabled={!reply.trim()}>Send reply</button>
+            </form>
+          ) : <p className="muted small">You've sent the maximum of {NOTES_PER_SIDE} replies. The resolver will decide.</p>}
         </div>
       )}
       {wrong.map((p) => (

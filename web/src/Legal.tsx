@@ -78,7 +78,7 @@ export function Privacy() {
           <li><b>Feedback:</b> what you write on the feedback page, which kind of user you said you are, and a contact only if you
             give one. Only Held's developer reads it. It's shown publicly only if you tick "You can quote this", and then only the
             text and the name or handle you chose, never your contact.</li>
-          <li><b>Dispute notes:</b> what the buyer and merchant write. Only that merchant and their resolver can read them; they never
+          <li><b>Dispute notes:</b> what the buyer and merchant write. Only that buyer (on their own checkout page), that merchant and their resolver can read them; they never
             appear on public pages.</li>
           <li><b>Sign-in sessions:</b> stored as a one-way hash, and deleted after they expire (7 days).</li>
           <li><b>Abuse protection:</b> a short one-way hash of your IP address for a few seconds when you open a checkout link; never the

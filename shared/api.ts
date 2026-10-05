@@ -130,12 +130,14 @@ export const FEEDBACK_MAX = 1000
 export const CONTACT_MAX = 120
 export const QUOTE_NAME_MAX = 40
 
-// Dispute notes: what the buyer says went wrong, and the merchant's reply. Readable only by the merchant and the
-// resolver. A buyer's note is signed by the wallet that paid (this exact text), so nobody can speak for the buyer.
+// Dispute notes: what the buyer says went wrong, the merchant's replies, the buyer's follow-ups. Readable by the
+// order's buyer page, its merchant and the resolver. A buyer's note is signed by the wallet that paid (this exact
+// text), so nobody can speak for the buyer.
 export interface Note { by: 'buyer' | 'merchant', text: string, at: number }
 export const NOTE_MAX = 500
+export const NOTES_PER_SIDE = 5 // per payment, for the buyer and for the merchant
 export const noteMessage = (orderId: number, paymentId: string, text: string) =>
-  `Held dispute note\n\nOrder: #${orderId}\nPayment: ${paymentId}\n\n${text}\n\nOnly the merchant and the resolver can read this. It does not move funds.`
+  `Held dispute note\n\nOrder: #${orderId}\nPayment: ${paymentId}\n\n${text}\n\nThe merchant and the resolver will read this. It does not move funds.`
 
 // v1 shops stored one token; v2 shops store the list.
 export const acceptedTokensOf = (m: Pick<Merchant, 'acceptedTokens' | 'acceptedToken'>): Address[] =>

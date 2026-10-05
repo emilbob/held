@@ -254,8 +254,9 @@ export function WalletPicker({ w, note, choice = 'any' }: { w: ReturnType<typeof
 }
 
 // Dispute notes (merchant dashboard and resolver console).
-export const Notes = ({ notes }: { notes?: Note[] }) => notes?.length ? (
+// `me` names the viewer's own side "You".
+export const Notes = ({ notes, me }: { notes?: Note[], me?: Note['by'] }) => notes?.length ? (
   <div className="notes">
-    {notes.map((n, i) => <p key={i} className={`note ${n.by}`}><b>{n.by === 'buyer' ? 'Buyer' : 'Merchant'}:</b> {n.text}</p>)}
+    {notes.map((n, i) => <p key={i} className={`note ${n.by}`}><b>{n.by === me ? 'You' : n.by === 'buyer' ? 'Buyer' : 'Merchant'}:</b> {n.text}</p>)}
   </div>
 ) : null

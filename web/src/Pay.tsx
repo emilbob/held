@@ -5,8 +5,8 @@ import { CountUp, useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
 import QRCode from 'qrcode'
 import * as W from './wallet.ts'
-import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, walletFits, Badge, Steps, Result, usd, short, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
-import { noteMessage, NOTE_MAX, tokenSymbol, type Order, type OrderStatus } from '../../shared/api.ts'
+import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, walletFits, Badge, Steps, Result, Notes, usd, short, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
+import { noteMessage, NOTE_MAX, NOTES_PER_SIDE, tokenSymbol, type Order, type OrderStatus } from '../../shared/api.ts'
 import type { Address } from 'viem'
 
 export default function Pay({ id }: { id: string }) {
@@ -21,6 +21,7 @@ export default function Pay({ id }: { id: string }) {
   const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
   const [disputing, setDisputing] = useState(false)
   const [reason, setReason] = useState('')
+  const [followUp, setFollowUp] = useState('')
   const [chosen, setChosen] = useState<Address | null>(null)
   const root = useRef<HTMLDivElement>(null)
   useEntrance(root, ':scope > .card', !!order)
@@ -67,14 +68,18 @@ export default function Pay({ id }: { id: string }) {
   const enough = accepted.filter((t) => bal(t) >= BigInt(order.amount))
   const payToken = chosen && accepted.includes(chosen) ? chosen : enough[0] ?? accepted[0]
   const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => W.arbiter(wallet!, arbiter, fn, receipt, accepted)
+  // A buyer's note is signed by the wallet that paid, so nobody else can write in the buyer's name.
+  const sendNote = async (paymentId: string, text: string) => {
+    const signature = await W.signMessage(wallet!, noteMessage(order.id, paymentId, text))
+    await api('/notes', { paymentId, text, signature })
+  }
   // Dispute on-chain first (from the buyer's wallet), then the signed note. A failed note never undoes the dispute.
   const openDispute = async (paymentId: string, receipt: Hex) => {
     await W.arbiter(wallet!, arbiter, 'dispute', receipt, accepted)
     const text = reason.trim()
     if (!text) { setMsg({ ok: true, text: 'Dispute opened.' }); return }
     try {
-      const signature = await W.signMessage(wallet!, noteMessage(order.id, paymentId, text))
-      await api('/notes', { paymentId, text, signature })
+      await sendNote(paymentId, text)
       setMsg({ ok: true, text: 'Dispute opened. Your note was sent to the merchant and the resolver.' })
     } catch (e) {
       setMsg({ ok: false, text: `Dispute opened, but your note wasn't sent: ${W.explain(e)}` })
@@ -116,6 +121,9 @@ export default function Pay({ id }: { id: string }) {
           </div>
         )}
         {status === 'disputed' && <div className="protect dispute"><b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.</div>}
+        {status === 'disputed' && main && (order.notes?.[main.id]?.length
+          ? <Notes notes={order.notes[main.id]} me={isPayer ? 'buyer' : undefined} />
+          : <p className="muted small">No notes yet. The merchant's replies will show here.</p>)}
         {status === 'disputed' && isSandboxShop(cfg, order.merchant) && (
           <div className="resolvecall">
             <p><b>In the sandbox, you're the resolver too.</b> Read both sides and decide: refund the buyer or pay the merchant.</p>
@@ -189,6 +197,21 @@ export default function Pay({ id }: { id: string }) {
         ) : (
           <p className="muted">Only the wallet that paid ({short(main.payer)}) can confirm or dispute.</p>
         ))}
+
+        {/* Dispute open: the paying wallet can keep its side of the story going. Only the resolver (or a merchant's
+            refund) ends it; a satisfied buyer says so here, and the resolver can then pay the merchant. */}
+        {wallet && main && status === 'disputed' && isPayer && (() => {
+          const mine = (order.notes?.[main.id] ?? []).filter((n) => n.by === 'buyer').length
+          return mine < NOTES_PER_SIDE ? (
+            <form className="replyform" onSubmit={(e) => { e.preventDefault()
+              run('note', () => sendNote(main.id, followUp.trim()).then(() => setFollowUp('')), 'Note sent to the merchant and the resolver.') }}>
+              <label htmlFor="followup" className="muted small">Add a note for the merchant and the resolver ({NOTES_PER_SIDE - mine} left).
+                Sorted it out with the merchant? Say so here: the resolver can then pay them.</label>
+              <textarea id="followup" value={followUp} onChange={(e) => setFollowUp(e.target.value)} maxLength={NOTE_MAX} rows={2} />
+              <button className="small" disabled={!!busy || !followUp.trim()}>{busy === 'note' ? 'Sending…' : 'Send note'}</button>
+            </form>
+          ) : <p className="muted small">You've sent the maximum of {NOTES_PER_SIDE} notes. The resolver will decide.</p>
+        })()}
 
         {wallet && wrong.map((p) => (
           <div className="wrongtoken" key={p.id}>

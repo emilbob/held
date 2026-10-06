@@ -57,8 +57,8 @@ const sections: [string, [string, ReactNode][]][] = [
         the order. If the resolver hasn't decided by then, the buyer gets their money back: anyone can trigger the refund, and it always
         goes to the wallet that paid. After the deadline the resolver can no longer pay the merchant.</>],
     ['Has the contract been audited?',
-      <>Not yet. It's tested extensively, including randomized tests of every rule, but an independent audit comes after the beta.
-        Until then orders are capped at {NET.testnet ? '$250 on mainnet' : usd(NET.maxOrder)}. See the <a href="#/roadmap">roadmap</a>.</>],
+      <>Not yet. It's tested extensively, including randomized tests of every rule, and an independent audit is the next step:
+        Held moves to mainnet only after it.{NET.testnet ? '' : ` Orders are capped at ${usd(NET.maxOrder)}.`} See the <a href="#/roadmap">roadmap</a>.</>],
   ]],
   ['Costs and the beta', [
     ['What does Held cost?',
@@ -67,7 +67,7 @@ const sections: [string, [string, ReactNode][]][] = [
         be raised. Refunds are always free. See the <a href="#/roadmap">roadmap</a>.</>],
     ['Is this real money?',
       NET.testnet
-        ? <>Not on this site: it runs on Tempo testnet with free test funds. A free beta on mainnet is next on the <a href="#/roadmap">roadmap</a>.</>
+        ? <>Not on this site: it runs on Tempo testnet with free test funds. A free beta on mainnet follows the security audit, see the <a href="#/roadmap">roadmap</a>.</>
         : <>Yes. Held runs on Tempo mainnet with real stablecoins, as a free beta.</>],
   ]],
 ]

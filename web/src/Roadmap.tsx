@@ -10,22 +10,29 @@ const stages = [
       'Buyer protection with the two-destination guarantee: a held payment can only go to the merchant or back to the payer',
       'Self-serve shops, set up from the merchant\'s own wallet',
       'Up to 3 accepted stablecoins per shop',
-      'Disputes decided by the resolver the merchant chose',
+      'Disputes decided by the resolver the merchant chose, within a deadline; after it the buyer is refunded',
+      'Buyers can withdraw a dispute; shops can change their settings whenever nothing is held',
       'Held\'s server holds no keys and never signs a release or refund',
     ],
   },
   {
-    when: 'Next', badge: 'Free beta on mainnet', cls: 'amber',
+    when: 'Next', badge: 'Security audit', cls: 'amber',
+    items: [
+      'Independent security audit of the arbiter contract',
+      'Mainnet only after the audit: no real money is held by an unaudited contract',
+    ],
+  },
+  {
+    when: 'Then', badge: 'Free beta on mainnet', cls: 'grey',
     items: [
       'Real stablecoins on Tempo mainnet (USDC.e, USDT0)',
-      'Orders capped at $250 while the contract is unaudited',
+      'Order limits that start low and rise as the beta proves itself',
       'No Held fee until mid-2027: you only pay Tempo\'s network fees, cents or less',
     ],
   },
   {
     when: 'Later', badge: 'After the beta', cls: 'grey',
     items: [
-      'Independent security audit of the arbiter contract',
       'Multisig resolver',
       'Refunds to an address the buyer chooses, so payments sent from an exchange are protected too',
       'Higher order limits',

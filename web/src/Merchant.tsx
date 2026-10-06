@@ -369,6 +369,8 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
         {o.linkId && <>From checkout link · </>}Pay-to address <code title={o.address}>{short(o.address)}</code>
         {main && <> · paid by <a href={addrUrl(main.payer)} target="_blank">{short(main.payer)}</a> · <a href={txUrl(main.txHash)} target="_blank">payment tx</a></>}
         {o.underpaid && <span className="warn"> · underpaid ({usd(main!.amount)})</span>}
+        {main?.status === 'released' && main.fee && BigInt(main.fee) > 0n &&
+          <> · you received <b>{usd(BigInt(main.amount) - BigInt(main.fee))}</b> (Held's fee {usd(main.fee)})</>}
         {status === 'held' && <> · window closes in <b>{countdown(left)}</b></>}
       </div>
 

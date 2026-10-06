@@ -32,17 +32,20 @@ export async function alertDisputes(s: Db, network: Network, paymentIds: string[
 export async function alertFees(s: Db, network: Network, paymentIds: string[]) {
   if (!process.env.RESEND_API_KEY || !process.env.ALERT_EMAIL || !paymentIds.length) return
   let total = 0n
+  const ids: string[] = [] // order numbers, so each email has its own subject (Gmail threads identical subjects together)
   const lines = paymentIds.flatMap((id) => {
     const p = s.payments[id]
     const m = p && s.merchants[p.merchant.toLowerCase()]
     if (!p?.fee || !m) return []
     total += BigInt(p.fee)
     const order = Object.values(s.orders).find((o) => o.address.toLowerCase() === p.recipient.toLowerCase())
+    ids.push(`#${order?.id ?? '?'}`)
     return [`${m.name}: order #${order?.id ?? '?'}${order ? ` (${order.item})` : ''}, ${usd(p.amount)} released -> fee ${usd(p.fee)} ${tokenSymbol(network, p.token)}`]
   })
   if (!lines.length) return
   const net = network.testnet ? ' (testnet)' : ''
-  const subject = lines.length === 1 ? `Held${net}: fee received, ${usd(total)}` : `Held${net}: ${lines.length} fees received, ${usd(total)}`
+  const subject = lines.length === 1 ? `Held${net}: fee received, ${usd(total)} from order ${ids[0]}`
+    : `Held${net}: ${lines.length} fees received, ${usd(total)} from orders ${ids.join(', ')}`
   const text = `Held's fee arrived in your fee wallet${net}.\n\n${lines.join('\n')}\n\nTotal: ${usd(total)}\n\n` +
     `Fee wallet: ${network.explorer}/address/${network.fee.recipient}\n`
   await sendEmail('fee email', subject, text)
@@ -65,5 +68,6 @@ async function sendEmail(what: string, subject: string, text: string) {
       r = await send(fallback)
     }
     if (!r.ok) console.error(`${what} failed`, r.status, await r.text())
+    else console.log(`${what} sent: ${subject}`)
   } catch (e) { console.error(`${what} failed`, e) }
 }

@@ -62,7 +62,7 @@ export default function MerchantPage() {
     </div>
   )
   if (!me.merchant) return cfg && <Setup cfg={cfg} wallet={w.wallet} onDone={loadMe} />
-  return <Dashboard merchant={me.merchant} w={w} testnet={!!cfg?.testnet} />
+  return <Dashboard merchant={me.merchant} w={w} testnet={!!cfg?.testnet} onChanged={loadMe} />
 }
 
 /** "Free until 1 July 2027, then 1% of each released payment (at most $5)." from the network's fee settings. */
@@ -102,20 +102,28 @@ const STEPS: [SetupStep, string][] = [
   ['policy', 'Hold incoming payments for that arbiter (1 transaction)'],
 ]
 
-function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone: () => void }) {
-  const saveKey = `held.setup.${wallet.address.toLowerCase()}`
-  const saved = (): SetupState => { try { return JSON.parse(localStorage.getItem(saveKey) || '{}') } catch { return {} } }
+// New shop: all four steps. `current` set: the shop changes its settings, which deploys a new arbiter for new payments
+// (steps 3-4 only; same checkout address, same locked fee). Both end with a review before anything is deployed.
+function Setup({ cfg, wallet, onDone, current, onCancel }: { cfg: Config, wallet: W.Wallet, onDone: () => void, current?: Merchant, onCancel?: () => void }) {
+  const saveKey = `held.setup.${wallet.address.toLowerCase()}${current ? '.change' : ''}`
+  const saved = (): SetupState => {
+    let s: SetupState = {}
+    try { s = JSON.parse(localStorage.getItem(saveKey) || '{}') } catch {}
+    return current ? { ...s, masterId: current.masterId } : s
+  }
+  const fee = current?.fee ?? cfg.fee // a shop keeps the fee it was set up with
   const [name, setName] = useState('')
+  const [review, setReview] = useState(false)
   // Slider stops (seconds). Testnet starts in minutes so the whole flow can be tried quickly.
   const H = 3600, D = 86400
   const windows = cfg.testnet ? [300, 600, 1800, H, 6 * H, 12 * H, D, 2 * D, 3 * D, 5 * D, 7 * D, 10 * D, 14 * D]
     : [D, 2 * D, 3 * D, 5 * D, 7 * D, 10 * D, 14 * D, 21 * D, 30 * D]
-  const [window, setWindow] = useState(cfg.defaultWindow)
+  const [window, setWindow] = useState(current?.window ?? cfg.defaultWindow)
   // The resolver's deadline (contract v3): undecided disputes refund the buyer after it. Testnet offers a short one to try it.
   const resolveWindows = cfg.testnet ? [600, 1800, H, 6 * H, 12 * H, D, 2 * D, 3 * D, 5 * D, 7 * D, 14 * D]
     : [D, 2 * D, 3 * D, 5 * D, 7 * D, 10 * D, 14 * D, 21 * D, 30 * D]
-  const [resolveWindow, setResolveWindow] = useState(cfg.defaultResolveWindow)
-  const [resolver, setResolver] = useState<string>(cfg.defaultResolver)
+  const [resolveWindow, setResolveWindow] = useState(current?.resolveWindow ?? cfg.defaultResolveWindow)
+  const [resolver, setResolver] = useState<string>(current?.resolver ?? cfg.defaultResolver)
   const [step, setStep] = useState<SetupStep | null>(null)
   const [mining, setMining] = useState<MiningProgress | null>(null)
   const [msg, setMsg] = useState<Msg>(null)
@@ -125,38 +133,66 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
   const start = async (e: FormEvent) => {
     e.preventDefault(); setMsg(null)
     if (!/^0x[0-9a-fA-F]{40}$/.test(resolver)) return setMsg({ ok: false, text: 'The resolver must be a wallet address (0x…).' })
+    if (!review) { setReview(true); return } // first press: show what gets written into the contract
+    setReview(false)
     abort.current = new AbortController()
     try {
-      const r = await runSetup({ wallet, pub: W.pub as never, resolver: resolver as Address, tokens: cfg.tokens.map((t) => t.address), window, resolveWindow, fee: cfg.fee, state: saved(),
+      // Changing settings: re-check right before the first transaction that nothing is held (the server refuses then,
+      // and a deployed-but-refused arbiter would leave new payments held for a contract Held doesn't list).
+      if (current) {
+        const { orders } = await api<{ orders: Order[] }>('/orders')
+        if (orders.some((o) => o.payments.some((p) => p.status === 'held' || p.status === 'disputed')))
+          throw new Error('Some of your payments are still held. Release or refund them first: they keep the settings they were paid under.')
+      }
+      const r = await runSetup({ wallet, pub: W.pub as never, resolver: resolver as Address, tokens: cfg.tokens.map((t) => t.address), window, resolveWindow, fee, state: saved(),
         save: (s) => localStorage.setItem(saveKey, JSON.stringify(s)), onStep: setStep, onProgress: setMining, signal: abort.current.signal })
-      await api('/merchants', { name: name || 'My shop', arbiter: r.arbiter, masterId: r.masterId })
+      await api('/merchants', { name: current ? current.name : name || 'My shop', arbiter: r.arbiter, masterId: r.masterId })
       localStorage.removeItem(saveKey)
       onDone()
     } catch (x) { setMsg({ ok: false, text: W.explain(x) }); setStep(null) }
   }
 
-  const at = step ? STEPS.findIndex(([s]) => s === step) : -1
+  const steps = current ? STEPS.filter(([s]) => s === 'deploy' || s === 'policy') : STEPS
+  const at = step ? steps.findIndex(([s]) => s === step) : -1
+  const locked = !!step || review
   const expected = mining && mining.rate > 0 ? 2 ** 32 / mining.rate : 0
   return (
     <div className="narrow">
       <form className="card setup" onSubmit={start}>
-        <p className="kicker">For merchants</p>
-        <h1>Set up your shop</h1>
-        <p className="muted">One time, from your wallet ({short(wallet.address)}). Your checkout address and your own arbiter contract: Held's server never holds your keys or your funds.</p>
-        <label htmlFor="shopname">Shop name</label>
-        <input id="shopname" value={name} onChange={(e) => setName(e.target.value)} placeholder="My shop" maxLength={60} disabled={!!step} />
-        <StepSlider id="window" label="Protection window (how long buyers can dispute)" steps={windows} value={window} onChange={setWindow} disabled={!!step} />
-        <StepSlider id="resolve" label="Resolver's deadline (how long disputes can take)" steps={resolveWindows} value={resolveWindow} onChange={setResolveWindow} disabled={!!step} />
+        <p className="kicker">For merchants{current ? ` · ${current.name}` : ''}</p>
+        <h1>{current ? 'Change shop settings' : 'Set up your shop'}</h1>
+        {current
+          ? <p className="muted">These settings are written into your arbiter contract, so changing them deploys a new one for your next payments
+              (2 transactions, a few cents). Payments made before keep the settings they were paid under. Your checkout address and your fee stay the same.</p>
+          : <p className="muted">One time, from your wallet ({short(wallet.address)}). Your checkout address and your own arbiter contract: Held's server never holds your keys or your funds.</p>}
+        {!current && <>
+          <label htmlFor="shopname">Shop name</label>
+          <input id="shopname" value={name} onChange={(e) => setName(e.target.value)} placeholder="My shop" maxLength={60} disabled={locked} />
+        </>}
+        <StepSlider id="window" label="Protection window (how long buyers can dispute)" steps={windows} value={window} onChange={setWindow} disabled={locked} />
+        <StepSlider id="resolve" label="Resolver's deadline (how long disputes can take)" steps={resolveWindows} value={resolveWindow} onChange={setResolveWindow} disabled={locked} />
         <p className="muted small">If the resolver hasn't decided a dispute by then, the buyer gets their money back. Buyers see this deadline at checkout.</p>
         <details>
           <summary>Resolver (who decides disputes)</summary>
           <p className="muted small">Held's resolver by default. It can only refund the buyer or pay you, never anything else.</p>
-          <input value={resolver} onChange={(e) => setResolver(e.target.value.trim())} aria-label="Resolver address" disabled={!!step} />
+          <input value={resolver} onChange={(e) => setResolver(e.target.value.trim())} aria-label="Resolver address" disabled={locked} />
         </details>
-        <p className="muted small feeline"><b>Held's fee:</b> {feeText(cfg.fee)} Refunds are always free. It's written into your
+        <p className="muted small feeline"><b>Held's fee:</b> {feeText(fee)} Refunds are always free. It's written into your
           contract at setup, so Held can never raise it.</p>
+        {review && (
+          <div className="review">
+            <p><b>Check before deploying.</b> These are written into your contract and can't be edited afterwards
+              {current ? ' (you can change them again later, with a new contract)' : ' (you can change them later from your dashboard, with a new contract)'}:</p>
+            <ul>
+              <li>Protection window: <b>{duration(window)}</b></li>
+              <li>Resolver's deadline: <b>{duration(resolveWindow)}</b></li>
+              <li>Resolver: <b>{resolver.toLowerCase() === cfg.defaultResolver.toLowerCase() ? `Held's resolver (${short(resolver)})` : short(resolver)}</b></li>
+              <li>Held's fee: <b>{feeText(fee)}</b></li>
+            </ul>
+          </div>
+        )}
         <ol className="setupsteps">
-          {STEPS.map(([s, label], i) => (
+          {steps.map(([s, label], i) => (
             <li key={s} className={i < at || step === 'done' ? 'done' : i === at ? 'now' : ''}>
               {label}
               {s === 'mine' && step === 'mine' && mining && (
@@ -166,7 +202,13 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
             </li>
           ))}
         </ol>
-        {!step && <button className="primary">{saved().salt ? 'Continue setup' : 'Start setup'}</button>}
+        {!step && (
+          <div className="row">
+            <button className="primary">{review ? (current ? 'Deploy new settings' : 'Looks right: start setup') : current ? 'Review changes' : saved().salt ? 'Continue setup' : 'Review and start setup'}</button>
+            {review && <button type="button" className="ghost" onClick={() => setReview(false)}>Back to edit</button>}
+            {!review && onCancel && <button type="button" className="ghost" onClick={onCancel}>Cancel</button>}
+          </div>
+        )}
         {step && step !== 'done' && <p className="muted small">Keep this tab open. Progress is saved: if you reload, setup continues where it stopped.</p>}
         <Result msg={msg} />
       </form>
@@ -175,8 +217,10 @@ function Setup({ cfg, wallet, onDone }: { cfg: Config, wallet: W.Wallet, onDone:
 }
 
 // ---------------------------------------------------------------- dashboard
-function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnType<typeof useWallet>, testnet: boolean }) {
+function Dashboard({ merchant: m, w, testnet, onChanged }: { merchant: Merchant, w: ReturnType<typeof useWallet>, testnet: boolean, onChanged: () => void }) {
+  const cfg = useConfig()
   const [data, err, refresh] = usePoll(() => api<{ orders: Order[] }>('/orders'), 2500, [])
+  const [changing, setChanging] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   useEntrance(root, '.summary > div, :scope > .card, .ordercard', data !== null, { stagger: 0.05 })
   const [item, setItem] = useState('')
@@ -210,6 +254,10 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
   const showTokens = () => { if (w.wallet) W.showTokensInWallet(w.wallet, acceptedTokensOf(m)).catch(() => {}) }
   // Draw the dashboard once its orders are in: drawing the shell first made the entrance replay over it ("refresh").
   if (data === null && !err) return <Loading />
+  // Settings change only while nothing is held: every held payment stays with the arbiter it was paid under.
+  const stillHeld = orders.flatMap((o) => o.payments).some((p) => p.status === 'held' || p.status === 'disputed')
+  const sandbox = w.wallet?.kind === 'sandbox'
+  if (changing && cfg && w.wallet) return <Setup cfg={cfg} wallet={w.wallet} current={m} onCancel={() => setChanging(false)} onDone={() => { setChanging(false); onChanged() }} />
 
   return (
     <div className="dash" ref={root}>
@@ -227,9 +275,17 @@ function Dashboard({ merchant: m, w, testnet }: { merchant: Merchant, w: ReturnT
           {w.wallet?.kind === 'injected' && <button type="button" className="ghost small showtokens" onClick={showTokens}>See it in {w.wallet.name}</button>}</div>
         <div><label>Held for buyers</label><b><CountUp value={heldTotal} format={usd} /></b></div>
         <div><label>Protection window</label>{duration(m.window)}</div>
+        {m.resolveWindow ? <div><label>Resolver's deadline</label>{duration(m.resolveWindow)}</div> : null}
         <div><label>Your arbiter</label><a href={addrUrl(m.arbiter)} target="_blank">{short(m.arbiter)}</a></div>
         <div><label>Resolver</label><a href={addrUrl(m.resolver)} target="_blank">{short(m.resolver)}</a></div>
       </section>
+      {/* The sandbox's settings are shared by everyone trying it, so they stay as they are. */}
+      {!sandbox && (
+        <p className="settingsline muted small">
+          <button type="button" className="ghost small" disabled={stillHeld} onClick={() => setChanging(true)}>Change settings</button>
+          {stillHeld ? ' Release or refund your held payments first: they keep the settings they were paid under.' : ' Protection window, resolver deadline or resolver, for your next payments.'}
+        </p>
+      )}
 
       <form className="card neworder" onSubmit={create}>
         <div className="nohead"><h2>New order</h2><span className="muted small">For one buyer: send them its buyer page</span></div>
@@ -289,7 +345,7 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
   const act = async (key: string, fn: W.ArbiterFn, p: Payment, done: string) => {
     if (!wallet) return
     setBusy(key); setMsg(null)
-    try { await W.arbiter(wallet, merchant.arbiter, fn, p.receipt as Hex, acceptedTokensOf(merchant)); setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
+    try { await W.arbiter(wallet, p.arbiter ?? merchant.arbiter, fn, p.receipt as Hex, acceptedTokensOf(merchant)); setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
     setBusy(null)
   }
   const B = ({ k, fn, p, label, done, kind = '' }: { k: string, fn: W.ArbiterFn, p: Payment, label: string, done: string, kind?: string }) => (

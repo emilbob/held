@@ -174,6 +174,11 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 .stepslider input[type=range] { width: 100%; accent-color: var(--lime); cursor: pointer }
 .stepslider input[type=range]:disabled { cursor: default }
 .stepslider .ends { display: flex; justify-content: space-between }
+.setup .review { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--lime); border-radius: 10px; background: var(--lime-soft) }
+.setup .review p { margin: 0 0 6px }
+.setup .review ul { margin: 0; padding-left: 18px; display: grid; gap: 3px }
+.setup .row { display: flex; gap: 8px; flex-wrap: wrap }
+.settingsline { margin: -6px 0 14px }
 .setup details { margin-top: 14px }
 .setup summary { cursor: pointer; color: var(--muted); font-size: 13px }
 .setupsteps { margin: 16px 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; color: var(--muted) }

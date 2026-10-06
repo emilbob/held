@@ -117,9 +117,21 @@ try {
   // ---------------------------------------------------------------- buyer pays; everyone signs in their own wallet
   const buyer = privateKeyToAccount(generatePrivateKey()); await fund(buyer.address)
   const bw = walletFor(buyer), mw = walletFor(mAcct), rw = walletFor(privateKeyToAccount(demo.resolverKey))
-  const pay = async (o: Order) => {
-    const t = await retry(() => Actions.token.transferSync(bw, { to: o.address, amount: parseUnits(String(Number(o.amount) / 1e6), 6), token: PATHUSD }))
-    return ReceivePolicyReceipt.fromTransactionReceipt(t.receipt ?? t)[0] as Hex
+  // Tempo's public testnet RPC sometimes answers 502 to a payment it may still have accepted. Then don't pay twice:
+  // wait, ask the server whether the payment landed, and only send again if it didn't.
+  const pay = async (o: Order): Promise<Hex> => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const t = await retry(() => Actions.token.transferSync(bw, { to: o.address, amount: parseUnits(String(Number(o.amount) / 1e6), 6), token: PATHUSD }))
+        return ReceivePolicyReceipt.fromTransactionReceipt(t.receipt ?? t)[0] as Hex
+      } catch (e) {
+        if (!/Status: 50[234]/.test(String((e as Error)?.message)) || attempt >= 3) throw e
+        log(`  RPC answered ${String((e as Error).message).match(/Status: (\d+)/)?.[1]} to a payment: checking whether it landed…`)
+        await new Promise((r) => setTimeout(r, 6000))
+        const landed = (await call<Order>('GET', `/orders/${o.key}`)).body.payments.find((p) => !p.wrongToken)
+        if (landed) return landed.receipt
+      }
+    }
   }
   const rA = await pay(A)
   let o = await waitStatus(A.key!, 'held')
@@ -241,6 +253,37 @@ try {
   const takeF = await act(mw, setup.arbiter, 'release', rF).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
   check('wrong token cannot reach the merchant after the window (contract)', takeF === 'reverted', takeF)
   check('payer gets the wrong token back', (await act(bw, setup.arbiter, 'refund', rF)) === 'success')
+  for (let i = 0; i < 40 && (await call<Order>('GET', `/orders/${F.key}`)).body.payments.some((p) => p.status === 'held'); i++) await new Promise((r) => setTimeout(r, 800))
+
+  // ---------------------------------------------------------------- change shop settings (new arbiter for new payments)
+  const changeTo = async (window: number) => {
+    const r = await runSetup({ wallet: merchantWallet, pub: pub as never, resolver: TEST_RESOLVER, tokens: TOKENS, window, resolveWindow: 180,
+      fee: network.fee, state: { masterId: setup.masterId }, save: () => {}, onStep: () => {} })
+    return { arbiter: r.arbiter, res: await call<{ merchant: Merchant, error?: string }>('POST', '/merchants', { name: 'ignored', arbiter: r.arbiter, masterId: setup.masterId }, token) }
+  }
+  const I = (await call<Order>('POST', '/orders', { amount: '1', item: 'Order I' }, token)).body
+  const rI = await pay(I); await waitStatus(I.key!, 'held')
+  // The server refuses before checking anything on chain, so nothing gets deployed for a change that can't happen.
+  const blocked = await call<{ error?: string }>('POST', '/merchants', { name: 'x', arbiter: TEST_RESOLVER, masterId: setup.masterId }, token)
+  check('change settings while a payment is held -> refused (409)', blocked.status === 409, blocked.body.error)
+  check('merchant refunds I', (await act(mw, setup.arbiter, 'refund', rI)) === 'success')
+  await waitStatus(I.key!, 'refunded')
+  const changed = await changeTo(240)
+  const me2 = (await call<{ merchant: Merchant }>('GET', '/me', undefined, token)).body.merchant!
+  check('change settings once nothing is held -> new arbiter registered', changed.res.status === 200 && me2.arbiter === changed.arbiter && me2.window === 240 && me2.resolveWindow === 180,
+    { status: changed.res.status, window: me2.window, resolveWindow: me2.resolveWindow })
+  check('…the shop keeps its name, fee and registration date', me2.name === 'E2E Shop' && me2.fee?.recipient === network.fee.recipient && me2.registeredAt === reg.body.merchant.registeredAt)
+  check('…and remembers the old arbiter', me2.previousArbiters?.[0]?.arbiter === setup.arbiter && me2.previousArbiters?.[0]?.window === 120)
+  check('old orders keep their history', (await call<Order>('GET', `/orders/${A.key}`)).body.status === 'released')
+  const J = (await call<Order>('POST', '/orders', { amount: '1', item: 'Order J' }, token)).body
+  const rJ = await pay(J)
+  const oJ = await waitStatus(J.key!, 'held')
+  check('a new payment is held for the new arbiter, with the new window', oJ.payments[0]?.arbiter === changed.arbiter && oJ.payments[0].windowEndsAt - oJ.payments[0].heldAt === 240,
+    { arbiter: oJ.payments[0]?.arbiter, window: oJ.payments[0] && oJ.payments[0].windowEndsAt - oJ.payments[0].heldAt })
+  const oldArbiterTakes = await act(bw, setup.arbiter, 'release', rJ).catch((e) => (isRpcLimit(e) ? 'rpc-limit' : 'reverted'))
+  check('the old arbiter cannot touch the new payment (contract)', oldArbiterTakes === 'reverted', oldArbiterTakes)
+  check('buyer releases J through the new arbiter', (await act(bw, changed.arbiter, 'release', rJ)) === 'success')
+  check('J -> released', (await waitStatus(J.key!, 'released')).status === 'released')
 
   // Launch cap.
   const cap = Number(network.maxOrder) / 1e6

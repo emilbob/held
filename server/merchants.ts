@@ -16,7 +16,9 @@ const MIN_RESOLVE_WINDOW = { testnet: 60, mainnet: 24 * 3600 }
 
 export type Verified = { ok: true, merchant: Omit<Merchant, 'name' | 'registeredAt'> } | { ok: false, error: string }
 
-export async function verifyMerchant(address: Address, arbiterAddress: Address, masterId: Hex, network: Network): Promise<Verified> {
+// `fee`: the fee this shop must have. A new shop gets the network's current fee; a shop changing its settings keeps the
+// fee it was set up with (locked per shop, so a later change of Held's fee never reaches it).
+export async function verifyMerchant(address: Address, arbiterAddress: Address, masterId: Hex, network: Network, fee = network.fee): Promise<Verified> {
   const fail = (error: string): Verified => ({ ok: false, error })
   const code = await pub.getCode({ address: arbiterAddress })
   if (!code || code === '0x') return fail('No contract at the arbiter address.')
@@ -36,8 +38,7 @@ export async function verifyMerchant(address: Address, arbiterAddress: Address, 
   if (Number(window) < minWindow) return fail(`The protection window must be at least ${minWindow} seconds.`)
   const minResolve = network.testnet ? MIN_RESOLVE_WINDOW.testnet : MIN_RESOLVE_WINDOW.mainnet
   if (Number(resolveWindow) < minResolve) return fail(`The resolver's deadline must be at least ${minResolve} seconds.`)
-  // The fee is part of the deal Held lists: it must be exactly this network's (a shop can't opt out or redirect it).
-  const fee = network.fee
+  // The fee is part of the deal Held lists: it must be exactly the expected one (a shop can't opt out or redirect it).
   if (!isAddressEqual(feeRecipient as Address, fee.recipient) || Number(feeBps) !== fee.bps || feeStart !== BigInt(fee.start) || feeCap !== BigInt(fee.cap))
     return fail("The arbiter's fee settings aren't Held's. Run setup again.")
 

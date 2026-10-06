@@ -64,8 +64,8 @@ export async function runSetup(p: {
     return rc
   }
 
-  // 1. Salt.
-  if (!state.salt || !state.masterId) {
+  // 1. Salt. A shop changing its settings passes its registered masterId (no salt needed: step 2 is already done).
+  if (!state.masterId) {
     p.onStep('mine')
     const r = await mine(me, p.onProgress, p.signal)
     state.salt = r.salt; state.masterId = r.masterId; p.save(state)
@@ -76,6 +76,7 @@ export async function runSetup(p: {
   const owner = await Actions.virtualAddress.getMasterAddress(pub, { masterId: state.masterId! }).catch(() => null)
   if (!owner || !isAddressEqual(owner, me)) {
     if (owner) throw new Error('This virtual-address master belongs to another wallet. Mine a new one.')
+    if (!state.salt) throw new Error('This checkout address is not registered to your wallet.')
     await wait(await Actions.virtualAddress.registerMaster(wallet.client, { salt: state.salt }), 'Registering the checkout address')
   }
 

@@ -27,6 +27,7 @@ export interface StoredPayment {
   windowEndsAt: number
   resolveBy?: number // disputed at a v3 shop: the resolver's deadline (unix); after it anyone can refund the payer
   fee?: string // v3: Held's fee taken from this payment's release (base units), from the FeeCharged event
+  arbiter?: Address // the arbiter this payment is held for (its receipt's recovery authority); absent = the shop's current one
   txHash: Hex
   status: PaymentStatus
   history: HistoryEntry[]
@@ -48,7 +49,13 @@ export interface Merchant {
   window: number // protection window, seconds
   resolveWindow?: number // v3 shops: how long the resolver has to decide a dispute, seconds
   registeredAt: number
+  fee?: Network['fee'] // v3: Held's fee as locked into this shop's first v3 arbiter; kept when the shop changes settings
+  // Arbiters this shop used before changing its settings (newest last). Their payments keep the rules they were paid under.
+  previousArbiters?: ArbiterSettings[]
 }
+export type ArbiterSettings = Pick<Merchant, 'arbiter' | 'resolver' | 'acceptedTokens' | 'window' | 'resolveWindow'>
+
+
 
 export interface StoredOrder {
   id: number

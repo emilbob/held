@@ -80,7 +80,7 @@ function Dispute({ order: o, wallet, signedIn, signIn, signing }: { order: Order
   const disputedTx = p.history.find((h) => h.status === 'disputed')?.tx
   const decide = async (fn: 'refund' | 'release', done: string) => {
     setBusy(fn); setMsg(null)
-    try { await W.arbiter(wallet, o.merchantInfo.arbiter, fn, p.receipt as Hex, o.merchantInfo.acceptedTokens); setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
+    try { await W.arbiter(wallet, p.arbiter ?? o.merchantInfo.arbiter, fn, p.receipt as Hex, o.merchantInfo.acceptedTokens); setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
     setBusy(null)
   }
   return (

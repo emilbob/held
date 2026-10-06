@@ -28,7 +28,7 @@ import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
 import { alertDisputes, alertFees } from './alerts.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
-import { signInMessage, noteMessage, NOTE_MAX, NOTES_PER_SIDE, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
+import { acceptedTokensOf, signInMessage, noteMessage, NOTE_MAX, NOTES_PER_SIDE, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
 // 1..65535, so no two databases (local, live, previews) hand out the same order addresses.
 export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
@@ -171,11 +171,31 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const sb = network.sandbox
       if (sb?.arbiter && address.toLowerCase() === sb.merchant.toLowerCase() && arbiter.toLowerCase() !== sb.arbiter.toLowerCase())
         return ok({ error: 'The sandbox shop can only use its own arbiter.' }, 403)
-      const v = await verifyMerchant(address, arbiter, masterId as Hex, network)
+      // A registered shop changing its settings (a new arbiter): it keeps its locked fee, name and registration date,
+      // and only while none of its money is held, so every held payment stays with the arbiter it was paid under.
+      const held = (s: Db) => Object.values(s.payments).some((p) => p.merchant.toLowerCase() === address.toLowerCase() && (p.status === 'held' || p.status === 'disputed'))
+      const s0 = await load()
+      const existing = s0.merchants[address.toLowerCase()]
+      const changing = !!existing && existing.arbiter.toLowerCase() !== arbiter.toLowerCase()
+      const HELD_ERROR = 'Some of your payments are still held. Release or refund them first: they keep the settings they were paid under.'
+      if (changing && held(s0)) return ok({ error: HELD_ERROR }, 409)
+      const fee = existing?.fee ?? network.fee
+      const v = await verifyMerchant(address, arbiter, masterId as Hex, network, fee)
       if (!v.ok) return ok({ error: v.error }, 422)
-      const merchant = { ...v.merchant, name: String(name || 'Merchant').slice(0, 60), registeredAt: now() }
-      await mutate((s) => { s.merchants[address.toLowerCase()] = merchant })
-      return ok({ merchant }, 201)
+      const r = await mutate((s) => {
+        // A payment that landed between the check above and the on-chain switch stays with the old arbiter (tracked
+        // through previousArbiters); refusing now would leave the shop's new payments held for an unlisted contract.
+        const cur = s.merchants[address.toLowerCase()]
+        const previousArbiters = cur && cur.arbiter.toLowerCase() !== arbiter.toLowerCase()
+          ? [...(cur.previousArbiters ?? []), { arbiter: cur.arbiter, resolver: cur.resolver, acceptedTokens: acceptedTokensOf(cur), window: cur.window, resolveWindow: cur.resolveWindow }]
+          : cur?.previousArbiters
+        // A registered shop keeps its name (this endpoint changes settings, not the shop's identity).
+        const merchant: Merchant = { ...v.merchant, name: cur?.name ?? String(name || 'Merchant').slice(0, 60), registeredAt: cur?.registeredAt ?? now(),
+          fee, ...(previousArbiters?.length ? { previousArbiters } : {}) }
+        s.merchants[address.toLowerCase()] = merchant
+        return merchant
+      })
+      return ok({ merchant: r }, changing ? 200 : 201)
     }
 
     if (path === '/api/orders' && method === 'POST') {

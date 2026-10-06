@@ -48,7 +48,8 @@ export default function Pay({ id }: { id: string }) {
   const isPayer = wallet && main && wallet.address.toLowerCase() === main.payer.toLowerCase()
   // Paid out or refunded: nothing left for the buyer to do (unless a wrong-token payment still needs returning).
   const settled = (status === 'released' || status === 'refunded') && !wrong.some((p) => p.status === 'held')
-  const arbiter = order.merchantInfo.arbiter
+  // Each payment is decided by the arbiter it was held for (a shop that changed settings has a new one for new payments).
+  const arbiterFor = (receipt: Hex) => order.payments.find((p) => p.receipt === receipt)?.arbiter ?? order.merchantInfo.arbiter
   // v3 shops: the resolver must decide within resolveWindow, else the buyer can take a refund; the buyer can also
   // withdraw their dispute. Older shops have neither.
   const resolveWindow = order.merchantInfo.resolveWindow
@@ -72,7 +73,7 @@ export default function Pay({ id }: { id: string }) {
   const bal = (t: Address) => w.balances?.[t.toLowerCase()] ?? 0n
   const enough = accepted.filter((t) => bal(t) >= BigInt(order.amount))
   const payToken = chosen && accepted.includes(chosen) ? chosen : enough[0] ?? accepted[0]
-  const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => W.arbiter(wallet!, arbiter, fn, receipt, accepted)
+  const callArbiter = (fn: W.ArbiterFn, receipt: Hex) => () => W.arbiter(wallet!, arbiterFor(receipt), fn, receipt, accepted)
   // A buyer's note is signed by the wallet that paid, so nobody else can write in the buyer's name.
   const sendNote = async (paymentId: string, text: string) => {
     const signature = await W.signMessage(wallet!, noteMessage(order.id, paymentId, text))
@@ -80,7 +81,7 @@ export default function Pay({ id }: { id: string }) {
   }
   // Dispute on-chain first (from the buyer's wallet), then the signed note. A failed note never undoes the dispute.
   const openDispute = async (paymentId: string, receipt: Hex) => {
-    await W.arbiter(wallet!, arbiter, 'dispute', receipt, accepted)
+    await W.arbiter(wallet!, arbiterFor(receipt), 'dispute', receipt, accepted)
     const text = reason.trim()
     if (!text) { setMsg({ ok: true, text: 'Dispute opened.' }); return }
     try {

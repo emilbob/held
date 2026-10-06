@@ -7,7 +7,7 @@
 import { parseAbiItem, keccak256 } from 'viem'
 import { ReceivePolicyReceipt } from 'ox/tempo'
 import { pub, orderIdOf } from '../scripts/lib.ts'
-import { acceptedTokensOf, type Db, type Order, type PaymentStatus, type StoredOrder } from '../shared/api.ts'
+import { acceptedTokensOf, type ArbiterSettings, type Db, type Order, type PaymentStatus, type StoredOrder } from '../shared/api.ts'
 
 const GUARD = '0xB10C000000000000000000000000000000000000'
 const TransferBlocked = parseAbiItem('event TransferBlocked(address indexed token, address indexed receiver, uint64 indexed blockedNonce, uint256 amount, uint8 receiptVersion, bytes receipt)')
@@ -27,18 +27,26 @@ export function createIndexer({ store }: { store: Db }) {
     const merchants = Object.values(store.merchants)
     if (!merchants.length) return
     const byAddress = new Map(merchants.map((m) => [m.address.toLowerCase(), m]))
-    const arbiters = new Set(merchants.map((m) => m.arbiter.toLowerCase()))
+    // Each shop's current arbiter and the ones it used before changing settings (their payments keep their rules).
+    const settingsOf = new Map<string, ArbiterSettings>(merchants.flatMap((m) => [
+      [m.arbiter.toLowerCase(), { arbiter: m.arbiter, resolver: m.resolver, acceptedTokens: acceptedTokensOf(m), window: m.window, resolveWindow: m.resolveWindow }] as const,
+      ...(m.previousArbiters ?? []).map((a) => [a.arbiter.toLowerCase(), a] as const)]))
+    const arbiters = new Set(settingsOf.keys())
     // strict: only logs whose args decode fully (all of ours do), so every field below is present.
     const [blocked, decisions] = await Promise.all([
       pub.getLogs({ address: GUARD, event: TransferBlocked, args: { receiver: merchants.map((m) => m.address) }, fromBlock, toBlock, strict: true }),
-      pub.getLogs({ address: merchants.map((m) => m.arbiter), events: arbiterEvents, fromBlock, toBlock, strict: true }),
+      pub.getLogs({ address: [...settingsOf.values()].map((a) => a.arbiter), events: arbiterEvents, fromBlock, toBlock, strict: true }),
     ])
     for (const l of blocked) {
       const merchant = byAddress.get(l.args.receiver.toLowerCase())
       if (!merchant) continue
       const receipt = l.args.receipt
       const d = ReceivePolicyReceipt.decode(receipt)
-      if (d.recoveryAuthority.toLowerCase() !== merchant.arbiter.toLowerCase()) continue // held under an older policy
+      // Held for this shop's current arbiter or one it used before (a payment that landed just as it changed settings).
+      // Anything else was held under a policy Held never verified for this shop.
+      const own = [merchant.arbiter, ...(merchant.previousArbiters ?? []).map((a) => a.arbiter)].map((a) => a.toLowerCase())
+      const arb = settingsOf.get(d.recoveryAuthority.toLowerCase())
+      if (!arb || !own.includes(d.recoveryAuthority.toLowerCase())) continue
       const id = keccak256(receipt)
       if (store.payments[id]) continue
       store.payments[id] = {
@@ -48,10 +56,11 @@ export function createIndexer({ store }: { store: Db }) {
         payer: d.originator,
         recipient: d.recipient,
         token: d.token,
-        wrongToken: !acceptedTokensOf(merchant).some((t) => t.toLowerCase() === d.token.toLowerCase()),
+        wrongToken: !arb.acceptedTokens.some((t) => t.toLowerCase() === d.token.toLowerCase()),
         amount: l.args.amount.toString(),
         heldAt: Number(d.blockedAt),
-        windowEndsAt: Number(d.blockedAt) + merchant.window,
+        windowEndsAt: Number(d.blockedAt) + arb.window,
+        arbiter: arb.arbiter,
         txHash: l.transactionHash,
         status: 'held',
         history: [{ status: 'held', tx: l.transactionHash, at: Number(d.blockedAt) }],
@@ -72,7 +81,7 @@ export function createIndexer({ store }: { store: Db }) {
       if (status === 'disputed') {
         newDisputes.push(p.id)
         // v3 shops: the resolver's deadline counts from the dispute's block (rare event, so one extra call is fine).
-        const m = store.merchants[p.merchant.toLowerCase()]
+        const m = settingsOf.get((p.arbiter ?? store.merchants[p.merchant.toLowerCase()]?.arbiter ?? '').toLowerCase())
         if (m?.resolveWindow) p.resolveBy = Number((await pub.getBlock({ blockNumber: l.blockNumber })).timestamp) + m.resolveWindow
       }
       p.history.push({ status, tx: l.transactionHash, by: 'caller' in l.args ? l.args.caller : l.args.originator, block: Number(l.blockNumber) })

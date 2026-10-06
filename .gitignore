@@ -21,3 +21,4 @@ e2e/.cft/
 .vercel
 .env*
 .env*.local
+alerts.env

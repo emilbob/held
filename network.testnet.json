@@ -30,7 +30,7 @@
     "resolverKey": "0x8ac83b9c710044698dd217246ef06fbb18a6cfd4f318bcc72c0bbeffc8d2ab2b",
     "salt": "0x000000005d1fb2fbe10a8adad26b9eac9f3a41f1f6d140729a3dd7db4c82cf1c",
     "masterId": "0xeb83d968",
-    "arbiter": "0xec30a59cd076cd23e6b4d3c48f93a531bb9dcfb1"
+    "arbiter": "0xe80694d6fec5d676ad4b7d51478559be8cc54f3e"
   },
   "fee": {
     "recipient": "0x0eE2F271D302aEdBc67F62c1FB67117EE7152ff8",

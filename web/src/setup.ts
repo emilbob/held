@@ -85,7 +85,7 @@ export async function runSetup(p: {
   // Reuse a saved arbiter only if it's the current version (an older arbiter from an earlier setup gets replaced;
   // step 4 then points the receive policy at the new one).
   const current = state.arbiter && (await pub.getCode({ address: state.arbiter })) !== undefined &&
-    (await pub.readContract({ address: state.arbiter, abi: arbiter.abi, functionName: 'VERSION' }).catch(() => 0n)) === 3n
+    (await pub.readContract({ address: state.arbiter, abi: arbiter.abi, functionName: 'VERSION' }).catch(() => 0n)) === 4n
   if (!current) {
     const f = p.fee
     const args = [me, p.resolver, p.tokens, BigInt(p.window), BigInt(p.resolveWindow), f.recipient, f.bps, BigInt(f.start), BigInt(f.cap)] as const

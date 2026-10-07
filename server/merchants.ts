@@ -28,7 +28,7 @@ export async function verifyMerchant(address: Address, arbiterAddress: Address, 
   const [merchant, resolver, tokens, window, resolveWindow, version, feeRecipient, feeBps, feeStart, feeCap, payoutPolicyId] = await Promise.all(
     (['merchant', 'resolver', 'acceptedTokens', 'protectionWindow', 'resolveWindow', 'VERSION', 'feeRecipient', 'feeBps', 'feeStart', 'feeCap', 'payoutPolicyId'] as View[]).map(read))
     .catch(() => [] as unknown[])
-  if (typeof merchant !== 'string' || version !== 3n) return fail('The arbiter is not a current HeldArbiter (v3). Run setup again.')
+  if (typeof merchant !== 'string' || version !== 4n) return fail('The arbiter is not a current HeldArbiter (v4). Run setup again.')
   if (!isAddressEqual(merchant as Address, address)) return fail("The arbiter's merchant is not your wallet.")
   const accepted = tokens as Address[]
   if (!Array.isArray(accepted) || !accepted.length || !accepted.every((t) => network.tokens.some((n) => isAddressEqual(n.address, t))))

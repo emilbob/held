@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 /// Tempo ReceivePolicyGuard precompile (TIP-1028). Holds transfers blocked by a receive policy.
 interface IReceivePolicyGuard {
@@ -54,14 +54,21 @@ interface ITIP20Transfer {
 /// payment is still held.
 ///
 /// v3 also adds the resolver deadline (`resolveWindow`, fixed per shop) and lets the buyer withdraw a dispute.
+///
+/// v4: a payment's id is the hash of its receipt, so every action now refuses a receipt that isn't exactly the
+/// 10-word ClaimReceiptV1 encoding. Before, `receipt ++ extra bytes` decoded (and claimed at the guard) as the same
+/// payment under a new id, so a disputed payment could be released by anyone after the window, skipping the resolver.
 contract HeldArbiter {
-    uint256 public constant VERSION = 3;
+    uint256 public constant VERSION = 4;
     uint256 public constant MAX_FEE_BPS = 1000; // 10%: a hard ceiling on what any shop's fee can be set to
     uint64 public constant MAX_RESOLVE_WINDOW = 90 days; // a buyer's money is never stuck in a dispute longer than this
     IReceivePolicyGuard public constant GUARD = IReceivePolicyGuard(0xB10C000000000000000000000000000000000000);
     IAddressRegistry public constant REGISTRY = IAddressRegistry(0xfDC0000000000000000000000000000000000000);
     ITIP403Registry public constant POLICIES = ITIP403Registry(0x403c000000000000000000000000000000000000);
     uint8 internal constant WHITELIST = 0;
+    // ClaimReceiptV1 is 10 static ABI words. With the exact length, abi.decode (which rejects out-of-range values)
+    // accepts only one encoding per receipt, so keccak256(receipt) is a unique id for each held payment.
+    uint256 internal constant RECEIPT_LENGTH = 320;
 
     /// ClaimReceiptV1 witness (ABI layout from TIP-1028 / ox ReceivePolicyReceipt).
     struct Receipt {
@@ -113,6 +120,7 @@ contract HeldArbiter {
     error WindowClosed();
     error NotAllowed();
     error BadConfig();
+    error BadReceipt();
 
     constructor(
         address merchant_, address resolver_, address[] memory tokens_, uint64 protectionWindow_, uint64 resolveWindow_,
@@ -247,6 +255,7 @@ contract HeldArbiter {
     // ----------------------------------------------------------- internal
 
     function _load(bytes calldata receipt) internal view returns (bytes32 id, Receipt memory r) {
+        if (receipt.length != RECEIPT_LENGTH) revert BadReceipt();
         r = decode(receipt);
         if (r.recoveryAuthority != address(this)) revert NotOurReceipt();
         if (r.recipient != merchant && REGISTRY.resolveRecipient(r.recipient) != merchant) revert NotForMerchant();

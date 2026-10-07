@@ -391,6 +391,48 @@ contract HeldArbiterTest is Test {
         _expectRevert(HeldArbiter.NotForMerchant.selector, otherMerchant, Fn.Refund, r);
     }
 
+    // ------------------------------------------------------------------ one payment, one id (v4)
+
+    /// The bug v4 fixes: abi.decode ignores trailing bytes and the guard accepts a padded receipt, so before v4
+    /// `receipt ++ padding` was a fresh id with status None. After the window anyone could release a disputed payment
+    /// to the merchant that way, skipping the resolver.
+    function test_PaddedReceiptCannotBypassDispute() public {
+        bytes memory r = _disputed(10e6);
+        vm.warp(block.timestamp + WINDOW); // window over, resolver deadline not yet
+        bytes memory padded = abi.encodePacked(r, bytes32(0));
+        assertEq(GUARD.balanceOf(padded), 10e6, "the guard itself accepts the padded receipt");
+        _expectRevert(HeldArbiter.BadReceipt.selector, MERCHANT, Fn.Release, padded);
+        _expectRevert(HeldArbiter.BadReceipt.selector, stranger, Fn.Release, padded);
+        assertEq(GUARD.balanceOf(r), 10e6, "still held for the resolver");
+        assertEq(uint8(arbiter.statusOf(keccak256(r))), uint8(HeldArbiter.Status.Disputed));
+    }
+
+    function test_PaddedReceiptCannotSettleTwiceOrDisputeAgain() public {
+        bytes memory r = _payOrder(10e6);
+        bytes memory padded = abi.encodePacked(r, uint8(0));
+        _expectRevert(HeldArbiter.BadReceipt.selector, buyer, Fn.Dispute, padded);
+        _expectRevert(HeldArbiter.BadReceipt.selector, buyer, Fn.Release, padded);
+        _expectRevert(HeldArbiter.BadReceipt.selector, MERCHANT, Fn.Refund, padded);
+    }
+
+    /// Any receipt that isn't exactly the 10-word ClaimReceiptV1 encoding is refused by every action.
+    function testFuzz_OnlyExactReceiptLength(uint8 extra, bool truncate) public {
+        bytes memory r = _payOrder(10e6);
+        uint256 n = truncate ? r.length - 1 - (uint256(extra) % r.length) : r.length + 1 + extra;
+        bytes memory bad = new bytes(n);
+        for (uint256 i; i < n && i < r.length; i++) bad[i] = r[i];
+        vm.prank(buyer);
+        vm.expectRevert();
+        arbiter.release(bad);
+        vm.prank(MERCHANT);
+        vm.expectRevert();
+        arbiter.refund(bad);
+        vm.prank(buyer);
+        vm.expectRevert();
+        arbiter.dispute(bad);
+        assertEq(GUARD.balanceOf(r), 10e6, "untouched");
+    }
+
     // ------------------------------------------------------------------ fuzz
 
     /// Any amount: release pays the merchant exactly that amount, refund returns exactly that amount.
@@ -474,7 +516,7 @@ contract HeldArbiterTest is Test {
         assertTrue(arbiter.accepts(address(usd2)));
         assertFalse(arbiter.accepts(address(other)));
         assertFalse(arbiter.accepts(address(0)));
-        assertEq(arbiter.VERSION(), 3);
+        assertEq(arbiter.VERSION(), 4);
     }
 
     function test_EveryAcceptedTokenReleasesToMerchant() public {

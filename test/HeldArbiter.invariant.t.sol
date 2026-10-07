@@ -71,21 +71,23 @@ contract Handler is Test {
         return k == 0 ? payments[i].payer : k == 1 ? merchant : k == 2 ? resolver : (seed % 8 == 3 ? stranger : payers[seed % payers.length]);
     }
 
-    function act(uint256 idx, uint256 callerSeed, uint8 fn) external {
+    function act(uint256 idx, uint256 callerSeed, uint8 fn, uint8 pad) external {
         if (payments.length == 0) return;
         uint256 i = idx % payments.length;
         bytes memory r = payments[i].receipt;
+        // Sometimes call with trailing bytes appended: the guard accepts them, the arbiter must not (v4).
+        bytes memory sent = pad % 4 == 0 ? abi.encodePacked(r, new bytes(1 + pad % 64)) : r;
         address caller = _who(callerSeed, i);
         bytes32 id = keccak256(r);
         bool lateDispute = arbiter.statusOf(id) == HeldArbiter.Status.Disputed && block.timestamp >= arbiter.resolveDeadline(r);
         vm.prank(caller);
         fn = fn % 3;
         if (fn == 0) {
-            try arbiter.release(r) {} catch {}
+            try arbiter.release(sent) {} catch {}
             if (lateDispute && caller != payments[i].payer && arbiter.statusOf(id) == HeldArbiter.Status.Released) lateReleaseByOther = true;
         }
-        else if (fn == 1) try arbiter.refund(r) {} catch {}
-        else try arbiter.dispute(r) {} catch {}
+        else if (fn == 1) try arbiter.refund(sent) {} catch {}
+        else try arbiter.dispute(sent) {} catch {}
     }
 
     function wait(uint32 secs) external {

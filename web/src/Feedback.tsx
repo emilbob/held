@@ -67,8 +67,8 @@ export default function Feedback() {
 }
 
 // Inbox (#/feedback/inbox): everything sent through the form, for Held's owner only (the server checks the session is
-// the owner wallet, network.defaultResolver). Quotable ones also show on the landing (GET /api/quotes) unless hidden
-// here; hiding never deletes, and "Show again" puts a quote back.
+// the owner wallet, network.defaultResolver). Quotable ones also show on the landing (GET /api/quotes): pinned ones
+// first, then the newest. Hiding never deletes; "Show again" puts a quote back.
 const ROLE_SHORT: Record<FeedbackRole, string> = { buyer: 'Buyer', merchant: 'Merchant', looking: 'Just looking' }
 export function FeedbackInbox() {
   const w = useWallet('resolver')
@@ -86,9 +86,9 @@ export function FeedbackInbox() {
   const [data, err, refresh] = usePoll(() => (signedIn ? api<{ feedback: FeedbackView[] }>('/feedback', undefined, 'resolver') : Promise.resolve(null)), 30_000, [signedIn])
   const [toggling, setToggling] = useState<string | null>(null)
   const [hideErr, setHideErr] = useState<string | null>(null)
-  const setHidden = async (f: FeedbackView, hidden: boolean) => {
+  const toggle = async (f: FeedbackView, what: 'hide' | 'pin', on: boolean) => {
     setToggling(f.key); setHideErr(null)
-    try { await api('/feedback/hide', { key: f.key, hidden }, 'resolver'); refresh() } catch (e) { setHideErr((e as Error).message) }
+    try { await api(`/feedback/${what}`, { key: f.key, [what === 'hide' ? 'hidden' : 'pinned']: on }, 'resolver'); refresh() } catch (e) { setHideErr((e as Error).message) }
     setToggling(null)
   }
   const all = data?.feedback ?? []
@@ -117,9 +117,11 @@ export function FeedbackInbox() {
             <span>{new Date(f.at * 1000).toLocaleString()}</span>
             <span>· {ROLE_SHORT[f.role]}</span>
             {f.quote && (f.hidden ? <span className="badge grey">Hidden from the landing</span>
-              : <span className="badge lime">On the landing{f.quoteName ? ` as ${f.quoteName}` : ''}</span>)}
-            {f.quote && <button type="button" className="ghost small hide" disabled={toggling === f.key} onClick={() => setHidden(f, !f.hidden)}>
-              {toggling === f.key ? '…' : f.hidden ? 'Show again' : 'Hide'}</button>}
+              : <span className="badge lime">{f.pinned ? `Pinned #${f.pinned}` : 'On the landing'}{f.quoteName ? ` as ${f.quoteName}` : ''}</span>)}
+            {f.quote && <span className="acts">
+              {!f.hidden && <button type="button" className="ghost small" disabled={toggling === f.key} onClick={() => toggle(f, 'pin', !f.pinned)}>{f.pinned ? 'Unpin' : 'Pin'}</button>}
+              <button type="button" className="ghost small" disabled={toggling === f.key} onClick={() => toggle(f, 'hide', !f.hidden)}>{f.hidden ? 'Show again' : 'Hide'}</button>
+            </span>}
           </div>
           <p className="text">{f.text}</p>
           {f.contact && <p className="contact muted">Contact: {f.contact}</p>}

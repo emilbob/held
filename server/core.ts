@@ -349,29 +349,38 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       return ok({ ok: true }, 201)
     }
     if (path === '/api/quotes') {
-      // Public: feedback whose author ticked "You can quote this" and the owner didn't hide, newest first. Only the
-      // text, the name they chose and their role, never the contact.
-      const hidden = new Set((await load()).hiddenQuotes)
-      const quotes = (await db.listFeedback()).filter((f) => f.quote && !hidden.has(feedbackKey(f))).slice(0, QUOTES_SHOWN)
+      // Public: feedback whose author ticked "You can quote this" and the owner didn't hide. Pinned ones first (in the
+      // order pinned), then the newest. Only the text, the name they chose and their role, never the contact.
+      const s = await load()
+      const hidden = new Set(s.hiddenQuotes), pins = s.pinnedQuotes ?? []
+      const shown = (await db.listFeedback()).filter((f) => f.quote && !hidden.has(feedbackKey(f)))
+      const pinned = pins.flatMap((k) => shown.filter((f) => feedbackKey(f) === k).slice(0, 1))
+      const quotes = [...pinned, ...shown.filter((f) => !pins.includes(feedbackKey(f)))].slice(0, QUOTES_SHOWN)
         .map((f) => ({ text: f.text, role: f.role, ...(f.quoteName && { name: f.quoteName }) }))
       return ok({ quotes })
     }
-    if (path === '/api/feedback' || path === '/api/feedback/hide') {
+    if (path === '/api/feedback' || path === '/api/feedback/hide' || path === '/api/feedback/pin') {
       // Owner only: a session of this network's default resolver (Held's own wallet).
       const s = await load()
       const who = sessionOf(s, headers)
       if (!who || who.toLowerCase() !== network.defaultResolver.toLowerCase()) return ok({ error: "Sign in with Held's owner wallet." }, 401)
-      if (path === '/api/feedback/hide' && method === 'POST') {
+      if (path !== '/api/feedback' && method === 'POST') {
         const key = typeof body.key === 'string' ? body.key : ''
         if (!(await db.listFeedback()).some((f) => f.quote && feedbackKey(f) === key)) return ok({ error: 'No such quote.' }, 404)
+        const on = path === '/api/feedback/hide' ? body.hidden === true : body.pinned === true
         await mutate((d) => {
-          const rest = (d.hiddenQuotes ?? []).filter((k) => k !== key)
-          d.hiddenQuotes = body.hidden === true ? [...rest, key] : rest
+          const hidden = (d.hiddenQuotes ?? []).filter((k) => k !== key), pins = (d.pinnedQuotes ?? []).filter((k) => k !== key)
+          // Hiding unpins; pinning shows again.
+          if (path === '/api/feedback/hide') { d.hiddenQuotes = on ? [...hidden, key] : hidden; if (on) d.pinnedQuotes = pins }
+          else { d.pinnedQuotes = on ? [...pins, key] : pins; if (on) d.hiddenQuotes = hidden }
         })
         return ok({ ok: true })
       }
-      const hidden = new Set(s.hiddenQuotes)
-      return ok({ feedback: (await db.listFeedback()).map((f) => ({ ...f, key: feedbackKey(f), ...(hidden.has(feedbackKey(f)) && { hidden: true }) })) })
+      const hidden = new Set(s.hiddenQuotes), pins = s.pinnedQuotes ?? []
+      return ok({ feedback: (await db.listFeedback()).map((f) => {
+        const key = feedbackKey(f), pin = pins.indexOf(key)
+        return { ...f, key, ...(hidden.has(key) && { hidden: true }), ...(pin >= 0 && { pinned: pin + 1 }) }
+      }) })
     }
     if (path === '/api/faucet' && method === 'POST') {
       if (!network.testnet) return ok({ error: 'No faucet on mainnet.' }, 404)

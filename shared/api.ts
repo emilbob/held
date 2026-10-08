@@ -101,6 +101,7 @@ export interface Db {
   links?: Record<string, CheckoutLink> // absent in databases created before checkout links
   notes?: Record<string, Note[]> // dispute notes by payment id
   hiddenQuotes?: string[] // keys (feedbackKey) of quotable feedback the owner took off the landing
+  pinnedQuotes?: string[] // keys of quotes the owner pinned to the top of the landing, in pin order
   lastBlock: string
   nextOrderId: number
   tagPrefix: number // random per database (see orderTag), so databases sharing a merchant never share addresses
@@ -146,8 +147,8 @@ export type FeedbackRole = 'buyer' | 'merchant' | 'looking'
 export interface Feedback { at: number, role: FeedbackRole, text: string, contact?: string, quote?: boolean, quoteName?: string }
 export const FEEDBACK_MAX = 1000
 // Quotable feedback shown on the landing (GET /api/quotes), newest first.
-// Feedback as the owner's inbox sees it: with a stable key (feedback has no id) and whether it's hidden from the landing.
-export interface FeedbackView extends Feedback { key: string, hidden?: boolean }
+// Feedback as the owner's inbox sees it: with a stable key (feedback has no id), and whether it's hidden or pinned.
+export interface FeedbackView extends Feedback { key: string, hidden?: boolean, pinned?: number /* 1 = shown first */ }
 export interface Quote { text: string, name?: string, role: FeedbackRole }
 export const QUOTES_SHOWN = 6
 export const CONTACT_MAX = 120

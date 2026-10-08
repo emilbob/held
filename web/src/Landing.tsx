@@ -1,6 +1,6 @@
 // Landing at #/: the pitch for merchants (buyers arrive straight on a checkout link). One idea per section, with the
 // "held frame" acting out the product: hero (it plays the story on its own), then a scroll story 01-04 where the
-// frame follows the step you're reading, the film, the guarantee, and a way in.
+// frame follows the step you're reading, what people say, the film, the guarantee, and a way in.
 import { useEffect, useRef, useState } from 'react'
 import Logo from './Logo.tsx'
 import { api, useConfig, useWallet, walletFits, WalletPicker } from './ui.tsx'
@@ -74,9 +74,9 @@ export default function Landing() {
       </section>
 
       <Story />
+      <Voices />
       {FILM_YOUTUBE_ID && <Film id={FILM_YOUTUBE_ID} />}
       <Guarantee />
-      <Voices />
 
       <section className="final">
         <h2>See it work in two minutes.</h2>

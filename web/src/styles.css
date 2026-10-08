@@ -360,7 +360,6 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .inbox .fb .meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--muted); margin-bottom: 8px }
 .inbox .fb .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink) }
 .inbox .fb .contact { margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere }
-.inbox .fb pre { margin: 10px 0 0; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere }
 
 .final { padding: 70px 0 40px; border-top: 1px solid var(--line); text-align: center }
 .final p { color: #c3c8d2; font-size: 15.5px; max-width: 560px; margin: 0 auto }

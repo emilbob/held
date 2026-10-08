@@ -144,6 +144,9 @@ export type FeedbackRole = 'buyer' | 'merchant' | 'looking'
 // quote: the person allowed quoting this publicly, shown as quoteName (a first name or handle). Off by default.
 export interface Feedback { at: number, role: FeedbackRole, text: string, contact?: string, quote?: boolean, quoteName?: string }
 export const FEEDBACK_MAX = 1000
+// Quotable feedback shown on the landing (GET /api/quotes), newest first.
+export interface Quote { text: string, name?: string, role: FeedbackRole }
+export const QUOTES_SHOWN = 6
 export const CONTACT_MAX = 120
 export const QUOTE_NAME_MAX = 40
 

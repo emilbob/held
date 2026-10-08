@@ -3,10 +3,10 @@
 // frame follows the step you're reading, the film, the guarantee, and a way in.
 import { useEffect, useRef, useState } from 'react'
 import Logo from './Logo.tsx'
-import { useConfig, useWallet, walletFits, WalletPicker } from './ui.tsx'
+import { api, useConfig, useWallet, walletFits, WalletPicker } from './ui.tsx'
 import { LineReveal, Scramble, useEntrance, useMagnetic, useScrollEntrance } from './anim.tsx'
 import { HeldFrame, type FramePhase } from './HeldFrame.tsx'
-import { QUOTES } from './quotes.ts'
+import type { Quote } from '../../shared/api.ts'
 
 // YouTube id of the product film (empty: the film section stays hidden). Loads nothing from YouTube until played.
 const FILM_YOUTUBE_ID = 'bjRJN8NoCAM'
@@ -76,7 +76,7 @@ export default function Landing() {
       <Story />
       {FILM_YOUTUBE_ID && <Film id={FILM_YOUTUBE_ID} />}
       <Guarantee />
-      {QUOTES.length > 0 && <Voices />}
+      <Voices />
 
       <section className="final">
         <h2>See it work in two minutes.</h2>
@@ -168,9 +168,14 @@ function Film({ id }: { id: string }) {
   )
 }
 
-/** Hand-picked feedback from people who said it can be quoted (quotes.ts). */
-const ROLE_LABEL = { buyer: 'Buyer', merchant: 'Merchant', looking: 'Tried the sandbox' } as const
+/** Feedback whose author ticked "You can quote this" (GET /api/quotes). Hidden until there is one. */
+const ROLE_LABEL = { buyer: 'Buyer', merchant: 'Merchant', looking: 'Tried Held' } as const
 function Voices() {
+  const [quotes, setQuotes] = useState<Quote[]>([])
+  useEffect(() => { api<{ quotes: Quote[] }>('/quotes').then((r) => setQuotes(r.quotes), () => {}) }, [])
+  return quotes.length ? <VoiceList quotes={quotes} /> : null
+}
+function VoiceList({ quotes }: { quotes: Quote[] }) {
   const box = useRef<HTMLDivElement>(null)
   useScrollEntrance(box, ':scope > *', { stagger: 0.1 })
   return (
@@ -178,7 +183,7 @@ function Voices() {
       <span className="kicker">From the beta</span>
       <h2 id="v-title">What people say</h2>
       <ul>
-        {QUOTES.map((q, i) => (
+        {quotes.map((q, i) => (
           <li key={i}>
             <blockquote>“{q.text}”</blockquote>
             <p className="who">{q.name ? <b>{q.name}</b> : <b>Anonymous</b>} · {ROLE_LABEL[q.role]}</p>

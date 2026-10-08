@@ -28,7 +28,7 @@ import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
 import { alertDisputes, alertFees } from './alerts.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
-import { acceptedTokensOf, signInMessage, noteMessage, NOTE_MAX, NOTES_PER_SIDE, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
+import { acceptedTokensOf, signInMessage, noteMessage, NOTE_MAX, NOTES_PER_SIDE, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, QUOTES_SHOWN, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
 // 1..65535, so no two databases (local, live, previews) hand out the same order addresses.
 export const newTagPrefix = () => 1 + (crypto.getRandomValues(new Uint16Array(1))[0] % 65535)
@@ -345,6 +345,13 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       if (!(await db.rateLimit(`feedback:${clientIp(headers)}`, 20_000))) return ok({ error: 'Thanks! Wait a few seconds before sending more.' }, 429)
       await db.addFeedback({ at: now(), role, text, ...(contact && { contact }), ...(quote && { quote, ...(quoteName && { quoteName }) }) })
       return ok({ ok: true }, 201)
+    }
+    if (path === '/api/quotes') {
+      // Public: feedback whose author ticked "You can quote this", newest first. Only the text, the name they chose
+      // and their role, never the contact.
+      const quotes = (await db.listFeedback()).filter((f) => f.quote).slice(0, QUOTES_SHOWN)
+        .map((f) => ({ text: f.text, role: f.role, ...(f.quoteName && { name: f.quoteName }) }))
+      return ok({ quotes })
     }
     if (path === '/api/feedback') {
       // Owner only: a session of this network's default resolver (Held's own wallet).

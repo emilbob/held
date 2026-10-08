@@ -59,7 +59,7 @@ export default function Feedback() {
           <input id="fbname" value={quoteName} onChange={(e) => setQuoteName(e.target.value)} maxLength={QUOTE_NAME_MAX} autoComplete="off" />
         </>}
         <button className="primary" disabled={busy || !text.trim()}>{busy ? 'Sending…' : 'Send feedback'}</button>
-        <p className="muted small">{quote ? 'Held may quote this, and picks which quotes to show.' : "Only Held's developer reads this; it stays private."} See the <a href="#/privacy">privacy page</a>.</p>
+        <p className="muted small">{quote ? 'It will appear on the Held website with the name you give, or as Anonymous.' : "Only Held's developer reads this; it stays private."} See the <a href="#/privacy">privacy page</a>.</p>
         <Result msg={msg} />
       </form>
     </div>
@@ -67,8 +67,7 @@ export default function Feedback() {
 }
 
 // Inbox (#/feedback/inbox): everything sent through the form, for Held's owner only (the server checks the session is
-// the owner wallet, network.defaultResolver). A quotable one shows the line to paste into quotes.ts to put it on the
-// landing.
+// the owner wallet, network.defaultResolver). Quotable ones also show on the landing (GET /api/quotes).
 const ROLE_SHORT: Record<FeedbackRole, string> = { buyer: 'Buyer', merchant: 'Merchant', looking: 'Just looking' }
 export function FeedbackInbox() {
   const w = useWallet('resolver')
@@ -112,7 +111,6 @@ export function FeedbackInbox() {
           </div>
           <p className="text">{f.text}</p>
           {f.contact && <p className="contact muted">Contact: {f.contact}</p>}
-          {f.quote && <pre aria-label="Line for quotes.ts">{`{ text: ${JSON.stringify(f.text)}, ${f.quoteName ? `name: ${JSON.stringify(f.quoteName)}, ` : ''}role: '${f.role}' },`}</pre>}
         </div>
       ))}
     </div>

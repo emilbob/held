@@ -10,7 +10,6 @@ import type { Quote } from '../../shared/api.ts'
 
 // YouTube id of the product film (empty: the film section stays hidden). Loads nothing from YouTube until played.
 const FILM_YOUTUBE_ID = 'bjRJN8NoCAM'
-const CONTRACT_URL = 'https://github.com/emilbob/held/blob/main/contracts/HeldArbiter.sol'
 
 const STEPS: { n: string, phase: FramePhase, title: string, text: string, state: string }[] = [
   { n: '01', phase: 'open', title: 'An order, its own address',
@@ -232,8 +231,8 @@ function Guarantee() {
         <span className="ln cm">// refund: back to the wallet that paid</span>
         <span className="ln"><span className="fn">GUARD.claim</span>(r.originator, receipt);</span>
       </code></pre>
-      <p className="muted small"><a href={CONTRACT_URL} target="_blank" rel="noopener">Read the whole contract</a> (175 lines) · built on Tempo:
-        per-order virtual addresses, protocol-level receive policies, stablecoin gas, instant finality.</p>
+      <p className="muted small">Built on Tempo: per-order virtual addresses, protocol-level receive policies, stablecoin gas,
+        instant finality.</p>
     </section>
   )
 }

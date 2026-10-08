@@ -294,8 +294,8 @@ function Dashboard({ merchant: m, w, testnet, onChanged }: { merchant: Merchant,
         <button disabled={busy}>{busy ? 'Creating…' : 'Create order'}</button>
         {formErr && <span className="err">{formErr}</span>}
         {created && (
-          <p className="created">Order #{created.id} created. Send your buyer this link: <a href={link(created)} target="_blank">{link(created)}</a>
-            {' '}<button type="button" className="ghost small" onClick={() => navigator.clipboard.writeText(link(created)).catch(() => {})}>Copy link</button></p>
+          <p className="created"><span>Order #{created.id} created. Send your buyer this link: <a href={link(created)} target="_blank">{link(created)}</a></span>
+            <button type="button" className="ghost small" onClick={() => navigator.clipboard.writeText(link(created)).catch(() => {})}>Copy link</button></p>
         )}
       </form>
 

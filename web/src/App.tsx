@@ -9,7 +9,7 @@ import Buy from './Buy.tsx'
 import { Terms, Privacy } from './Legal.tsx'
 import Roadmap from './Roadmap.tsx'
 import Faq from './Faq.tsx'
-import Feedback from './Feedback.tsx'
+import Feedback, { FeedbackInbox } from './Feedback.tsx'
 import { useConfig } from './ui.tsx'
 import { ToTop } from './anim.tsx'
 
@@ -33,6 +33,7 @@ export default function App() {
     : route.startsWith('/privacy') ? <Privacy />
     : route.startsWith('/roadmap') ? <Roadmap />
     : route.startsWith('/faq') ? <Faq />
+    : route.startsWith('/feedback/inbox') ? <FeedbackInbox />
     : route.startsWith('/feedback') ? <Feedback />
     : <Landing />
   return (

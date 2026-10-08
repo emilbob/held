@@ -225,6 +225,9 @@ export type WalletChoice = 'any' | 'test' | 'real'
 export const walletFits = (kind: W.WalletKind, choice: WalletChoice) =>
   choice === 'any' || (choice === 'test' ? kind === 'demo' : kind === 'tempo' || kind === 'injected')
 
+// Tempo Wallet's own icon (the one its SDK announces, from the `accounts` package).
+const TEMPO_ICON = 'data:image/svg+xml,' + encodeURIComponent('<svg width="269" height="269" viewBox="0 0 269 269" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="269" height="269" fill="black"/><path d="M123.273 190.794H93.445L121.09 105.318H85.7334L93.445 80.2642H191.95L184.238 105.318H150.773L123.273 190.794Z" fill="white"/></svg>')
+
 export function WalletPicker({ w, note, choice = 'any' }: { w: ReturnType<typeof useWallet>, note?: string, choice?: WalletChoice }) {
   // A connected wallet of a kind this picker doesn't offer (e.g. a test wallet on a real shop) counts as none.
   if (w.wallet && walletFits(w.wallet.kind, choice)) return (
@@ -237,7 +240,8 @@ export function WalletPicker({ w, note, choice = 'any' }: { w: ReturnType<typeof
       {/* No sandbox button here: the sandbox is entered only from #/sandbox, so a real merchant or resolver is never
           steered into the shared test shop. */}
       {choice !== 'test' && <>
-        <button className="primary" onClick={() => w.connect('tempo')} disabled={w.busy}>{w.busy ? 'Connecting…' : 'Tempo Wallet'}</button>
+        <button className="ghost" onClick={() => w.connect('tempo')} disabled={w.busy}>
+          <img src={TEMPO_ICON} alt="" className="wicon" />{w.busy ? 'Connecting…' : 'Tempo Wallet'}</button>
         {w.installed.map((iw) => (
           <button key={iw.rdns} className="ghost" onClick={() => w.connect('injected', iw)} disabled={w.busy}>
             {iw.icon && <img src={iw.icon} alt="" className="wicon" />}{iw.name}

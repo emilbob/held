@@ -6,6 +6,7 @@ import Logo from './Logo.tsx'
 import { useConfig, useWallet, walletFits, WalletPicker } from './ui.tsx'
 import { LineReveal, Scramble, useEntrance, useMagnetic, useScrollEntrance } from './anim.tsx'
 import { HeldFrame, type FramePhase } from './HeldFrame.tsx'
+import { QUOTES } from './quotes.ts'
 
 // YouTube id of the product film (empty: the film section stays hidden). Loads nothing from YouTube until played.
 const FILM_YOUTUBE_ID = 'bjRJN8NoCAM'
@@ -75,6 +76,7 @@ export default function Landing() {
       <Story />
       {FILM_YOUTUBE_ID && <Film id={FILM_YOUTUBE_ID} />}
       <Guarantee />
+      {QUOTES.length > 0 && <Voices />}
 
       <section className="final">
         <h2>See it work in two minutes.</h2>
@@ -162,6 +164,27 @@ function Film({ id }: { id: string }) {
               <span className="play">▶</span>
             </button>}
       </div>
+    </section>
+  )
+}
+
+/** Hand-picked feedback from people who said it can be quoted (quotes.ts). */
+const ROLE_LABEL = { buyer: 'Buyer', merchant: 'Merchant', looking: 'Tried the sandbox' } as const
+function Voices() {
+  const box = useRef<HTMLDivElement>(null)
+  useScrollEntrance(box, ':scope > *', { stagger: 0.1 })
+  return (
+    <section className="voices" aria-labelledby="v-title" ref={box}>
+      <span className="kicker">From the beta</span>
+      <h2 id="v-title">What people say</h2>
+      <ul>
+        {QUOTES.map((q, i) => (
+          <li key={i}>
+            <blockquote>“{q.text}”</blockquote>
+            <p className="who">{q.name ? <b>{q.name}</b> : <b>Anonymous</b>} · {ROLE_LABEL[q.role]}</p>
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }

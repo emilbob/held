@@ -58,6 +58,8 @@ const SIGN_IN_MAX_AGE = 5 * 60
 const sha256hex = (s: string) => createHash('sha256').update(s).digest('hex')
 const header = (h: Headers, name: string) => { const v = h[name]; return typeof v === 'string' ? v : '' }
 const now = () => Math.floor(Date.now() / 1000)
+// Feedback has no id: its key is a hash of when it came and what it says.
+const feedbackKey = (f: Feedback) => sha256hex(`${f.at}:${f.role}:${f.text}`).slice(0, 16)
 const AMOUNT = /^\d+(\.\d{1,6})?$/
 // A price the API accepts: a positive number, at most the network's launch cap. Returns an error or null.
 const priceError = (amount: unknown, network: Network, what: string) => {
@@ -347,18 +349,29 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       return ok({ ok: true }, 201)
     }
     if (path === '/api/quotes') {
-      // Public: feedback whose author ticked "You can quote this", newest first. Only the text, the name they chose
-      // and their role, never the contact.
-      const quotes = (await db.listFeedback()).filter((f) => f.quote).slice(0, QUOTES_SHOWN)
+      // Public: feedback whose author ticked "You can quote this" and the owner didn't hide, newest first. Only the
+      // text, the name they chose and their role, never the contact.
+      const hidden = new Set((await load()).hiddenQuotes)
+      const quotes = (await db.listFeedback()).filter((f) => f.quote && !hidden.has(feedbackKey(f))).slice(0, QUOTES_SHOWN)
         .map((f) => ({ text: f.text, role: f.role, ...(f.quoteName && { name: f.quoteName }) }))
       return ok({ quotes })
     }
-    if (path === '/api/feedback') {
+    if (path === '/api/feedback' || path === '/api/feedback/hide') {
       // Owner only: a session of this network's default resolver (Held's own wallet).
       const s = await load()
       const who = sessionOf(s, headers)
       if (!who || who.toLowerCase() !== network.defaultResolver.toLowerCase()) return ok({ error: "Sign in with Held's owner wallet." }, 401)
-      return ok({ feedback: await db.listFeedback() })
+      if (path === '/api/feedback/hide' && method === 'POST') {
+        const key = typeof body.key === 'string' ? body.key : ''
+        if (!(await db.listFeedback()).some((f) => f.quote && feedbackKey(f) === key)) return ok({ error: 'No such quote.' }, 404)
+        await mutate((d) => {
+          const rest = (d.hiddenQuotes ?? []).filter((k) => k !== key)
+          d.hiddenQuotes = body.hidden === true ? [...rest, key] : rest
+        })
+        return ok({ ok: true })
+      }
+      const hidden = new Set(s.hiddenQuotes)
+      return ok({ feedback: (await db.listFeedback()).map((f) => ({ ...f, key: feedbackKey(f), ...(hidden.has(feedbackKey(f)) && { hidden: true }) })) })
     }
     if (path === '/api/faucet' && method === 'POST') {
       if (!network.testnet) return ok({ error: 'No faucet on mainnet.' }, 404)

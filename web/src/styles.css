@@ -358,6 +358,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .inbox .fb { border-left: 3px solid var(--line) }
 .inbox .fb.quotable { border-left-color: var(--lime) }
 .inbox .fb .meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--muted); margin-bottom: 8px }
+.inbox .fb .hide { margin-left: auto }
 .inbox .fb .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink) }
 .inbox .fb .contact { margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere }
 
@@ -456,3 +457,5 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .resolvecall.top { margin: 0 0 14px }
 .payingfrom { margin: 0 0 8px; font-size: 14px }
 .summary .showtokens { display: block; margin-top: 6px }
+.ownerlink { margin: 12px 0 0; font-size: 14px }
+.ownerlink a { font-weight: 600 }

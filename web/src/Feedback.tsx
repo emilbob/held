@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { api, session, signInWallet, usePoll, useWallet, WalletPicker, Result, type Msg } from './ui.tsx'
 import { explain } from './wallet.ts'
-import { FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type Feedback as FeedbackItem, type FeedbackRole } from '../../shared/api.ts'
+import { FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, type FeedbackView, type FeedbackRole } from '../../shared/api.ts'
 
 const ROLES: [FeedbackRole, string][] = [['buyer', 'I paid as a buyer'], ['merchant', 'I set up or ran a shop'], ['looking', 'Just looking']]
 
@@ -67,7 +67,8 @@ export default function Feedback() {
 }
 
 // Inbox (#/feedback/inbox): everything sent through the form, for Held's owner only (the server checks the session is
-// the owner wallet, network.defaultResolver). Quotable ones also show on the landing (GET /api/quotes).
+// the owner wallet, network.defaultResolver). Quotable ones also show on the landing (GET /api/quotes) unless hidden
+// here; hiding never deletes, and "Show again" puts a quote back.
 const ROLE_SHORT: Record<FeedbackRole, string> = { buyer: 'Buyer', merchant: 'Merchant', looking: 'Just looking' }
 export function FeedbackInbox() {
   const w = useWallet('resolver')
@@ -82,7 +83,14 @@ export function FeedbackInbox() {
     try { await signInWallet(w.wallet, 'resolver') } catch (e) { setSignErr(explain(e)) }
     setSigning(false)
   }
-  const [data, err] = usePoll(() => (signedIn ? api<{ feedback: FeedbackItem[] }>('/feedback', undefined, 'resolver') : Promise.resolve(null)), 30_000, [signedIn])
+  const [data, err, refresh] = usePoll(() => (signedIn ? api<{ feedback: FeedbackView[] }>('/feedback', undefined, 'resolver') : Promise.resolve(null)), 30_000, [signedIn])
+  const [toggling, setToggling] = useState<string | null>(null)
+  const [hideErr, setHideErr] = useState<string | null>(null)
+  const setHidden = async (f: FeedbackView, hidden: boolean) => {
+    setToggling(f.key); setHideErr(null)
+    try { await api('/feedback/hide', { key: f.key, hidden }, 'resolver'); refresh() } catch (e) { setHideErr((e as Error).message) }
+    setToggling(null)
+  }
   const all = data?.feedback ?? []
   const list = onlyQuotes ? all.filter((f) => f.quote) : all
   return (
@@ -94,6 +102,7 @@ export function FeedbackInbox() {
         {w.wallet && !signedIn && <p className="signin"><button className="primary small" disabled={signing} onClick={signIn}>{signing ? 'Waiting for signature…' : 'Sign in to read feedback'}</button></p>}
         {signErr && <Result msg={{ ok: false, text: signErr }} />}
         {err && <Result msg={{ ok: false, text: err }} />}
+        {hideErr && <Result msg={{ ok: false, text: hideErr }} />}
         {data && (
           <div className="filters" role="group" aria-label="Show">
             <button type="button" className={onlyQuotes ? 'ghost small' : 'primary small'} aria-pressed={!onlyQuotes} onClick={() => setOnlyQuotes(false)}>All ({all.length})</button>
@@ -103,11 +112,14 @@ export function FeedbackInbox() {
       </div>
       {data && !list.length && <p className="muted">{onlyQuotes ? 'No quotable feedback yet.' : 'No feedback yet.'}</p>}
       {list.map((f, i) => (
-        <div key={`${f.at}-${i}`} className={`card fb${f.quote ? ' quotable' : ''}`}>
+        <div key={`${f.key}-${i}`} className={`card fb${f.quote && !f.hidden ? ' quotable' : ''}`}>
           <div className="meta">
             <span>{new Date(f.at * 1000).toLocaleString()}</span>
             <span>· {ROLE_SHORT[f.role]}</span>
-            {f.quote && <span className="badge lime">Can quote{f.quoteName ? ` as ${f.quoteName}` : ''}</span>}
+            {f.quote && (f.hidden ? <span className="badge grey">Hidden from the landing</span>
+              : <span className="badge lime">On the landing{f.quoteName ? ` as ${f.quoteName}` : ''}</span>)}
+            {f.quote && <button type="button" className="ghost small hide" disabled={toggling === f.key} onClick={() => setHidden(f, !f.hidden)}>
+              {toggling === f.key ? '…' : f.hidden ? 'Show again' : 'Hide'}</button>}
           </div>
           <p className="text">{f.text}</p>
           {f.contact && <p className="contact muted">Contact: {f.contact}</p>}

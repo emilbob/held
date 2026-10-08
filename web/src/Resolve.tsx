@@ -46,6 +46,10 @@ export default function Resolve() {
             {' '}<span className="muted small">Buyer and merchant notes are private: sign a message (free, moves no funds) to read them.</span>
           </p>
         )}
+        {/* Held's own resolver wallet also curates the landing's quotes. */}
+        {!!addr && !!cfg && addr.toLowerCase() === cfg.defaultResolver.toLowerCase() && (
+          <p className="ownerlink"><a href="#/feedback/inbox">Feedback inbox →</a> <span className="muted small">Read feedback and choose which quotes show on the landing.</span></p>
+        )}
         {signErr && <Result msg={{ ok: false, text: signErr }} />}
         {w.wallet?.kind === 'sandbox' && (
           <div className="resolvecall">

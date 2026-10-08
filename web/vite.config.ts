@@ -24,5 +24,5 @@ export default defineConfig({
   plugins: [react(), fixOxWorkerStart()],
   // testnet (default) or mainnet: picks network.<name>.json for the whole app (the API reads the same variable).
   define: { __HELD_NETWORK__: JSON.stringify(process.env.HELD_NETWORK || 'testnet') },
-  server: { port: 5173, proxy: { '/api': 'http://localhost:8787' } },
+  server: { port: 5173, proxy: { '/api': { target: 'http://localhost:8787', changeOrigin: false } } },
 })

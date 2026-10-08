@@ -3,7 +3,8 @@
 // a failed send is only logged. No notes, no buyer data.
 //   - dispute alerts: a buyer disputed a payment at a shop whose resolver is the network's default resolver (the owner's
 //     wallet), so a dispute never waits unseen. Order number, amount and a link.
-//   - fee emails (v3): Held's fee arrived in the fee wallet from a release. One email per sync, listing every new fee.
+//   - fee emails (v3): Held's fee arrived in the fee wallet from a release. One email per sync, listing every new fee;
+//     sandbox fees (test money) in a separate one marked [Sandbox].
 import { formatUnits } from 'viem'
 import { tokenSymbol, type Db, type Network } from '../shared/api.ts'
 
@@ -28,9 +29,18 @@ export async function alertDisputes(s: Db, network: Network, paymentIds: string[
   await sendEmail('dispute alert', subject, text)
 }
 
-/** Held's fee arrived from releases: one email listing them, with the fee wallet's explorer link. */
+/** Held's fee arrived from releases: one email listing them, with the fee wallet's explorer link. Fees from the
+ *  sandbox shop (test money from people trying Held) go in their own email, marked [Sandbox], so they're never
+ *  mistaken for a real shop's fee. */
 export async function alertFees(s: Db, network: Network, paymentIds: string[]) {
   if (!process.env.RESEND_API_KEY || !process.env.ALERT_EMAIL || !paymentIds.length) return
+  const sandbox = network.sandbox?.merchant.toLowerCase()
+  const isSandbox = (id: string) => !!sandbox && s.payments[id]?.merchant.toLowerCase() === sandbox
+  await feeEmail(s, network, paymentIds.filter((id) => !isSandbox(id)), false)
+  await feeEmail(s, network, paymentIds.filter(isSandbox), true)
+}
+
+async function feeEmail(s: Db, network: Network, paymentIds: string[], sandbox: boolean) {
   let total = 0n
   const ids: string[] = [] // order numbers, so each email has its own subject (Gmail threads identical subjects together)
   const lines = paymentIds.flatMap((id) => {
@@ -43,12 +53,13 @@ export async function alertFees(s: Db, network: Network, paymentIds: string[]) {
     return [`${m.name}: order #${order?.id ?? '?'}${order ? ` (${order.item})` : ''}, ${usd(p.amount)} released -> fee ${usd(p.fee)} ${tokenSymbol(network, p.token)}`]
   })
   if (!lines.length) return
-  const net = network.testnet ? ' (testnet)' : ''
-  const subject = lines.length === 1 ? `Held${net}: fee received, ${usd(total)} from order ${ids[0]}`
-    : `Held${net}: ${lines.length} fees received, ${usd(total)} from orders ${ids.join(', ')}`
-  const text = `Held's fee arrived in your fee wallet${net}.\n\n${lines.join('\n')}\n\nTotal: ${usd(total)}\n\n` +
+  const tag = sandbox ? '[Sandbox] ' : '', net = network.testnet ? ' (testnet)' : ''
+  const subject = lines.length === 1 ? `${tag}Held${net}: fee received, ${usd(total)} from order ${ids[0]}`
+    : `${tag}Held${net}: ${lines.length} fees received, ${usd(total)} from orders ${ids.join(', ')}`
+  const text = (sandbox ? 'Someone completed a purchase in the sandbox. This fee is test money from the shared Sandbox Shop, not a real shop.\n\n' : '') +
+    `Held's fee arrived in your fee wallet${net}.\n\n${lines.join('\n')}\n\nTotal: ${usd(total)}\n\n` +
     `Fee wallet: ${network.explorer}/address/${network.fee.recipient}\n`
-  await sendEmail('fee email', subject, text)
+  await sendEmail(sandbox ? 'sandbox fee email' : 'fee email', subject, text)
 }
 
 async function sendEmail(what: string, subject: string, text: string) {

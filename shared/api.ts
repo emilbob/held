@@ -150,7 +150,7 @@ export const FEEDBACK_MAX = 1000
 // Feedback as the owner's inbox sees it: with a stable key (feedback has no id), and whether it's hidden or pinned.
 export interface FeedbackView extends Feedback { key: string, hidden?: boolean, pinned?: number /* 1 = shown first */ }
 export interface Quote { text: string, name?: string, role: FeedbackRole }
-export const QUOTES_SHOWN = 6
+export const QUOTES_SHOWN = 12
 export const CONTACT_MAX = 120
 export const QUOTE_NAME_MAX = 40
 

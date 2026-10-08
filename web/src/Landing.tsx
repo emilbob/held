@@ -1,6 +1,6 @@
 // Landing at #/: the pitch for merchants (buyers arrive straight on a checkout link). One idea per section, with the
 // "held frame" acting out the product: hero (it plays the story on its own), then a scroll story 01-04 where the
-// frame follows the step you're reading, what people say, the film, the guarantee, and a way in.
+// frame follows the step you're reading, the film, what people say, the guarantee, and a way in.
 import { useEffect, useRef, useState } from 'react'
 import Logo from './Logo.tsx'
 import { api, useConfig, useWallet, walletFits, WalletPicker } from './ui.tsx'
@@ -74,8 +74,8 @@ export default function Landing() {
       </section>
 
       <Story />
-      <Voices />
       {FILM_YOUTUBE_ID && <Film id={FILM_YOUTUBE_ID} />}
+      <Voices />
       <Guarantee />
 
       <section className="final">
@@ -175,14 +175,36 @@ function Voices() {
   useEffect(() => { api<{ quotes: Quote[] }>('/quotes').then((r) => setQuotes(r.quotes), () => {}) }, [])
   return quotes.length ? <VoiceList quotes={quotes} /> : null
 }
+/** A row of quote cards you swipe or step through (no autoplay); the arrows show only when there's more than fits. */
 function VoiceList({ quotes }: { quotes: Quote[] }) {
   const box = useRef<HTMLDivElement>(null)
+  const track = useRef<HTMLUListElement>(null)
+  const [edges, setEdges] = useState({ start: true, end: true })
   useScrollEntrance(box, ':scope > *', { stagger: 0.1 })
+  useEffect(() => {
+    const t = track.current
+    if (!t) return
+    const f = () => setEdges({ start: t.scrollLeft < 4, end: t.scrollLeft + t.clientWidth > t.scrollWidth - 4 })
+    f(); t.addEventListener('scroll', f, { passive: true }); addEventListener('resize', f)
+    return () => { t.removeEventListener('scroll', f); removeEventListener('resize', f) }
+  }, [quotes])
+  const step = (dir: 1 | -1) => {
+    const t = track.current, card = t?.querySelector('li')
+    if (!t || !card) return
+    t.scrollBy({ left: dir * (card.getBoundingClientRect().width + 14), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  }
+  const arrows = !(edges.start && edges.end)
   return (
     <section className="voices" aria-labelledby="v-title" ref={box}>
       <span className="kicker">From the beta</span>
-      <h2 id="v-title">What people say</h2>
-      <ul>
+      <div className="voices-head">
+        <h2 id="v-title">What people say</h2>
+        {arrows && <div className="voices-nav">
+          <button type="button" className="ghost" aria-label="Previous quotes" disabled={edges.start} onClick={() => step(-1)}>←</button>
+          <button type="button" className="ghost" aria-label="More quotes" disabled={edges.end} onClick={() => step(1)}>→</button>
+        </div>}
+      </div>
+      <ul ref={track} tabIndex={0} aria-label="Quotes from people who tried Held">
         {quotes.map((q, i) => (
           <li key={i}>
             <blockquote>“{q.text}”</blockquote>

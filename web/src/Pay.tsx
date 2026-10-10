@@ -5,7 +5,7 @@ import { CountUp, useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
 import QRCode from 'qrcode'
 import * as W from './wallet.ts'
-import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, walletFits, Badge, Steps, Result, Notes, usd, short, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
+import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, walletFits, Badge, Steps, Result, Notes, usd, short, countdown, duration, openSandboxResolver, isSandboxShop, addrUrl, type Msg } from './ui.tsx'
 import { noteMessage, NOTE_MAX, NOTES_PER_SIDE, tokenSymbol, type Order, type OrderStatus } from '../../shared/api.ts'
 import type { Address } from 'viem'
 
@@ -67,6 +67,19 @@ export default function Pay({ id }: { id: string }) {
   const accepted = order.merchantInfo.acceptedTokens
   const me = wallet?.address.toLowerCase()
   const ownRole = !me ? null : me === order.merchant.toLowerCase() ? 'merchant' : me === order.merchantInfo.resolver.toLowerCase() ? 'resolver' : null
+  // Who decides disputes, shown before paying: the buyer should know if the merchant resolves its own disputes.
+  // Only for payments under the shop's current arbiter (an older one may have had another resolver).
+  const resolver = order.merchantInfo.resolver
+  const resolverKind = sandbox ? 'sandbox' : resolver.toLowerCase() === order.merchant.toLowerCase() ? 'merchant'
+    : cfg && resolver.toLowerCase() === cfg.defaultResolver.toLowerCase() ? 'held' : 'other'
+  const resolverLine = (!main?.arbiter || main.arbiter.toLowerCase() === order.merchantInfo.arbiter.toLowerCase()) && (
+    <><br />Disputes are decided by {{
+      held: <b>Held's neutral resolver</b>,
+      merchant: <b>the merchant itself</b>,
+      other: <b>a resolver the merchant chose</b>,
+      sandbox: <b>the sandbox's test resolver</b>,
+    }[resolverKind]} (<a href={addrUrl(resolver)} target="_blank" rel="noreferrer">{short(resolver)}</a>).</>
+  )
   const sym = (t: string) => tokenSymbol(W.NET, t)
   const accepts = accepted.map(sym).join(', ').replace(/, ([^,]*)$/, ' or $1')
   // Pay with: the stablecoin the buyer picked, else the first accepted one they hold enough of.
@@ -106,7 +119,8 @@ export default function Pay({ id }: { id: string }) {
           <>
             <p className="protect"><b>Protected by Held.</b> Your payment is held onchain for {duration(order.merchantInfo.window)} or until you
               confirm delivery. If something goes wrong, open a dispute: the funds can only go back to you or to the merchant.
-              {resolveWindow ? <> The resolver has {duration(resolveWindow)} to decide; if they don't, you get your money back.</> : null}</p>
+              {resolveWindow ? <> The resolver has {duration(resolveWindow)} to decide; if they don't, you get your money back.</> : null}
+              {resolverLine}</p>
             <div className="payto">
               {qr && <img src={qr} alt="Payment QR code" />}
               <div>
@@ -128,6 +142,7 @@ export default function Pay({ id }: { id: string }) {
           </div>
         )}
         {status === 'disputed' && <div className="protect dispute"><b>Dispute open.</b> The resolver will decide. By contract, the money can only go back to you or to the merchant.
+          {resolverLine}
           {deadlineLeft !== null && (deadlinePassed
             ? <><br /><b>The resolver's deadline has passed:</b> the money can now only go back to you.</>
             : <><br />The resolver has <b>{countdown(deadlineLeft)}</b> left to decide. If they don't, you get your money back.</>)}</div>}

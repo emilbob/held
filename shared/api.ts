@@ -119,7 +119,7 @@ export interface Network {
   tokens: Token[] // the stablecoins a shop accepts (all of them, in this order; the v2 arbiter holds up to 3)
   testWrongToken?: Address // testnet only: a real token shops don't accept, for trying the wrong-token path
   maxOrder: string // launch cap: the most one order or checkout link may charge, base units (6 decimals)
-  defaultResolver: Address // suggested at merchant setup; merchants may choose another
+  defaultResolver: Address // Held's resolver: every shop's resolver (the server refuses others; the sandbox has its own)
   defaultWindow: number // seconds
   defaultResolveWindow: number // seconds: the resolver's deadline suggested at setup (contract v3)
   // Held's fee (contract v3), written into every new shop's arbiter and never changeable for that shop: `bps` of each

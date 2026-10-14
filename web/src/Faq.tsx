@@ -40,8 +40,9 @@ const sections: [string, [string, ReactNode][]][] = [
     ['Can I refund a buyer?',
       <>Yes, at any time until the payment is settled, including during a dispute. The refund can only go to the wallet that paid.</>],
     ['Who is the resolver?',
-      <>The address you choose at setup to decide disputes. By default it's Held's resolver, or you can name your own. A resolver can
-        only refund the buyer or pay you; it can never send the money anywhere else, and it can't be changed after setup.</>],
+      <>Held's neutral resolver decides disputes for every shop; a shop can't name its own. The resolver can only refund the buyer
+        or pay you; it can never send the money anywhere else. After the beta it becomes a multisig, and later independent resolvers
+        Held has approved can join.</>],
     ['Which stablecoins can I accept?',
       <>Up to 3 per shop. {NET.testnet ? 'On testnet: ' : 'Available: '}{coins}.</>],
   ]],

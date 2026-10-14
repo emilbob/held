@@ -1,4 +1,4 @@
-// Resolver page (#/resolve): disputes for merchants who chose this wallet as their resolver. Each decision is signed
+// Resolver page (#/resolve): disputes for every shop whose arbiter names this wallet as its resolver. Each decision is signed
 // by the resolver's own wallet, and HeldArbiter allows exactly two outcomes: refund the buyer or pay the merchant.
 import { useEffect, useRef, useState } from 'react'
 import { useEntrance } from './anim.tsx'
@@ -37,9 +37,9 @@ export default function Resolve() {
       {w.wallet?.kind === 'sandbox' && session.get()?.address && <a className="back" href="#/merchant">← Back to your orders</a>}
       <div className="card">
         <h1>Resolve disputes</h1>
-        <p>Connect the resolver wallet. You'll see open disputes for every merchant who chose it. The contract lets you do only
+        <p>Connect the resolver wallet. You'll see open disputes for every shop it decides for. The contract lets you do only
           two things: refund the buyer, or pay the merchant.</p>
-        <WalletPicker w={w} note="Use the wallet merchants set as their resolver." />
+        <WalletPicker w={w} note="Use Held's resolver wallet." />
         {w.wallet && !signedIn && (
           <p className="signin">
             <button className="primary small" disabled={signing} onClick={signIn}>{signing ? 'Waiting for signature…' : 'Sign in to see the notes'}</button>
@@ -54,7 +54,7 @@ export default function Resolve() {
         {w.wallet?.kind === 'sandbox' && (
           <div className="resolvecall">
             <p><b>You're the sandbox's shared test resolver.</b> It decides only the Sandbox Shop's disputes.</p>
-            <button className="primary" onClick={w.disconnect}>Use your own resolver wallet →</button>
+            <button className="primary" onClick={w.disconnect}>Use another wallet →</button>
           </div>
         )}
       </div>
@@ -67,7 +67,7 @@ export default function Resolve() {
         </div>
       )}
       {addr && data && data.orders.length === 0 && (
-        <div className="card empty"><b>No open disputes.</b> <span className="muted">When a buyer disputes a payment at a shop that chose {short(addr)} as its resolver, it appears here.</span></div>
+        <div className="card empty"><b>No open disputes.</b> <span className="muted">When a buyer disputes a payment at a shop {short(addr)} decides for, it appears here.</span></div>
       )}
       {w.wallet && data?.orders.map((o) => <Dispute key={o.id} order={o} wallet={w.wallet!} signedIn={signedIn} signIn={signIn} signing={signing} />)}
     </div>

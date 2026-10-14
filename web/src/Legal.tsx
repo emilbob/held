@@ -37,7 +37,7 @@ export function Terms() {
             refund. A payment sent from an exchange is not protected: a refund would go back to the exchange, not to you.</li>
           <li><b>Protection window:</b> the buyer can dispute until the window shown on the order ends. After that, anyone can release
             the payment to the merchant.</li>
-          <li><b>Disputes:</b> decided by the resolver the merchant chose at setup. The resolver can only refund the buyer or pay the
+          <li><b>Disputes:</b> decided by Held's resolver (the shop can't choose its own). The resolver can only refund the buyer or pay the
             merchant; that decision happens on-chain and is final. The resolver must decide within the deadline the shop set; after it,
             the buyer can take their money back and the merchant can no longer be paid. The buyer can withdraw their dispute, which pays
             the merchant.</li>

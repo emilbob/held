@@ -123,7 +123,8 @@ function Setup({ cfg, wallet, onDone, current, onCancel }: { cfg: Config, wallet
   const resolveWindows = cfg.testnet ? [600, 1800, H, 6 * H, 12 * H, D, 2 * D, 3 * D, 5 * D, 7 * D, 14 * D]
     : [D, 2 * D, 3 * D, 5 * D, 7 * D, 10 * D, 14 * D, 21 * D, 30 * D]
   const [resolveWindow, setResolveWindow] = useState(current?.resolveWindow ?? cfg.defaultResolveWindow)
-  const [resolver, setResolver] = useState<string>(current?.resolver ?? cfg.defaultResolver)
+  // Disputes are decided by Held's resolver only (the server refuses any other): a shop can't name its own.
+  const resolver = cfg.defaultResolver
   const [step, setStep] = useState<SetupStep | null>(null)
   const [mining, setMining] = useState<MiningProgress | null>(null)
   const [msg, setMsg] = useState<Msg>(null)
@@ -132,7 +133,6 @@ function Setup({ cfg, wallet, onDone, current, onCancel }: { cfg: Config, wallet
 
   const start = async (e: FormEvent) => {
     e.preventDefault(); setMsg(null)
-    if (!/^0x[0-9a-fA-F]{40}$/.test(resolver)) return setMsg({ ok: false, text: 'The resolver must be a wallet address (0x…).' })
     if (!review) { setReview(true); return } // first press: show what gets written into the contract
     setReview(false)
     abort.current = new AbortController()
@@ -172,11 +172,8 @@ function Setup({ cfg, wallet, onDone, current, onCancel }: { cfg: Config, wallet
         <StepSlider id="window" label="Protection window (how long buyers can dispute)" steps={windows} value={window} onChange={setWindow} disabled={locked} />
         <StepSlider id="resolve" label="Resolver's deadline (how long disputes can take)" steps={resolveWindows} value={resolveWindow} onChange={setResolveWindow} disabled={locked} />
         <p className="muted small">If the resolver hasn't decided a dispute by then, the buyer gets their money back. Buyers see this deadline at checkout.</p>
-        <details>
-          <summary>Resolver (who decides disputes)</summary>
-          <p className="muted small">Held's resolver by default. It can only refund the buyer or pay you, never anything else.</p>
-          <input value={resolver} onChange={(e) => setResolver(e.target.value.trim())} aria-label="Resolver address" disabled={locked} />
-        </details>
+        <p className="muted small"><b>Who decides disputes:</b> Held's neutral resolver ({short(resolver)}). It can only refund the buyer
+          or pay you, never anything else.</p>
         <p className="muted small feeline"><b>Held's fee:</b> {feeText(fee)} Refunds are always free. It's written into your
           contract at setup, so Held can never raise it.</p>
         {review && (
@@ -186,7 +183,7 @@ function Setup({ cfg, wallet, onDone, current, onCancel }: { cfg: Config, wallet
             <ul>
               <li>Protection window: <b>{duration(window)}</b></li>
               <li>Resolver's deadline: <b>{duration(resolveWindow)}</b></li>
-              <li>Resolver: <b>{resolver.toLowerCase() === cfg.defaultResolver.toLowerCase() ? `Held's resolver (${short(resolver)})` : short(resolver)}</b></li>
+              <li>Resolver: <b>Held's resolver ({short(resolver)})</b></li>
               <li>Held's fee: <b>{feeText(fee)}</b></li>
             </ul>
           </div>
@@ -283,7 +280,7 @@ function Dashboard({ merchant: m, w, testnet, onChanged }: { merchant: Merchant,
       {!sandbox && (
         <p className="settingsline muted small">
           <button type="button" className="ghost small" disabled={stillHeld} onClick={() => setChanging(true)}>Change settings</button>
-          {stillHeld ? ' Release or refund your held payments first: they keep the settings they were paid under.' : ' Protection window, resolver deadline or resolver, for your next payments.'}
+          {stillHeld ? ' Release or refund your held payments first: they keep the settings they were paid under.' : ' Protection window or resolver deadline, for your next payments.'}
         </p>
       )}
 

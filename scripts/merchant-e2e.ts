@@ -47,7 +47,7 @@ async function waitStatus(id: string, want: Order['status'], ms = 30000): Promis
 const demo = requireState()
 const TEST_RESOLVER = demo.resolver
 rmSync(DB, { force: true })
-const srv = spawn('node', ['server/server.ts'], { env: { ...process.env, PORT: String(PORT), HELD_DB: DB, POLL_MS: '800' }, stdio: ['ignore', 'pipe', 'inherit'] })
+const srv = spawn('node', ['server/server.ts'], { env: { ...process.env, PORT: String(PORT), HELD_DB: DB, POLL_MS: '800', HELD_TEST_RESOLVER: TEST_RESOLVER }, stdio: ['ignore', 'pipe', 'inherit'] })
 await new Promise<void>((ok) => srv.stdout.on('data', (d: Buffer) => d.toString().includes('Held API') && ok()))
 
 try {

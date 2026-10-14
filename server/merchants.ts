@@ -34,6 +34,12 @@ export async function verifyMerchant(address: Address, arbiterAddress: Address, 
   if (!Array.isArray(accepted) || !accepted.length || !accepted.every((t) => network.tokens.some((n) => isAddressEqual(n.address, t))))
     return fail("The arbiter must accept only this network's stablecoins.")
   if (isAddressEqual(resolver as Address, zeroAddress)) return fail('The arbiter has no resolver.')
+  // Disputes are decided by Held's resolver only: a shop naming its own resolver (e.g. a second wallet of its own) could
+  // decide every dispute in its own favour. The sandbox shop keeps its public test resolver; local tests may add one (testnet only).
+  const sb = network.testnet && network.sandbox
+  const allowed = [network.defaultResolver, ...(sb && isAddressEqual(address, sb.merchant) ? [sb.resolver] : []),
+    ...(network.testnet && process.env.HELD_TEST_RESOLVER ? [process.env.HELD_TEST_RESOLVER as Address] : [])]
+  if (!allowed.some((a) => isAddressEqual(a, resolver as Address))) return fail("The arbiter's resolver must be Held's resolver. Run setup again.")
   const minWindow = network.testnet ? MIN_WINDOW.testnet : MIN_WINDOW.mainnet
   if (Number(window) < minWindow) return fail(`The protection window must be at least ${minWindow} seconds.`)
   const minResolve = network.testnet ? MIN_RESOLVE_WINDOW.testnet : MIN_RESOLVE_WINDOW.mainnet

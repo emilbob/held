@@ -10,7 +10,7 @@ const stages = [
       'Buyer protection with the two-destination guarantee: a held payment can only go to the merchant or back to the payer',
       'Self-serve shops, set up from the merchant\'s own wallet',
       'Up to 3 accepted stablecoins per shop',
-      'Disputes decided by the resolver the merchant chose, within a deadline; after it the buyer is refunded',
+      'Disputes decided by Held\'s neutral resolver within a deadline; after it the buyer is refunded',
       'Buyers can withdraw a dispute; shops can change their settings whenever nothing is held',
       'Held\'s server holds no keys and never signs a release or refund',
     ],
@@ -34,6 +34,7 @@ const stages = [
     when: 'Later', badge: 'After the beta', cls: 'grey',
     items: [
       'Multisig resolver',
+      'Independent resolvers, approved by Held, that shops can choose from',
       'Refunds to an address the buyer chooses, so payments sent from an exchange are protected too',
       'Higher order limits',
       'From mid-2027: a 1% fee on released payments, written into each shop\'s contract when it\'s set up. Refunds are always free',

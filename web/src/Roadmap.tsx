@@ -37,6 +37,7 @@ const stages = [
       'Independent resolvers, approved by Held, that shops can choose from',
       'Refunds to an address the buyer chooses, so payments sent from an exchange are protected too',
       'Higher order limits',
+      'Checkout plugins for website builders: Framer, Webflow, WordPress',
       'From mid-2027: a 1% fee on released payments, written into each shop\'s contract when it\'s set up. Refunds are always free',
     ],
   },

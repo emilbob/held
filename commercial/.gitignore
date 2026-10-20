@@ -1,0 +1,15 @@
+# Re-creatable or large: keep out of git (and so out of the Vercel upload).
+.venv/
+__pycache__/
+assets/models/
+assets/textures/
+assets/hdri/
+renders/
+out/
+*.blend
+*.blend1
+# generated from the capture by tools/screens.py
+textures/frames/
+textures/seq/
+# the raw capture frames (76 MB; recreate with capture/flow.mjs) stay on disk, not in git
+capture/flow/*.png

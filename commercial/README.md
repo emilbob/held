@@ -112,7 +112,7 @@ zsh commercial/render_final.sh        # every shot at 1920×1080, 160 samples, t
 
 It runs under `caffeinate` (the Mac must not sleep; sleep or throttling once slowed a preview shot 7×), logs to
 `renders/final/render.log`, and resumes if interrupted (finished shots are skipped, frames on disk are kept).
-Measured on the M4: about 45–55 s per full-quality frame, so about 9–10 hours for the ~700 frames.
+Measured on the M4: about 45–55 s per full-quality frame, so about 10–11 hours for the ~770 frames.
 
 **On another machine** (e.g. a PC with an NVIDIA GPU, much faster): copy the `commercial/` folder including
 `assets/` and `textures/` (`textures/seq/` holds symlinks into `textures/frames/`; copy with links preserved, or rerun
@@ -124,8 +124,9 @@ Measured on the M4: about 45–55 s per full-quality frame, so about 9–10 hour
 As of Oct 20, 2026:
 - **Done:** the real UI capture (`capture/flow.mjs`, sandbox order on getheld.xyz), the screen sequences, both lighting
   states of the room, all six shots, the end card, the soundtrack, the assembly, and a half-resolution preview of the
-  whole film: `out/held-commercial-preview-v4-fixed.mp4` (30.25 s; every second frame rendered at 960×540, 32 samples,
-  then upscaled). It is approved for the final render.
+  whole film: `out/held-commercial-preview-v6.mp4` (33.25 s; every second frame rendered at 960×540, 32 samples,
+  then upscaled). It is v4-fixed with the last shot held 3 s longer so "Paid to merchant" reads, and it is approved
+  for the final render.
 - **Not done yet:** the final full-quality render (`render_final.sh`). `out/held-commercial.mp4` does not exist until it
   has run.
 - Earlier previews in `out/` (v2–v5) are superseded; v5 was a two-sided seller/buyer version that was rejected.

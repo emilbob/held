@@ -11,9 +11,9 @@ echo "== final render started $(date)"
 caffeinate -dims -w $$ &
 find renders/final -name "*.png" -size 0 -delete   # an interrupted frame leaves an empty placeholder
 SAMPLES=${SAMPLES:-160}
-for spec in s1:1-120 s2:1-120 s3:1-120 s4n:range s4m:range s5:1-168; do
+for spec in s1:1-120 s2:1-120 s3:1-120 s4n:range s4m:range s5:1-240; do
   shot=${spec%%:*}; frames=${spec##*:}
-  want=$(case $shot in s4n|s4m) echo 84;; s5) echo 168;; *) echo 120;; esac)
+  want=$(case $shot in s4n|s4m) echo 84;; s5) echo 240;; *) echo 120;; esac)
   have=$(ls renders/final/$shot 2>/dev/null | grep -c '\.png$' || true)
   if [ "$have" -ge "$want" ]; then echo "== $shot done ($have frames), skipped"; continue; fi
   echo "== $shot: $have/$want frames on disk, rendering ($(date +%T))"

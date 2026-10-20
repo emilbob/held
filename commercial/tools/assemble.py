@@ -23,7 +23,7 @@ LIME = (213, 249, 79)      # --lime, the logo's colour
 
 # (shot, first rendered frame, frames used, dissolve into the next shot in frames). s4n → s4m is the night passing:
 # the same camera move in two lighting states, so the dissolve is a time-lapse on one frame.
-CUT = [('s1', 1, 120, 0), ('s2', 1, 120, 0), ('s3', 1, 120, 0), ('s4n', 1, 84, 24), ('s4m', 61, 84, 0), ('s5', 1, 168, 18)]
+CUT = [('s1', 1, 120, 0), ('s2', 1, 120, 0), ('s3', 1, 120, 0), ('s4n', 1, 84, 24), ('s4m', 61, 84, 0), ('s5', 1, 240, 18)]
 FIRST = {shot: first for shot, first, _, _ in CUT}
 END_FRAMES = 72
 NIGHT = {'s1', 's2', 's3', 's4n'}

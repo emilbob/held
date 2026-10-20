@@ -16,7 +16,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'out', 'sou
 rng = np.random.default_rng(11)
 
 # the cut (tools/assemble.py CUT), in frames
-S1, S2, S3, S4N, S4M, S5, END_F = 120, 120, 120, 84, 84, 168, 72
+S1, S2, S3, S4N, S4M, S5, END_F = 120, 120, 120, 84, 84, 240, 72
 NIGHT_PASSES = (S1 + S2 + S3 + S4N - 24) / FPS              # the dissolve to morning ends here
 S5_AT = S1 + S2 + S3 + S4N - 24 + S4M
 END = (S5_AT + S5 - 18) / FPS

@@ -35,13 +35,15 @@ SHOTS = {
                      (144, (0.70, -0.50, 1.08), (-0.02, 0.64, 0.83), 40, 4.0, (0.0, 0.60, 0.82))]),
     's4m': dict(time='morning', frames=144, range=(61, 144), parcel=True, laptop=None, phone=None, cam=[(1, (0.86, -0.70, 1.13), (0.03, 0.66, 0.84), 40, 4.0, (0.0, 0.60, 0.82)),
                      (144, (0.70, -0.50, 1.08), (-0.02, 0.64, 0.83), 40, 4.0, (0.0, 0.60, 0.82))]),
-    # 21–28 s. Close on the parcel, the Held print on its side; the camera rises and drifts to the phone as focus racks
+    # 21–31 s. Close on the parcel, the Held print on its side; the camera rises and drifts to the phone as focus racks
     # over. The phone wakes (f62) on the order; the buyer releases the payment: "Confirming…", "Paid to merchant".
-    's5': dict(time='morning', frames=168, parcel=True, laptop=None, phone='s5-phone', phone_wake=62,
+    # The camera settles at f168 and holds there to f240, so "Paid to merchant" reads before the end card.
+    's5': dict(time='morning', frames=240, parcel=True, laptop=None, phone='s5-phone', phone_wake=62,
                cam=[(1, (-0.565, -0.105, 0.845), (-0.381, 0.293, 0.80), 50, 2.8, (-0.381, 0.293, 0.80)),
                     (60, (-0.525, -0.045, 0.85), (-0.370, 0.293, 0.80), 50, 2.8, (-0.381, 0.293, 0.80)),
                     (100, (-0.10, 0.02, 0.93), ('phone', 0.48, 0.36), 55, 3.2, ('phone', 0.45, 0.36)),
-                    (168, ('phone', 0.50, 0.40, (-0.015, 0.235, -0.215)), ('phone', 0.47, 0.34), 60, 4.0, ('phone', 0.45, 0.40))]),
+                    (168, ('phone', 0.50, 0.40, (-0.015, 0.235, -0.215)), ('phone', 0.47, 0.34), 60, 4.0, ('phone', 0.45, 0.40)),
+                    (240, ('phone', 0.50, 0.40, (-0.015, 0.235, -0.215)), ('phone', 0.47, 0.34), 60, 4.0, ('phone', 0.45, 0.40))]),
     # look development
     'hero': dict(time='night', frames=1, laptop='s3-laptop', phone='s2-phone',
                  cam=[(1, (0.50, -0.14, 0.97), (0.06, 0.62, 0.82), 45, 2.8, (0.02, 0.72, 0.86))]),

@@ -261,10 +261,10 @@ write_seq('s3', 'phone', PHN(realtime(phone_held, 120, start='P_held_06'), '23:4
 # s4n (84 f): the desk at night, wide; on the laptop the pointer backs off the button. (s4m, the same frame next
 # morning: the laptop asleep and the phone dark, so no sequences.)
 write_seq('s4n', 'laptop', LAP(with_pointer(realtime(laptop_held, 84, start='L_held_10'))))
-# s5 (168 f, morning): the phone wakes at f62 (see shots.py) on the order, still held; at f97 the buyer taps
+# s5 (240 f, morning): the phone wakes at f62 (see shots.py) on the order, still held; at f97 the buyer taps
 # "I got it: release payment": "Confirming…" (the wait compressed), then "Paid to merchant" decodes into place and
-# "Delivery confirmed".
+# "Delivery confirmed", held to the end of the shot.
 s5p = realtime(phone_held, 96, start='P_held_07')
-s5p += transition('P_rel_', 30, 168 - 96 - 30)
+s5p += transition('P_rel_', 30, 240 - 96 - 30)
 write_seq('s5', 'phone', PHN(s5p, '08:17'))
 print('ok', len(made), 'distinct screens,', sum(len(os.listdir(os.path.join(SEQ, d))) for d in os.listdir(SEQ)), 'frames')

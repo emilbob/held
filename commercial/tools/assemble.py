@@ -41,7 +41,7 @@ def ease(x):
 
 
 class Grade:
-    """Lens vignette and fine film grain on every shot; at night also a gentle S-curve, cooler shadows and slightly
+    """Lens vignette and a faint dither on every shot; at night also a gentle S-curve, cooler shadows and slightly
     calmer oranges, so the lamp's pool of warm light sits in a cooler room."""
     def __init__(self):
         yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
@@ -60,10 +60,7 @@ class Grade:
             x = x + shadow * np.array([-0.012, -0.002, 0.020], np.float32)                     # cool the shadows
             a = np.clip(x, 0, 1) * 255.0
         a = a * self.vig
-        g = self.rng.normal(0, 2.4, (H // 2, W // 2)).astype(np.float32)
-        g = np.kron(g, np.ones((2, 2), np.float32))[..., None]        # grain a little larger than a pixel
-        lum = a.mean(axis=2, keepdims=True) / 255.0
-        a = a + g * (0.6 + 0.8 * (1 - lum)) * 0.9                    # grain shows more in the shadows, like film
+        a = a + self.rng.normal(0, 0.6, (H, W, 1)).astype(np.float32)  # faint dither against banding; visible grain read as noise
         return np.clip(a, 0, 255)
 
 

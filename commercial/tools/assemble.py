@@ -2,6 +2,7 @@
 
   commercial/.venv/bin/python commercial/tools/assemble.py --src renders/final --out out/held-commercial.mp4
   commercial/.venv/bin/python commercial/tools/assemble.py --src renders/preview --step 2 --out out/preview.mp4
+  commercial/.venv/bin/python commercial/tools/assemble.py --square --out out/held-commercial-square.mp4   (Instagram 1:1)
 
 Frames are piped straight into ffmpeg (no intermediate files). With --step N, each rendered frame is held N times,
 so a preview rendered on every other frame plays at the right speed.
@@ -27,6 +28,10 @@ CUT = [('s1', 1, 120, 0), ('s2', 1, 120, 0), ('s3', 1, 120, 0), ('s4n', 1, 84, 2
 FIRST = {shot: first for shot, first, _, _ in CUT}
 END_FRAMES = 72
 NIGHT = {'s1', 's2', 's3', 's4n'}
+# --square: a 1080×1080 window cut from each 1920×1080 frame, centred at x. Through s4 the window drifts left so the
+# parcel that arrives overnight (far left of frame) is in it by the morning: (film frame, centre x) keys, eased between.
+SQUARE_X = {'s1': [(0, 900)], 's2': [(0, 960)], 's3': [(0, 960)], 's4n': [(360, 900), (444, 580)],
+            's4m': [(360, 900), (444, 580)], 's5': [(0, 960)]}
 
 
 def font(px, wght):
@@ -43,9 +48,9 @@ def ease(x):
 class Grade:
     """Lens vignette and a faint dither on every shot; at night also a gentle S-curve, cooler shadows and slightly
     calmer oranges, so the lamp's pool of warm light sits in a cooler room."""
-    def __init__(self):
-        yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-        r = np.sqrt(((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2) / np.sqrt(2)
+    def __init__(self, w):
+        yy, xx = np.mgrid[0:H, 0:w].astype(np.float32)
+        r = np.sqrt(((xx - w / 2) / (w / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2) / np.sqrt(2)
         self.vig = (1.0 - 0.22 * r ** 2.4)[..., None]
         self.rng = np.random.default_rng(3)
 
@@ -60,7 +65,7 @@ class Grade:
             x = x + shadow * np.array([-0.012, -0.002, 0.020], np.float32)                     # cool the shadows
             a = np.clip(x, 0, 1) * 255.0
         a = a * self.vig
-        a = a + self.rng.normal(0, 0.6, (H, W, 1)).astype(np.float32)  # faint dither against banding; visible grain read as noise
+        a = a + self.rng.normal(0, 0.6, a.shape[:2] + (1,)).astype(np.float32)  # faint dither against banding; visible grain read as noise
         return np.clip(a, 0, 255)
 
 
@@ -74,7 +79,15 @@ def load(src, shot, i, step):
     return np.asarray(im)
 
 
-def end_card(t):
+def square_x(shot, f):
+    keys = SQUARE_X[shot]
+    if len(keys) == 1:
+        return keys[0][1]
+    (f0, x0), (f1, x1) = keys
+    return x0 + (x1 - x0) * ease((f - f0) / (f1 - f0))
+
+
+def end_card(t, W=W):
     """Held end card at time t (s) into it: mark and wordmark, then the line, then what it is and where."""
     im = Image.new('RGB', (W, H), BG)
     logo = Image.open(LOGO).convert('RGBA')
@@ -141,16 +154,18 @@ def main():
     ap.add_argument('--step', type=int, default=1)
     ap.add_argument('--out', default=os.path.join(ROOT, 'out', 'held-commercial.mp4'))
     ap.add_argument('--audio', default=os.path.join(ROOT, 'out', 'soundtrack.wav'))
+    ap.add_argument('--square', action='store_true', help='1080×1080 for Instagram, cropped per SQUARE_X')
     ap.add_argument('--stills', help='write these film frames (comma list) as JPEGs next to --out instead of encoding')
     a = ap.parse_args()
     src = a.src if os.path.isabs(a.src) else os.path.join(ROOT, a.src)
     out = a.out if os.path.isabs(a.out) else os.path.join(ROOT, a.out)
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    grade = Grade()
+    ow = H if a.square else W
+    grade = Grade(ow)
     want = set(int(x) for x in a.stills.split(',')) if a.stills else None
     ff = None
     if not want:
-        cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-']
+        cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{ow}x{H}', '-r', str(FPS), '-i', '-']
         if os.path.exists(a.audio):
             cmd += ['-i', a.audio, '-c:a', 'aac', '-b:a', '256k', '-shortest']
         cmd += ['-c:v', 'libx264', '-preset', 'slow', '-crf', '14', '-pix_fmt', 'yuv420p', '-profile:v', 'high',
@@ -163,9 +178,13 @@ def main():
         acc = None
         for shot, i, start, length in layers:
             if shot == 'end':
-                img = end_card(i / FPS)
+                img = end_card(i / FPS, ow)
             else:
-                img = grade(load(src, shot, i + 1, a.step), night=shot in NIGHT)
+                img = load(src, shot, i + 1, a.step)
+                if a.square:
+                    x0 = int(round(square_x(shot, f) - H / 2))
+                    img = img[:, x0:x0 + H]
+                img = grade(img, night=shot in NIGHT)
             # dissolve: an incoming shot fades over the outgoing one during the overlap
             prev = [l for l in timeline if l[1] < start and l[1] + l[2] > start]
             w = ease((i + 1) / (prev[0][1] + prev[0][2] - start + 1)) if prev else 1.0

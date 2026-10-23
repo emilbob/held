@@ -66,16 +66,17 @@ export default function Landing() {
               <WalletPicker w={w} choice="real" />
             </div>
           )}
-          <a className="worksin" href="#/faq/website">
-            <span className="top"><span className="new">New</span>
-              <span className="logos"><FramerLogo size={22} /><WebflowLogo size={16} /><WordPressLogo size={21} /></span></span>
-            <span className="title">Now on Framer, Webflow and WordPress</span>
-            <span className="sub">Put a "Pay with Held" button on your own site, with buyer protection built in.</span>
-            <span className="go" aria-hidden="true">→</span>
-          </a>
           <p className="hint">Buying something? Open the checkout link your merchant sent you.</p>
         </div>
         <div className="hero-visual"><HeldFrame cycle className="frame-canvas" /></div>
+        {/* Above the picture on wide screens, under the wallet box on phones (styles.css). */}
+        <a className="worksin" href="#/faq/website">
+          <span className="top"><span className="new">New</span>
+            <span className="logos"><FramerLogo size={18} /><WebflowLogo size={13} /><WordPressLogo size={17} /></span></span>
+          <span className="title">Now on Framer, Webflow and WordPress</span>
+          <span className="sub">Put a "Pay with Held" button on your own site, with buyer protection built in.</span>
+          <span className="go" aria-hidden="true">→</span>
+        </a>
         <ScrollCue />
       </section>
 
@@ -101,30 +102,13 @@ export default function Landing() {
 /** "Scroll" with a dot sliding down a hairline; fades once the page moves, and takes you to "How it works". */
 function ScrollCue() {
   const [gone, setGone] = useState(false)
-  // Its spot is the bottom of the hero, but never below the first screen: when the hero is taller than the window, it sits
-  // at the window's bottom edge instead, so it's seen before the first scroll (after which it fades out). On a window too
-  // short for it to fit under the hero picture, it stays hidden rather than sit on the picture.
-  const [top, setTop] = useState<number | null>()
-  const ref = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const f = () => setGone(scrollY > 40)
-    const place = () => {
-      const hero = ref.current?.offsetParent as HTMLElement | null
-      if (!hero || !ref.current) return
-      const h = ref.current.offsetHeight + 26
-      const t = Math.min(hero.offsetHeight - h, innerHeight - (hero.getBoundingClientRect().top + scrollY) - h)
-      const pic = hero.querySelector('.hero-visual canvas')?.getBoundingClientRect()
-      setTop(pic && t < pic.bottom - hero.getBoundingClientRect().top + 12 ? null : t)
-    }
-    f(); place()
-    // The hero grows after load (fonts, the wallet list), and the window can be resized.
-    const ro = new ResizeObserver(place)
-    if (ref.current?.offsetParent) ro.observe(ref.current.offsetParent)
-    addEventListener('scroll', f, { passive: true }); addEventListener('resize', place)
-    return () => { removeEventListener('scroll', f); removeEventListener('resize', place); ro.disconnect() }
+    f(); addEventListener('scroll', f, { passive: true })
+    return () => removeEventListener('scroll', f)
   }, [])
   return (
-    <button ref={ref} type="button" className={`scroll-cue${gone || top === null ? ' gone' : ''}`} style={top == null ? undefined : { top, bottom: 'auto' }} aria-label="Scroll to how it works"
+    <button type="button" className={`scroll-cue${gone ? ' gone' : ''}`} aria-label="Scroll to how it works"
       onClick={() => document.querySelector('.story')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>
       <span>Scroll</span><i />
     </button>

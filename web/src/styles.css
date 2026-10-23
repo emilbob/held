@@ -313,8 +313,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .landing2 .connectfirst .picker p { margin: 4px 0 0 }
 .final .hint { text-align: center }
 
-.hero2 { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px; align-items: center; min-height: calc(100vh - 160px); padding: 24px 0 128px }
-/* The bottom padding is the scroll cue's lane (it sits 26px up and is ~84px tall), so the hero's content never runs into it. */
+.hero2 { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px 64px; align-items: center; min-height: calc(100vh - 160px); padding: 24px 0 40px }
 .eyebrow { display: inline-flex; align-items: center; gap: 14px; font-size: 14px; color: var(--muted) }
 .eyebrow .logo b { display: none }
 .lede { font-size: 16px; line-height: 1.65; color: #c3c8d2; max-width: 540px }
@@ -404,8 +403,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 @media (prefers-reduced-motion: reduce) { .story-steps li { transition: none } }
 
 /* Scroll cue: a label over a hairline with a dot sliding down it. */
-/* Centered under the hero picture (the right grid column: 1.15fr | 28px gap | .85fr), away from the text on the left. */
-.scroll-cue { position: absolute; left: calc((100% - 28px) * .7875 + 28px); bottom: 26px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px;
+.scroll-cue { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px;
   background: none; border: 0; padding: 6px 10px; cursor: pointer; color: var(--muted); transition: opacity .5s ease }
 .scroll-cue:hover { color: var(--ink); opacity: 1 }
 .scroll-cue span { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; letter-spacing: .2em; text-transform: uppercase }
@@ -414,7 +412,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
   box-shadow: 0 0 8px var(--lime); animation: cue 1.8s cubic-bezier(.65, 0, .35, 1) infinite }
 @keyframes cue { 0% { transform: translateY(-6px); opacity: 0 } 25% { opacity: 1 } 80% { opacity: 1 } 100% { transform: translateY(46px); opacity: 0 } }
 .scroll-cue.gone { opacity: 0; pointer-events: none }
-@media (max-width: 860px) { .scroll-cue { display: none } .hero2 { padding-bottom: 40px } }
+@media (max-width: 860px) { .scroll-cue { display: none } }
 @media (prefers-reduced-motion: reduce) { .scroll-cue i::after { animation: none; top: 20px } }
 /* Very small phones (320px): Beta tag + three nav links still fit on one line. */
 @media (max-width: 360px) { header { gap: 8px; padding: 10px 12px } header nav { gap: 10px; font-size: 13px } header .beta { margin-left: -2px } }
@@ -458,21 +456,24 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .askfb a { font-weight: 600 }
 .askfb.top { margin: 0 0 14px }
 .final .askfb { max-width: 560px; margin: 26px auto 0 }
-/* The hero's announcement: lime-edged so it reads as news, as wide as the wallet box above it (.connectfirst), so it stays
-   clear of the hero picture and the scroll cue. */
-.worksin { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px 18px; margin-top: 16px; max-width: 420px;
-  box-sizing: border-box; padding: 18px 20px; border-radius: 14px; border: 1px solid var(--lime);
+/* The hero's announcement, in the right column above the picture (the text column is full enough). On phones the
+   grid is one column and it follows the wallet box. */
+.hero-copy { grid-row: 1 / span 2 }
+.hero2 > .worksin { grid-column: 2; grid-row: 1; align-self: end; justify-self: center }
+.hero2 > .hero-visual { grid-column: 2; grid-row: 2; align-self: start }
+.worksin { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 14px; width: 100%; max-width: 360px;
+  box-sizing: border-box; padding: 12px 15px; border-radius: 12px; border: 1px solid var(--lime);
   background: linear-gradient(135deg, #D5F94F26, #D5F94F0a 60%), var(--surface); color: var(--ink); text-decoration: none;
-  box-shadow: 0 12px 40px -18px #D5F94F80; transition: box-shadow .2s, transform .2s }
-.worksin:hover { box-shadow: 0 14px 46px -14px #D5F94FA6; transform: translateY(-1px) }
-.worksin .top { display: flex; align-items: center; gap: 14px; grid-column: 1 }
-.worksin .title { grid-column: 1; font-size: 20px; font-weight: 700; line-height: 1.25; letter-spacing: -.01em }
-.worksin .sub { grid-column: 1; font-size: 14px; line-height: 1.45; color: #c3c8d2 }
-.worksin .go { grid-column: 2; grid-row: 1 / span 3; font-size: 24px; color: var(--lime); transition: transform .2s }
+  box-shadow: 0 10px 32px -18px #D5F94F80; transition: box-shadow .2s, transform .2s }
+.worksin:hover { box-shadow: 0 12px 38px -14px #D5F94FA6; transform: translateY(-1px) }
+.worksin .top { display: flex; align-items: center; gap: 11px; grid-column: 1 }
+.worksin .title { grid-column: 1; font-size: 16px; font-weight: 700; line-height: 1.25 }
+.worksin .sub { grid-column: 1; font-size: 13px; line-height: 1.4; color: #c3c8d2 }
+.worksin .go { grid-column: 2; grid-row: 1 / span 3; font-size: 20px; color: var(--lime); transition: transform .2s }
 .worksin:hover .go { transform: translateX(3px) }
-.worksin .new { background: var(--lime); color: #0b0d10; font-size: 13px; font-weight: 700; padding: 4px 11px; border-radius: 99px }
+.worksin .new { background: var(--lime); color: #0b0d10; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 99px }
 .worksin svg { flex: none }
-@media (max-width: 480px) { .worksin { padding: 16px; gap: 8px 12px } .worksin .title { font-size: 18px } }
+@media (max-width: 860px) { .hero-copy, .hero2 > .worksin, .hero2 > .hero-visual { grid-row: auto; grid-column: auto } .hero2 > .worksin { justify-self: start; max-width: 420px } }
 @media (prefers-reduced-motion: reduce) { .worksin, .worksin .go { transition: none } .worksin:hover { transform: none } }
 @media (max-width: 720px) { .fbfloat { left: 14px; bottom: 14px; height: 40px; padding: 0 15px; font-size: 13px }
   /* room under the footer so the floating buttons never cover its links */
@@ -495,4 +496,4 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .summary .showtokens { display: block; margin-top: 6px }
 .ownerlink { margin: 12px 0 0; font-size: 14px }
 .ownerlink a { font-weight: 600 }
-.worksin .logos { display: inline-flex; align-items: center; gap: 10px; color: #e6e9ef }
+.worksin .logos { display: inline-flex; align-items: center; gap: 8px; color: #e6e9ef }

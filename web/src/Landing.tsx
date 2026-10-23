@@ -67,9 +67,11 @@ export default function Landing() {
             </div>
           )}
           <a className="worksin" href="#/faq/website">
-            <span className="new">New</span>
-            <span className="logos"><FramerLogo size={20} /><WebflowLogo size={14} /><WordPressLogo size={18} /></span>
-            Now on Framer, Webflow and WordPress <span aria-hidden="true">→</span>
+            <span className="top"><span className="new">New</span>
+              <span className="logos"><FramerLogo size={22} /><WebflowLogo size={16} /><WordPressLogo size={21} /></span></span>
+            <span className="title">Now on Framer, Webflow and WordPress</span>
+            <span className="sub">Put a "Pay with Held" button on your own site, with buyer protection built in.</span>
+            <span className="go" aria-hidden="true">→</span>
           </a>
           <p className="hint">Buying something? Open the checkout link your merchant sent you.</p>
         </div>

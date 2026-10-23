@@ -102,8 +102,9 @@ export default function Landing() {
 function ScrollCue() {
   const [gone, setGone] = useState(false)
   // Its spot is the bottom of the hero, but never below the first screen: when the hero is taller than the window, it sits
-  // at the window's bottom edge instead, so it's seen before the first scroll (after which it fades out).
-  const [top, setTop] = useState<number>()
+  // at the window's bottom edge instead, so it's seen before the first scroll (after which it fades out). On a window too
+  // short for it to fit under the hero picture, it stays hidden rather than sit on the picture.
+  const [top, setTop] = useState<number | null>()
   const ref = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const f = () => setGone(scrollY > 40)
@@ -111,7 +112,9 @@ function ScrollCue() {
       const hero = ref.current?.offsetParent as HTMLElement | null
       if (!hero || !ref.current) return
       const h = ref.current.offsetHeight + 26
-      setTop(Math.min(hero.offsetHeight - h, innerHeight - (hero.getBoundingClientRect().top + scrollY) - h))
+      const t = Math.min(hero.offsetHeight - h, innerHeight - (hero.getBoundingClientRect().top + scrollY) - h)
+      const pic = hero.querySelector('.hero-visual canvas')?.getBoundingClientRect()
+      setTop(pic && t < pic.bottom - hero.getBoundingClientRect().top + 12 ? null : t)
     }
     f(); place()
     // The hero grows after load (fonts, the wallet list), and the window can be resized.
@@ -121,7 +124,7 @@ function ScrollCue() {
     return () => { removeEventListener('scroll', f); removeEventListener('resize', place); ro.disconnect() }
   }, [])
   return (
-    <button ref={ref} type="button" className={`scroll-cue${gone ? ' gone' : ''}`} style={top === undefined ? undefined : { top, bottom: 'auto' }} aria-label="Scroll to how it works"
+    <button ref={ref} type="button" className={`scroll-cue${gone || top === null ? ' gone' : ''}`} style={top == null ? undefined : { top, bottom: 'auto' }} aria-label="Scroll to how it works"
       onClick={() => document.querySelector('.story')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>
       <span>Scroll</span><i />
     </button>

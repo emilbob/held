@@ -95,6 +95,8 @@ export default function HeldPayButton(props: Props) {
         : label.trim() || (info ? `Pay ${usd(info.amount)} with Held` : "Pay with Held")
 
     const box: CSSProperties = {
+        position: "relative",
+        minWidth: "max-content",
         display: "inline-flex",
         alignItems: "center",
         gap: 10,
@@ -148,6 +150,7 @@ export default function HeldPayButton(props: Props) {
 }
 
 const hint: CSSProperties = {
+    position: "relative",
     padding: "12px 16px",
     border: "1px dashed #8a8f98",
     color: "#8a8f98",

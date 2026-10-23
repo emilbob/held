@@ -313,7 +313,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .landing2 .connectfirst .picker p { margin: 4px 0 0 }
 .final .hint { text-align: center }
 
-.hero2 { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px 64px; align-items: center; min-height: calc(100vh - 160px); padding: 24px 0 40px }
+.hero2 { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; gap: 28px; align-items: center; min-height: calc(100vh - 160px); padding: 24px 0 40px }
 .eyebrow { display: inline-flex; align-items: center; gap: 14px; font-size: 14px; color: var(--muted) }
 .eyebrow .logo b { display: none }
 .lede { font-size: 16px; line-height: 1.65; color: #c3c8d2; max-width: 540px }
@@ -459,7 +459,7 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 /* The hero's announcement, in the right column above the picture (the text column is full enough). On phones the
    grid is one column and it follows the wallet box. */
 .hero-copy { grid-row: 1 / span 2 }
-.hero2 > .worksin { grid-column: 2; grid-row: 1; align-self: end; justify-self: center }
+.hero2 > .worksin { grid-column: 2; grid-row: 1; align-self: end; justify-self: end; max-width: 300px } /* right edge, clear of the text */
 .hero2 > .hero-visual { grid-column: 2; grid-row: 2; align-self: start }
 .worksin { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 14px; width: 100%; max-width: 360px;
   box-sizing: border-box; padding: 12px 15px; border-radius: 12px; border: 1px solid var(--lime);

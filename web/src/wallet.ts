@@ -69,6 +69,7 @@ export const explain = (err: unknown): string => {
 // EIP-6963: each installed wallet extension announces itself, so buyers can pick theirs by name instead of getting
 // whichever one claimed window.ethereum.
 export interface InjectedWallet { name: string, icon?: string, rdns: string, provider: EIP1193Provider }
+const TEMPO_RDNS = 'xyz.tempo'
 type Announce = Event & { detail: { info: { name: string, icon: string, rdns: string, uuid: string }, provider: EIP1193Provider } }
 // Wallets may announce late (an extension that finishes loading after the page), so keep listening until
 // unsubscribed. Returns the unsubscribe function.
@@ -77,6 +78,8 @@ export function watchWallets(onChange: (wallets: InjectedWallet[]) => void): () 
   const emit = () => onChange([...found.values()])
   const onAnnounce = (e: Event) => {
     const { info, provider } = (e as Announce).detail
+    // Tempo's Accounts SDK announces itself once loaded; it already has its own "Tempo Wallet" button.
+    if (info.rdns === TEMPO_RDNS) return
     found.delete('injected') // a real announcement replaces the generic fallback
     found.set(info.rdns || info.uuid, { name: info.name, icon: info.icon, rdns: info.rdns, provider })
     emit()

@@ -87,7 +87,7 @@ export default function Landing() {
 
       <section className="final">
         <h2>See it work in two minutes.</h2>
-        <p>{sandbox ? 'A shop is already set up on Tempo testnet. Play merchant, buyer and resolver, and try to cheat: the contract refuses.' : 'Set up your shop from your own wallet in a few minutes.'}</p>
+        <p>{sandbox ? <>A shop is already set up on Tempo testnet. Play merchant, buyer and resolver, and <a href="#/cheat">try to cheat</a>: the contract refuses.</> : 'Set up your shop from your own wallet in a few minutes.'}</p>
         <div className="ctas">
           {trySandbox('Try the sandbox')}
           {start()}

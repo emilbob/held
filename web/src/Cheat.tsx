@@ -28,7 +28,7 @@ const CHEATS: Cheat[] = [
   { id: 'held', who: 'held', label: "Held takes the $1 with its own wallet",
     refused: "Held's fee wallet can't claim it either." },
   { id: 'padded', who: 'merchant', label: 'Replay the payment receipt with extra bytes',
-    refused: 'The contract only accepts the exact receipt. We found this hole ourselves on Oct 7 and closed it in contract v4.' },
+    refused: 'The contract only accepts the exact receipt. We found this hole in our own review and closed it in contract v4.' },
 ]
 const WHO: Record<Who, string> = { merchant: 'Merchant', resolver: 'Resolver', held: 'Held' }
 

@@ -26,7 +26,8 @@ import { isAddress, parseUnits, type Address, type Hex } from 'viem'
 import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
-import { alertDisputes, alertFees } from './alerts.ts'
+import { alertDisputes, alertFees, alertPolicyChanges } from './alerts.ts'
+import { payoutPolicyOf, policyHolds } from '../shared/protection.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
 import { acceptedTokensOf, signInMessage, noteMessage, NOTE_MAX, NOTES_PER_SIDE, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, QUOTES_SHOWN, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
 
@@ -104,19 +105,45 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
     lastSync = Date.now()
     try {
       // If another invocation is already syncing, just read what it wrote.
-      let saved: { s: Db, disputes: string[], fees: string[] } | undefined
+      let saved: { s: Db, disputes: string[], fees: string[], policies: string[] } | undefined
       await db.lock(async (io) => {
         const s = await load(io)
         const indexer = createIndexer({ store: s })
         head = await indexer.sync()
         await io.write(s)
-        saved = { s, disputes: indexer.newDisputes, fees: indexer.newFees }
+        saved = { s, disputes: indexer.newDisputes, fees: indexer.newFees, policies: indexer.policyChanges }
       }, { wait: false })
       // After the lock (the save is committed), so a dispute or a fee is emailed at most once.
-      if (saved) await Promise.all([alertDisputes(saved.s, network, saved.disputes), alertFees(saved.s, network, saved.fees)])
+      if (saved) {
+        // A shop changed its receive policy: re-check it now (not from the cache) and tell the owner whether it's still protected.
+        const policies = await Promise.all(saved.policies.map(async (a) => {
+          const m = saved!.s.merchants[a.toLowerCase()]
+          return m ? { merchant: m, protected: await isProtected(m, true).catch(() => null) } : null
+        }))
+        await Promise.all([alertDisputes(saved.s, network, saved.disputes), alertFees(saved.s, network, saved.fees),
+          alertPolicyChanges(network, policies.filter((x) => x !== null))])
+      }
       lastErr = null
     } catch (e) { lastErr = errText(e) }
   }
+
+  // Is a shop still protected? Tempo can't lock a receive policy, so a merchant could switch theirs off after registering
+  // and new payments would reach them unprotected. New orders and the buyer page re-check it on the chain (cached for
+  // 30 s per shop; an arbiter's payout policy never changes). Throws if the chain can't be read.
+  const shield = new Map<string, { ok: boolean, at: number }>()
+  const payoutIds = new Map<string, bigint | null>()
+  async function isProtected(m: Merchant, fresh = false): Promise<boolean> {
+    const k = m.address.toLowerCase(), hit = shield.get(k)
+    if (hit && !fresh && Date.now() - hit.at < 30_000) return hit.ok
+    const arb = m.arbiter.toLowerCase()
+    if (!payoutIds.has(arb)) payoutIds.set(arb, await payoutPolicyOf(pub, m.arbiter))
+    const ok = await policyHolds(pub, m.address, m.arbiter, payoutIds.get(arb))
+    shield.set(k, { ok, at: Date.now() })
+    return ok
+  }
+  const PAUSED_FOR_MERCHANT = "Your wallet's receive policy no longer holds payments for your Held contract, so buyers wouldn't be protected. New orders are paused until you press \"Turn protection back on\" in your dashboard."
+  const PAUSED_FOR_BUYER = "This shop has switched off Held's protection, so it can't take payments right now."
+  const UNCHECKED = "Couldn't check the shop's protection on the chain right now. Please try again in a moment."
 
   // The wallet behind "Authorization: Bearer <session>", or null.
   function sessionOf(s: Db, headers: Headers): Address | null {
@@ -160,7 +187,9 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const s = await load()
       const address = sessionOf(s, headers)
       if (!address) return ok({ error: 'Not signed in.' }, 401)
-      return ok({ address, merchant: s.merchants[address.toLowerCase()] ?? null })
+      const merchant = s.merchants[address.toLowerCase()] ?? null
+      // protected: null when the chain couldn't be read just now.
+      return ok({ address, merchant, protected: merchant ? await isProtected(merchant, true).catch(() => null) : null })
     }
 
     if (path === '/api/merchants' && method === 'POST') {
@@ -204,6 +233,12 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const { amount, item } = body
       const err = priceError(amount, network, 'Amount')
       if (err) return ok({ error: err }, 400)
+      const s0 = await load(), me = sessionOf(s0, headers), m0 = me ? s0.merchants[me.toLowerCase()] : undefined
+      if (m0) {
+        const safe = await isProtected(m0).catch(() => null)
+        if (safe === null) return ok({ error: UNCHECKED }, 503)
+        if (!safe) return ok({ error: PAUSED_FOR_MERCHANT }, 409)
+      }
       const r = await mutate((s) => {
         const address = sessionOf(s, headers)
         const merchant = address ? s.merchants[address.toLowerCase()] : undefined
@@ -231,7 +266,10 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       if (o && /^\d+$/.test(ref) && o.key && !isMerchant) o = undefined
       // Notes by key (the buyer's own link) or for the merchant; never by a guessable order number.
       if (!o) return ok({ error: 'Order not found' }, 404)
-      return ok(!/^\d+$/.test(ref) || isMerchant ? withNotes(s, orderView(s, o)) : orderView(s, o))
+      const view = orderView(s, o)
+      // The buyer page also checks this on the chain itself; this flag covers anything that reads the API.
+      if (view.status === 'awaiting_payment' && (await isProtected(s.merchants[o.merchant.toLowerCase()]).catch(() => true)) === false) view.protectionOff = true
+      return ok(!/^\d+$/.test(ref) || isMerchant ? withNotes(s, view) : view)
     }
     // ---------------------------------------------------------------- checkout links
     if (path === '/api/links' && method === 'POST') {
@@ -288,6 +326,10 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const known = (await load()).links?.[lk[1]]
       if (!known) return ok({ error: 'This checkout link does not exist.' }, 404)
       if (!known.active) return ok({ error: 'This checkout link has been turned off by the merchant.' }, 410)
+      const owner = (await load()).merchants[known.merchant.toLowerCase()]
+      const safe = owner ? await isProtected(owner).catch(() => null) : true
+      if (safe === null) return ok({ error: UNCHECKED }, 503)
+      if (!safe) return ok({ error: PAUSED_FOR_BUYER }, 409)
       if (!(await db.rateLimit(`link:${lk[1]}:${clientIp(headers)}`, 3000))) return ok({ error: 'One moment, your order is being created.' }, 429)
       const r = await mutate((s) => {
         const link = s.links?.[lk[1]]

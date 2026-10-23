@@ -3,6 +3,7 @@
 //   ReceivePolicyGuard.TransferBlocked(receiver = a merchant) -> a held payment (receipt bytes, amount, token)
 //   HeldArbiter.Disputed / Released / Refunded on each merchant's arbiter (id = keccak256(receipt)) -> decisions
 //   HeldArbiter.FeeCharged (v3) -> the fee taken from a release (for the owner's fee emails)
+//   TIP-403 registry ReceivePolicyUpdated(account = a merchant) -> the shop changed its receive policy (owner alert)
 // Payments match orders by address: each order has its own virtual address under its merchant's master.
 import { parseAbiItem, keccak256 } from 'viem'
 import { ReceivePolicyReceipt } from 'ox/tempo'
@@ -18,11 +19,14 @@ const arbiterEvents = [
   parseAbiItem('event FeeCharged(bytes32 indexed id, address indexed token, address indexed recipient, uint256 fee)'),
 ] as const
 const decisionStatus = { Disputed: 'disputed', Released: 'released', Refunded: 'refunded' } as const satisfies Record<string, PaymentStatus>
+const TIP403 = '0x403c000000000000000000000000000000000000'
+const ReceivePolicyUpdated = parseAbiItem('event ReceivePolicyUpdated(address indexed account, uint64 senderPolicyId, uint64 tokenFilterId, address recoveryAuthority)')
 const MAX_RANGE = 50_000n
 
 export function createIndexer({ store }: { store: Db }) {
   const newDisputes: string[] = [] // payment ids that became disputed during this sync (for alerts)
   const newFees: string[] = [] // payment ids whose release paid Held's fee during this sync (for fee emails)
+  const policyChanges: string[] = [] // merchants whose receive policy changed during this sync (they may no longer be protected)
   async function scanRange(fromBlock: bigint, toBlock: bigint) {
     const merchants = Object.values(store.merchants)
     if (!merchants.length) return
@@ -33,10 +37,12 @@ export function createIndexer({ store }: { store: Db }) {
       ...(m.previousArbiters ?? []).map((a) => [a.arbiter.toLowerCase(), a] as const)]))
     const arbiters = new Set(settingsOf.keys())
     // strict: only logs whose args decode fully (all of ours do), so every field below is present.
-    const [blocked, decisions] = await Promise.all([
+    const [blocked, decisions, policies] = await Promise.all([
       pub.getLogs({ address: GUARD, event: TransferBlocked, args: { receiver: merchants.map((m) => m.address) }, fromBlock, toBlock, strict: true }),
       pub.getLogs({ address: [...settingsOf.values()].map((a) => a.arbiter), events: arbiterEvents, fromBlock, toBlock, strict: true }),
+      pub.getLogs({ address: TIP403, event: ReceivePolicyUpdated, args: { account: merchants.map((m) => m.address) }, fromBlock, toBlock, strict: true }),
     ])
+    for (const l of policies) if (!policyChanges.includes(l.args.account)) policyChanges.push(l.args.account)
     for (const l of blocked) {
       const merchant = byAddress.get(l.args.receiver.toLowerCase())
       if (!merchant) continue
@@ -104,7 +110,7 @@ export function createIndexer({ store }: { store: Db }) {
     return head
   }
 
-  return { sync, newDisputes, newFees }
+  return { sync, newDisputes, newFees, policyChanges }
 }
 
 // Order view = order + its merchant + its payments, with a single derived status for the UI.

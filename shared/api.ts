@@ -89,6 +89,8 @@ export interface Order extends StoredOrder {
   status: OrderStatus
   underpaid: boolean
   payments: Payment[]
+  // Awaiting payment, and the shop's receive policy no longer holds payments for its arbiter: paying now would not be protected.
+  protectionOff?: boolean
 }
 
 export interface Session { address: Address, exp: number }

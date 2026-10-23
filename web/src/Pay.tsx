@@ -8,6 +8,7 @@ import * as W from './wallet.ts'
 import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, walletFits, Badge, Steps, Result, Notes, usd, short, countdown, duration, openSandboxResolver, isSandboxShop, addrUrl, type Msg } from './ui.tsx'
 import { noteMessage, NOTE_MAX, NOTES_PER_SIDE, tokenSymbol, type Order, type OrderStatus } from '../../shared/api.ts'
 import type { Address } from 'viem'
+import { checkCheckout, refundReachable, type Protection } from '../../shared/protection.ts'
 
 export default function Pay({ id }: { id: string }) {
   const now = useNow()
@@ -25,6 +26,23 @@ export default function Pay({ id }: { id: string }) {
   const [chosen, setChosen] = useState<Address | null>(null)
   const root = useRef<HTMLDivElement>(null)
   useEntrance(root, ':scope > .card', !!order)
+  // Before anyone pays, check on the chain itself, not through Held's server, that this checkout is protected right now:
+  // the address is the shop's, its arbiter is the genuine contract shown here, and its receive policy still holds
+  // payments (Tempo can't lock one, so a merchant could have switched it off). Checked again when Pay is pressed.
+  const [shield, setShield] = useState<Protection | 'checking' | 'unknown'>('checking')
+  const verify = async (o: Order) => {
+    try {
+      const r = await checkCheckout(W.pub as never, { merchant: o.merchant, arbiter: o.merchantInfo.arbiter, address: o.address,
+        resolver: o.merchantInfo.resolver, window: o.merchantInfo.window, testnet: W.NET.testnet })
+      setShield(r); return r
+    } catch { setShield('unknown'); return null }
+  }
+  useEffect(() => { if (order?.status === 'awaiting_payment') verify(order) }, [order?.key, order?.status])
+  // A refund goes back to the paying wallet only if that wallet's own receive policy accepts this shop as a sender.
+  const [refundOk, setRefundOk] = useState(true)
+  useEffect(() => {
+    if (wallet && order) refundReachable(W.pub as never, wallet.address, order.merchant).then(setRefundOk, () => setRefundOk(true))
+  }, [wallet?.address, order?.merchant])
 
   useEffect(() => {
     if (!order || !cfg) return
@@ -46,6 +64,9 @@ export default function Pay({ id }: { id: string }) {
   const left = main ? main.windowEndsAt - now : 0
   const status: OrderStatus = order.status === 'held' && main && left <= 0 ? 'releasable' : order.status
   const isPayer = wallet && main && wallet.address.toLowerCase() === main.payer.toLowerCase()
+  // Why this checkout isn't safe to pay right now (from the chain check, or the server's flag until that answers).
+  const blocked = typeof shield === 'object' && !shield.ok ? shield.reason
+    : shield === 'checking' && order.protectionOff ? "This shop has switched off Held's protection: a payment now would go straight to the merchant." : null
   // Paid out or refunded: nothing left for the buyer to do (unless a wrong-token payment still needs returning).
   const settled = (status === 'released' || status === 'refunded') && !wrong.some((p) => p.status === 'held')
   // Each payment is decided by the arbiter it was held for (a shop that changed settings has a new one for new payments).
@@ -71,7 +92,7 @@ export default function Pay({ id }: { id: string }) {
   // Only for payments under the shop's current arbiter (an older one may have had another resolver).
   const resolver = order.merchantInfo.resolver
   const resolverKind = sandbox ? 'sandbox' : resolver.toLowerCase() === order.merchant.toLowerCase() ? 'merchant'
-    : cfg && resolver.toLowerCase() === cfg.defaultResolver.toLowerCase() ? 'held' : 'other'
+    : resolver.toLowerCase() === W.NET.defaultResolver.toLowerCase() ? 'held' : 'other'
   const resolverLine = (!main?.arbiter || main.arbiter.toLowerCase() === order.merchantInfo.arbiter.toLowerCase()) && (
     <><br />Disputes are decided by {{
       held: <b>Held's neutral resolver</b>,
@@ -115,12 +136,18 @@ export default function Pay({ id }: { id: string }) {
         <div className="big"><CountUp value={Number(order.amount)} format={usd} /> <small>{accepted.length > 1 ? 'in stablecoins' : sym(accepted[0])}</small></div>
         <Badge status={status} />
 
-        {status === 'awaiting_payment' && (
+        {status === 'awaiting_payment' && blocked && (
+          <div className="protect dispute"><b>Don't pay this order.</b> {blocked}</div>
+        )}
+        {status === 'awaiting_payment' && !blocked && (
           <>
             <p className="protect"><b>Protected by Held.</b> Your payment is held onchain for {duration(order.merchantInfo.window)} or until you
               confirm delivery. If something goes wrong, open a dispute: the funds can only go back to you or to the merchant.
               {resolveWindow ? <> The resolver has {duration(resolveWindow)} to decide; if they don't, you get your money back.</> : null}
-              {resolverLine}</p>
+              {resolverLine}
+              <br /><span className="muted small">{shield === 'checking' ? 'Checking this protection on the chain…'
+                : shield === 'unknown' ? <>Couldn't check this protection on the chain just now. <button type="button" className="ghost small" onClick={() => verify(order)}>Check again</button></>
+                : 'Checked on the chain just now, not just by Held.'}</span></p>
             <div className="payto">
               {qr && <img src={qr} alt="Payment QR code" />}
               <div>
@@ -186,7 +213,14 @@ export default function Pay({ id }: { id: string }) {
             {ownRole
               ? <p className="warn">This wallet ({short(wallet.address)}) is this shop's {ownRole}. Pay from your own wallet: press <i>Change wallet</i> above.</p>
               : <p className="payingfrom">Paying from <b>{short(wallet.address)}</b> <span className="muted">({wallet.name})</span></p>}
-            <button className="primary" disabled={!!busy || !!ownRole || w.toppingUp || (!!w.balances && bal(payToken) < BigInt(order.amount))} onClick={() => run('pay', () => W.transfer(wallet, order.address, order.amount, payToken))}>
+            {!refundOk && !ownRole && <p className="warn small">This wallet's own receive policy doesn't accept payments from this shop, so a refund
+              to it would fail until you change that policy. Pay from another wallet.</p>}
+            <button className="primary" disabled={!!busy || !!ownRole || !(typeof shield === 'object' && shield.ok) || w.toppingUp || (!!w.balances && bal(payToken) < BigInt(order.amount))}
+              onClick={() => run('pay', async () => {
+                const c = await verify(order)
+                if (!c?.ok) throw new Error(c ? c.reason : "Couldn't check this shop's protection on the chain. Nothing was sent; try again.")
+                await W.transfer(wallet, order.address, order.amount, payToken)
+              })}>
               {busy === 'pay' ? 'Sending…' : `Pay ${usd(order.amount)}${accepted.length > 1 ? ` in ${sym(payToken)}` : ''}`}
             </button>
             {w.testnet && W.WRONG_TOKEN && (

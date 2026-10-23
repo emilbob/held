@@ -6,21 +6,21 @@ import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
 import { FramerLogo, WebflowLogo, WordPressLogo } from './Logo.tsx'
 import framerSource from './framer/HeldPayButton.tsx?raw'
-import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
+import { applyPolicy, runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
 import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
 import { acceptedTokensOf, NOTE_MAX, NOTES_PER_SIDE, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
 
 export default function MerchantPage() {
   const cfg = useConfig()
   const w = useWallet('merchant')
-  const [me, setMe] = useState<{ address: Address, merchant: Merchant | null } | null>(null)
+  const [me, setMe] = useState<{ address: Address, merchant: Merchant | null, protected?: boolean | null } | null>(null)
   const [msg, setMsg] = useState<Msg>(null)
   const [signing, setSigning] = useState(false)
 
   // A session only counts for the wallet that's connected now.
   const sess = session.get()
   const signedIn = !!w.wallet && sess?.address.toLowerCase() === w.wallet.address.toLowerCase()
-  const loadMe = () => api<{ address: Address, merchant: Merchant | null }>('/me').then(setMe, () => { session.set(null); setMe(null) })
+  const loadMe = () => api<{ address: Address, merchant: Merchant | null, protected?: boolean | null }>('/me').then(setMe, () => { session.set(null); setMe(null) })
   useEffect(() => { if (signedIn) loadMe(); else setMe(null) }, [signedIn, w.wallet?.address])
 
   const signIn = async () => {
@@ -64,7 +64,7 @@ export default function MerchantPage() {
     </div>
   )
   if (!me.merchant) return cfg && <Setup cfg={cfg} wallet={w.wallet} onDone={loadMe} />
-  return <Dashboard merchant={me.merchant} w={w} testnet={!!cfg?.testnet} onChanged={loadMe} />
+  return <Dashboard merchant={me.merchant} protectedNow={me.protected ?? null} w={w} testnet={!!cfg?.testnet} onChanged={loadMe} />
 }
 
 /** "Free until 1 July 2027, then 1% of each released payment (at most $5)." from the network's fee settings. */
@@ -216,7 +216,7 @@ function Setup({ cfg, wallet, onDone, current, onCancel }: { cfg: Config, wallet
 }
 
 // ---------------------------------------------------------------- dashboard
-function Dashboard({ merchant: m, w, testnet, onChanged }: { merchant: Merchant, w: ReturnType<typeof useWallet>, testnet: boolean, onChanged: () => void }) {
+function Dashboard({ merchant: m, protectedNow, w, testnet, onChanged }: { merchant: Merchant, protectedNow: boolean | null, w: ReturnType<typeof useWallet>, testnet: boolean, onChanged: () => void }) {
   const cfg = useConfig()
   const [data, err, refresh] = usePoll(() => api<{ orders: Order[] }>('/orders'), 2500, [])
   const [changing, setChanging] = useState(false)
@@ -228,6 +228,14 @@ function Dashboard({ merchant: m, w, testnet, onChanged }: { merchant: Merchant,
   const [busy, setBusy] = useState(false)
   const [formErr, setFormErr] = useState<string | null>(null)
 
+  const [restoring, setRestoring] = useState(false)
+  const [restoreErr, setRestoreErr] = useState<string | null>(null)
+  const restore = async () => {
+    if (!w.wallet) return
+    setRestoring(true); setRestoreErr(null)
+    try { await applyPolicy(w.wallet, W.pub as never, m.arbiter); onChanged() } catch (x) { setRestoreErr(W.explain(x)) }
+    setRestoring(false)
+  }
   const create = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true); setFormErr(null)
     try { setCreated(await api<Order>('/orders', { item, amount })); setItem(''); setAmount(''); refresh() } catch (x) { setFormErr((x as Error).message) }
@@ -268,6 +276,17 @@ function Dashboard({ merchant: m, w, testnet, onChanged }: { merchant: Merchant,
             <button className="primary" onClick={w.disconnect}>Set up your own shop →</button>
           </div>
         : <p className="askfb top">Held is in beta: your feedback decides what we build next. <a href="#/feedback">Tell us what you need</a></p>}
+      {/* Tempo can't lock a receive policy: if this wallet's was changed after setup, payments wouldn't be held. */}
+      {protectedNow === false && (
+        <div className="protect dispute">
+          <b>Protection is off.</b> Your wallet's receive policy no longer holds payments for your Held contract, so buyers
+          wouldn't be protected. New orders and checkout links are paused until you turn it back on (one transaction).
+          <div className="actions">
+            <button className="primary" disabled={!w.wallet || restoring} onClick={restore}>{restoring ? 'Turning it on…' : 'Turn protection back on'}</button>
+          </div>
+          {restoreErr && <p className="err small">{restoreErr}</p>}
+        </div>
+      )}
       <section className="summary">
         <div><label>{m.name}</label><a href={addrUrl(m.address)} target="_blank">{short(m.address)}</a></div>
         <div><label>Balance</label><b>{w.balance === null ? '…' : <CountUp value={Number(w.balance)} format={usd} />}</b>

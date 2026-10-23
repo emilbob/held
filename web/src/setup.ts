@@ -104,11 +104,18 @@ export async function runSetup(p: {
   // merchant) or refund (to the payer). The sender policy is the arbiter's whitelist, which holds only the arbiter.
   p.onStep('policy')
   const arb = state.arbiter!
-  const payout = await pub.readContract({ address: arb, abi: arbiter.abi, functionName: 'payoutPolicyId' }) as bigint
-  const pol = await Actions.receivePolicy.get(pub, { account: me })
-  if (!pol.recoveryAuthority || !isAddressEqual(pol.recoveryAuthority, arb) || pol.senderPolicyId !== payout)
-    await wait(await Actions.receivePolicy.set(wallet.client, { senderPolicyId: payout, tokenPolicyId: 'allow-all', claimer: arb }), 'Setting the receive policy')
+  await applyPolicy(wallet, pub, arb)
 
   p.onStep('done')
   return { masterId: state.masterId!, arbiter: arb }
+}
+
+/** Step 4 alone: hold every incoming payment for `arb`, letting only its own payouts through. Also how a dashboard
+ *  turns protection back on if the wallet's receive policy was changed after setup (Tempo can't lock it). */
+export async function applyPolicy(wallet: Wallet, pub: PublicClient, arb: Address) {
+  const payout = await pub.readContract({ address: arb, abi: arbiter.abi, functionName: 'payoutPolicyId' }) as bigint
+  const pol = await Actions.receivePolicy.get(pub, { account: wallet.address })
+  if (pol.recoveryAuthority && isAddressEqual(pol.recoveryAuthority, arb) && pol.senderPolicyId === payout) return
+  const rc = await pub.waitForTransactionReceipt({ hash: await Actions.receivePolicy.set(wallet.client, { senderPolicyId: payout, tokenPolicyId: 'allow-all', claimer: arb }) })
+  if (rc.status !== 'success') throw new Error('Setting the receive policy failed on-chain.')
 }

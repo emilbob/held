@@ -5,8 +5,9 @@
 //     wallet), so a dispute never waits unseen. Order number, amount and a link.
 //   - fee emails (v3): Held's fee arrived in the fee wallet from a release. One email per sync, listing every new fee;
 //     sandbox fees (test money) in a separate one marked [Sandbox].
+//   - policy alerts: a shop changed its receive policy; says whether it still holds payments for its Held contract.
 import { formatUnits } from 'viem'
-import { tokenSymbol, type Db, type Network } from '../shared/api.ts'
+import { tokenSymbol, type Db, type Merchant, type Network } from '../shared/api.ts'
 
 const usd = (units: string | bigint) => `$${Number(formatUnits(BigInt(units), 6)).toFixed(2)}`
 
@@ -60,6 +61,18 @@ async function feeEmail(s: Db, network: Network, paymentIds: string[], sandbox: 
     `Held's fee arrived in your fee wallet${net}.\n\n${lines.join('\n')}\n\nTotal: ${usd(total)}\n\n` +
     `Fee wallet: ${network.explorer}/address/${network.fee.recipient}\n`
   await sendEmail(sandbox ? 'sandbox fee email' : 'fee email', subject, text)
+}
+
+/** A shop changed its receive policy. Re-setup (Change settings) does this too, so it's often fine; if a shop's policy
+ *  no longer holds payments for its Held contract, new orders are already paused, and the owner should know why. */
+export async function alertPolicyChanges(network: Network, changes: { merchant: Merchant, protected: boolean | null }[]) {
+  if (!process.env.RESEND_API_KEY || !process.env.ALERT_EMAIL || !changes.length) return
+  const state = (p: boolean | null) => (p === null ? "couldn't be checked" : p ? 'still protected' : 'PROTECTION OFF, new orders paused')
+  const lines = changes.map((c) => `${c.merchant.name} (${c.merchant.address}): ${state(c.protected)}`)
+  const off = changes.filter((c) => c.protected === false).length
+  const net = network.testnet ? ' (testnet)' : ''
+  const subject = off ? `Held${net}: ${off} shop${off > 1 ? 's' : ''} switched off protection` : `Held${net}: shop receive policy changed (${changes.map((c) => c.merchant.name).join(', ')})`
+  await sendEmail('policy alert', subject, `A shop changed its receive policy${net}.\n\n${lines.join('\n')}\n`)
 }
 
 async function sendEmail(what: string, subject: string, text: string) {

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { CountUp, useEntrance } from './anim.tsx'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
-import { FramerLogo } from './Logo.tsx'
+import { FramerLogo, WebflowLogo } from './Logo.tsx'
 import framerSource from './framer/HeldPayButton.tsx?raw'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
 import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
@@ -436,6 +436,9 @@ export const buttonHtml = (id: string, amount: string) =>
 // The Framer code component (src/framer/HeldPayButton.tsx) with this link already filled in, ready to paste.
 const FRAMER_LINK = 'const DEFAULT_LINK = ""'
 if (!framerSource.includes(FRAMER_LINK)) throw new Error('HeldPayButton.tsx lost its DEFAULT_LINK line')
+// The script embed (public/button.js): the live-price button for any site that allows a script, Webflow's Code Embed first.
+export const embedCode = (id: string) =>
+  `<div data-held-link="${linkUrl(id)}"></div>\n<script src="${location.origin}/button.js" async></script>`
 export const framerCode = (id: string) => framerSource.replace(FRAMER_LINK, `const DEFAULT_LINK = ${JSON.stringify(linkUrl(id))}`)
 
 function Links() {
@@ -487,6 +490,7 @@ function Links() {
             <span className="actlabel">Put it on your site</span>
             <button className="small" onClick={() => { copy('btn' + l.id, buttonHtml(l.id, l.amount)); setSiteHelp('html' + l.id) }}>{copied === 'btn' + l.id ? 'Copied ✓' : 'HTML button'}</button>
             <button className="small" onClick={() => { copy('fr' + l.id, framerCode(l.id)); setSiteHelp('framer' + l.id) }}>{copied === 'fr' + l.id ? 'Copied ✓' : <><FramerLogo size={13} /> Framer</>}</button>
+            <button className="small" onClick={() => { copy('wf' + l.id, embedCode(l.id)); setSiteHelp('webflow' + l.id) }}>{copied === 'wf' + l.id ? 'Copied ✓' : <><WebflowLogo size={11} /> Webflow</>}</button>
             {/* Only a picture of the button: clicking it here would make the merchant a buyer and create a new order. */}
             <span className="preview" title="Preview of the button for your website" aria-hidden="true" inert dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
           </div>
@@ -494,6 +498,11 @@ function Links() {
           {siteHelp === 'html' + l.id && (
             <p className="muted small sitehelp"><b className="ink">HTML button copied.</b> Paste it into an HTML or Embed block on your site
               (Wix, Squarespace, Shopify, Webflow and most others). It shows "Pay {usd(l.amount)} with Held" and opens this link.</p>
+          )}
+          {siteHelp === 'webflow' + l.id && (
+            <p className="muted small sitehelp"><b className="ink">In Webflow:</b> Add (+) → Code Embed, paste what you copied, and save. The
+              button shows the live price and greys out if you turn this link off. Code Embed needs a paid Webflow site plan; on a free
+              plan, add a Button instead and set its link to <code>{linkUrl(l.id)}</code>.</p>
           )}
           {siteHelp === 'framer' + l.id && (
             <p className="muted small sitehelp"><b className="ink">In Framer:</b> Assets → Code → + → New code file, name it HeldPayButton,

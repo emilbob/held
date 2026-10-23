@@ -47,9 +47,10 @@ const sections: [string, [string, ReactNode, string?][]][] = [
     ['Which stablecoins can I accept?',
       <>Up to 3 per shop. {NET.testnet ? 'On testnet: ' : 'Available: '}{coins}.</>],
     ['Can I add a "Pay with Held" button to my website?',
-      <>Yes. Make a checkout link on your dashboard, then use <b>Copy button code</b> for any site that accepts HTML, or <b>Copy for
-        Framer</b> for a Framer site. In Framer, add a new code file (Assets → Code), paste it, and drag the button onto your page; it
-        shows the link's price and greys out if you turn the link off. Plugins for Webflow and WordPress are planned.</>, 'website'],
+      <>Yes. Make a checkout link on your dashboard, then under <b>Put it on your site</b> pick <b>Framer</b>, <b>Webflow</b> or
+        <b>HTML button</b> for any other site that accepts HTML. The Framer and Webflow buttons show the link's live price and grey out if
+        you turn the link off. In Framer, add a new code file (Assets → Code) and paste it; in Webflow, paste it into a Code Embed
+        (paid Webflow site plans; on a free plan, point a normal Button at your checkout link). A WordPress plugin is planned.</>, 'website'],
   ]],
   ['Safety and trust', [
     ['Who actually holds the money?',

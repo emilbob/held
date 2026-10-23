@@ -13,7 +13,7 @@ const FILM_YOUTUBE_ID = 'bjRJN8NoCAM'
 
 const STEPS: { n: string, phase: FramePhase, title: string, text: string, state: string }[] = [
   { n: '01', phase: 'open', title: 'An order, its own address',
-    text: "The merchant creates an order or a checkout link, or puts a \"Pay with Held\" button on their site. Every order gets its own pay-to address. No transaction, no cost.", state: 'order · waiting for payment' },
+    text: "The merchant creates an order or a checkout link, or puts a \"Pay with Held\" button on their site: any website, with a ready-made component for Framer. Every order gets its own pay-to address. No transaction, no cost.", state: 'order · waiting for payment' },
   { n: '02', phase: 'held', title: 'Paid, and held by Tempo',
     text: "The buyer sends a plain transfer from their own wallet: no escrow contract, no approvals. Tempo's protocol holds the payment. Not the merchant, not Held.", state: 'held by Tempo · protected' },
   { n: '03', phase: 'released', title: 'Delivered: the merchant is paid',
@@ -85,6 +85,13 @@ export default function Landing() {
           {start()}
         </div>
         {!ready && !w.restoring && <p className="hint">Connect your wallet at the top of this page to start accepting payments.</p>}
+        <div className="works" aria-label="Works on your website">
+          <span>Works on your website</span>
+          <span className="badge lime">Any HTML site</span>
+          <span className="badge lime">Framer</span>
+          <span className="badge grey">Webflow · soon</span>
+          <span className="badge grey">WordPress · soon</span>
+        </div>
         <p className="askfb">Held is in beta, and your feedback decides what we build next. <a href="#/feedback">Tell us what you think</a>.</p>
       </section>
     </div>

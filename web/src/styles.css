@@ -450,6 +450,8 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .askfb a { font-weight: 600 }
 .askfb.top { margin: 0 0 14px }
 .final .askfb { max-width: 560px; margin: 26px auto 0 }
+.final .works { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin: 26px auto 0; max-width: 560px }
+.final .works > span:first-child { color: var(--muted); font-size: 13px; margin-right: 4px }
 @media (max-width: 720px) { .fbfloat { left: 14px; bottom: 14px; height: 40px; padding: 0 15px; font-size: 13px }
   /* room under the footer so the floating buttons never cover its links */
   footer { margin-bottom: 72px } }

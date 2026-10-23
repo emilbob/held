@@ -17,18 +17,19 @@ const stages = [
     ],
   },
   {
-    when: 'Next', badge: 'Security audit', cls: 'amber',
+    when: 'Next', badge: 'Free beta on mainnet', cls: 'amber',
     items: [
-      'Independent security audit of the arbiter contract',
-      'Mainnet only after the audit: no real money is held by an unaudited contract',
+      'Security review of the contract and the app done before mainnet, with what it found fixed',
+      'Real stablecoins on Tempo mainnet (USDC.e, USDT0)',
+      'Order limits that start low',
+      'No Held fee until mid-2027: you only pay Tempo\'s network fees, cents or less',
     ],
   },
   {
-    when: 'Then', badge: 'Free beta on mainnet', cls: 'grey',
+    when: 'Then', badge: 'Independent audit', cls: 'grey',
     items: [
-      'Real stablecoins on Tempo mainnet (USDC.e, USDT0)',
-      'Order limits that start low and rise as the beta proves itself',
-      'No Held fee until mid-2027: you only pay Tempo\'s network fees, cents or less',
+      'Independent security audit of the arbiter contract',
+      'Order limits rise only after the audit',
     ],
   },
   {

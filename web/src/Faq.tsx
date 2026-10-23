@@ -29,6 +29,9 @@ const sections: [string, [string, ReactNode, string?][]][] = [
     ['What if I send the wrong token or the wrong amount?',
       <>A token the shop doesn't accept never reaches the merchant; it can only be returned to the wallet that sent it. If you pay less
         than the price, your order page says so; ask the merchant, who can refund you.</>],
+    ['Why does my order page say a refund to my wallet would fail?',
+      <>Some wallets accept payments only from certain senders, for example a Held shop's own checkout wallet. A refund has to be
+        accepted by the wallet that paid, so pay from an ordinary wallet instead.</>],
     ['Do I need an account?',
       <>No. You only need a wallet, such as Tempo Wallet or a browser wallet like MetaMask. Held never asks for your email.</>],
   ]],
@@ -57,6 +60,10 @@ const sections: [string, [string, ReactNode, string?][]][] = [
     ['Who actually holds the money?',
       <>Tempo does. The payment sits in Tempo's ReceivePolicyGuard under the rules of the merchant's own contract. Held's server holds
         no keys and never signs a release or refund: every action is signed by the wallet of the person taking it.</>],
+    ['Could a merchant switch the protection off?',
+      <>A merchant controls their own wallet's settings, and Tempo can't lock them. So before you pay, your order page checks on the
+        chain itself, not by asking Held, that the shop still holds every payment for its Held contract, and checks again when you press
+        Pay. If it doesn't, the page says <b>Don't pay</b> and hides the address. Payments already held stay protected either way.</>],
     ['What if Held\'s website goes down?',
       <>Your money stays held on Tempo, and the contract keeps working without Held. Anyone can still confirm, dispute or refund
         under the same rules by calling the contract directly, though for now that takes a developer tool.</>],
@@ -65,8 +72,9 @@ const sections: [string, [string, ReactNode, string?][]][] = [
         the order. If the resolver hasn't decided by then, the buyer gets their money back: anyone can trigger the refund, and it always
         goes to the wallet that paid. After the deadline the resolver can no longer pay the merchant.</>],
     ['Has the contract been audited?',
-      <>Not yet. It's tested extensively, including randomized tests of every rule, and an independent audit is the next step:
-        Held moves to mainnet only after it.{NET.testnet ? '' : ` Orders are capped at ${usd(NET.maxOrder)}.`} See the <a href="#/roadmap">roadmap</a>.</>],
+      <>Not by an outside firm yet. It's tested extensively, including randomized tests of every rule, and was security-reviewed
+        before mainnet, with what that review found fixed. Mainnet starts as a beta with low limits; an independent audit comes before
+        those limits rise.{NET.testnet ? '' : ` Orders are capped at ${usd(NET.maxOrder)}.`} See the <a href="#/roadmap">roadmap</a>.</>],
   ]],
   ['Costs and the beta', [
     ['What does Held cost?',
@@ -75,7 +83,7 @@ const sections: [string, [string, ReactNode, string?][]][] = [
         be raised. Refunds are always free. See the <a href="#/roadmap">roadmap</a>.</>],
     ['Is this real money?',
       NET.testnet
-        ? <>Not on this site: it runs on Tempo testnet with free test funds. A free beta on mainnet follows the security audit, see the <a href="#/roadmap">roadmap</a>.</>
+        ? <>Not on this site: it runs on Tempo testnet with free test funds. A free beta on mainnet with low limits is next, see the <a href="#/roadmap">roadmap</a>.</>
         : <>Yes. Held runs on Tempo mainnet with real stablecoins, as a free beta.</>],
   ]],
 ]

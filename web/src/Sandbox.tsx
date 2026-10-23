@@ -22,7 +22,7 @@ export default function Sandbox() {
       <div className="card sandbox">
         <h1>Try Held in 2 minutes</h1>
         <p>A shared <b>Sandbox Shop</b> is already set up on Tempo testnet, so you can play every role without installing
-          anything or using your own wallet. Test funds are free and added automatically. Follow these steps:</p>
+          anything or using your own wallet. Test funds are free and added automatically. Follow these steps, or <a href="#/cheat">just try to steal $1</a> (60 seconds).</p>
         <ol className="roles">
           <li>
             <b>Open the shop as the merchant.</b> You'll see the Sandbox Shop's dashboard.

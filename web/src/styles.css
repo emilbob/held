@@ -195,6 +195,16 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 /* Sandbox */
 .roles { padding-left: 20px; display: grid; gap: 14px; margin: 16px 0 }
 .roles li button { display: block; margin-top: 8px }
+/* Judge path (#/cheat): one row per cheat attempt */
+.cheat h1 { margin: 0 0 6px }
+.cheats { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 10px }
+.cheats .try { display: flex; align-items: center; gap: 10px }
+.cheats .try > span:nth-child(2) { flex: 1; min-width: 0 }
+.cheats .try button { flex: none }
+.cheats .who { flex: none; width: 74px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted) }
+.cheats .result .muted { display: block; margin-top: 2px; overflow-wrap: anywhere }
+.cheat > .after { text-align: center }
+@media (max-width: 480px) { .cheats .try { flex-wrap: wrap } .cheats .who { width: auto; flex-basis: 100% } }
 .landing .ctas { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap }
 .landing .ctas .cta { margin-top: 24px }
 

@@ -5,6 +5,7 @@ import Pay from './Pay.tsx'
 import MerchantPage from './Merchant.tsx'
 import Resolve from './Resolve.tsx'
 import Sandbox from './Sandbox.tsx'
+import Cheat from './Cheat.tsx'
 import Buy from './Buy.tsx'
 import { Terms, Privacy } from './Legal.tsx'
 import Roadmap from './Roadmap.tsx'
@@ -29,6 +30,7 @@ export default function App() {
     : route.startsWith('/merchant') || route.startsWith('/dashboard') ? <MerchantPage />
     : route.startsWith('/resolve') ? <Resolve />
     : route.startsWith('/sandbox') ? <Sandbox />
+    : route.startsWith('/cheat') ? <Cheat />
     : route.startsWith('/terms') ? <Terms />
     : route.startsWith('/privacy') ? <Privacy />
     : route.startsWith('/roadmap') ? <Roadmap />

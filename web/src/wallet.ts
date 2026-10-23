@@ -31,7 +31,8 @@ export const chain = defineChain({
 const tempoChain = NET.testnet ? tempoModerato : tempo
 // Tempo's public RPC rate-limits in bursts; back off for longer than viem's default before giving up.
 const rpc = () => http(NET.rpc, { retryCount: 5, retryDelay: 300 })
-export const pub = createPublicClient({ chain, transport: rpc() })
+// Blocks come about every half second; viem's default 4 s receipt polling made every payment feel slow.
+export const pub = createPublicClient({ chain, transport: rpc(), pollingInterval: 1_000 })
 
 const receiptFn = (name: 'dispute' | 'release' | 'refund') =>
   ({ name, type: 'function', stateMutability: 'nonpayable', inputs: [{ type: 'bytes', name: 'receipt' }], outputs: [] }) as const

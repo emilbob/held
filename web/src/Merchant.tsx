@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { CountUp, useEntrance } from './anim.tsx'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
+import { FramerLogo } from './Logo.tsx'
 import framerSource from './framer/HeldPayButton.tsx?raw'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
 import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
@@ -485,7 +486,7 @@ function Links() {
           <div className="actions site">
             <span className="actlabel">Put it on your site</span>
             <button className="small" onClick={() => { copy('btn' + l.id, buttonHtml(l.id, l.amount)); setSiteHelp('html' + l.id) }}>{copied === 'btn' + l.id ? 'Copied ✓' : 'HTML button'}</button>
-            <button className="small" onClick={() => { copy('fr' + l.id, framerCode(l.id)); setSiteHelp('framer' + l.id) }}>{copied === 'fr' + l.id ? 'Copied ✓' : 'Framer'}</button>
+            <button className="small" onClick={() => { copy('fr' + l.id, framerCode(l.id)); setSiteHelp('framer' + l.id) }}>{copied === 'fr' + l.id ? 'Copied ✓' : <><FramerLogo size={13} /> Framer</>}</button>
             {/* Only a picture of the button: clicking it here would make the merchant a buyer and create a new order. */}
             <span className="preview" title="Preview of the button for your website" aria-hidden="true" inert dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
           </div>

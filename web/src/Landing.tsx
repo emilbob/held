@@ -2,7 +2,7 @@
 // "held frame" acting out the product: hero (it plays the story on its own), then a scroll story 01-04 where the
 // frame follows the step you're reading, the film, what people say, the guarantee, and a way in.
 import { useEffect, useRef, useState } from 'react'
-import Logo from './Logo.tsx'
+import Logo, { FramerLogo } from './Logo.tsx'
 import { api, useConfig, useWallet, walletFits, WalletPicker } from './ui.tsx'
 import { LineReveal, Scramble, useEntrance, useMagnetic, useScrollEntrance } from './anim.tsx'
 import { HeldFrame, type FramePhase } from './HeldFrame.tsx'
@@ -68,7 +68,7 @@ export default function Landing() {
           )}
           <a className="worksin" href="#/faq/website">
             <span className="new">New</span>
-            <svg viewBox="0 0 14 21" width="16" height="24" aria-hidden="true"><path fill="currentColor" d="M0 0h14v7H7zM0 7h7l7 7H0zM0 14h7v7z" /></svg>
+            <FramerLogo size={24} />
             Now on Framer: add Held to your site <span aria-hidden="true">→</span>
           </a>
           <p className="hint">Buying something? Open the checkout link your merchant sent you.</p>

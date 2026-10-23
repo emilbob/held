@@ -212,6 +212,7 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 .links .actlabel { min-width: 128px; font-size: 13px; color: var(--muted) }
 .links .sitehelp { margin-top: 8px }
 .links .actions.share > .muted.small { flex-basis: auto }
+.links .actions.site button { display: inline-flex; align-items: center; gap: 7px }
 @media (max-width: 480px) { .links .actlabel { flex-basis: 100%; min-width: 0 } }
 .links .preview { margin-left: auto; position: relative; pointer-events: none; cursor: default }
 .links .preview::before { content: 'Preview'; position: absolute; top: -16px; right: 0; font-size: 11px; color: var(--muted) }

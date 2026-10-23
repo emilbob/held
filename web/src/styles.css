@@ -485,3 +485,4 @@ p a, li a, footer a, .meta a, .history a, .created a, .muted a { text-decoration
 .summary .showtokens { display: block; margin-top: 6px }
 .ownerlink { margin: 12px 0 0; font-size: 14px }
 .ownerlink a { font-weight: 600 }
+.worksin .logos { display: inline-flex; align-items: center; gap: 8px }

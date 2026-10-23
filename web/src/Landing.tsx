@@ -101,13 +101,27 @@ export default function Landing() {
 /** "Scroll" with a dot sliding down a hairline; fades once the page moves, and takes you to "How it works". */
 function ScrollCue() {
   const [gone, setGone] = useState(false)
+  // Its spot is the bottom of the hero, but never below the first screen: when the hero is taller than the window, it sits
+  // at the window's bottom edge instead, so it's seen before the first scroll (after which it fades out).
+  const [top, setTop] = useState<number>()
+  const ref = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const f = () => setGone(scrollY > 40)
-    f(); addEventListener('scroll', f, { passive: true })
-    return () => removeEventListener('scroll', f)
+    const place = () => {
+      const hero = ref.current?.offsetParent as HTMLElement | null
+      if (!hero || !ref.current) return
+      const h = ref.current.offsetHeight + 26
+      setTop(Math.min(hero.offsetHeight - h, innerHeight - (hero.getBoundingClientRect().top + scrollY) - h))
+    }
+    f(); place()
+    // The hero grows after load (fonts, the wallet list), and the window can be resized.
+    const ro = new ResizeObserver(place)
+    if (ref.current?.offsetParent) ro.observe(ref.current.offsetParent)
+    addEventListener('scroll', f, { passive: true }); addEventListener('resize', place)
+    return () => { removeEventListener('scroll', f); removeEventListener('resize', place); ro.disconnect() }
   }, [])
   return (
-    <button type="button" className={`scroll-cue${gone ? ' gone' : ''}`} aria-label="Scroll to how it works"
+    <button ref={ref} type="button" className={`scroll-cue${gone ? ' gone' : ''}`} style={top === undefined ? undefined : { top, bottom: 'auto' }} aria-label="Scroll to how it works"
       onClick={() => document.querySelector('.story')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>
       <span>Scroll</span><i />
     </button>

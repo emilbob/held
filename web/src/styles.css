@@ -208,6 +208,11 @@ input:focus-visible { outline: none; border-color: var(--lime); }
 .links .link .row { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap }
 .links .link.off .item, .links .link.off .amount { color: var(--muted) }
 .links .removeask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 }
+.links .actions.share + .actions.site { margin-top: 8px }
+.links .actlabel { min-width: 128px; font-size: 13px; color: var(--muted) }
+.links .sitehelp { margin-top: 8px }
+.links .actions.share > .muted.small { flex-basis: auto }
+@media (max-width: 480px) { .links .actlabel { flex-basis: 100%; min-width: 0 } }
 .links .preview { margin-left: auto; position: relative; pointer-events: none; cursor: default }
 .links .preview::before { content: 'Preview'; position: absolute; top: -16px; right: 0; font-size: 11px; color: var(--muted) }
 @media (max-width: 480px) { .links .preview { margin-left: 0; flex-basis: 100% } }

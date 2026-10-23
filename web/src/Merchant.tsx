@@ -445,7 +445,7 @@ function Links() {
   const [formErr, setFormErr] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null) // link id waiting for "Remove for good?"
-  const [framerHelp, setFramerHelp] = useState<string | null>(null) // link id whose Framer steps are showing
+  const [siteHelp, setSiteHelp] = useState<string | null>(null) // 'html'/'framer' + link id: which "how to paste it" note is showing
   const copy = (key: string, text: string) => navigator.clipboard.writeText(text)
     .then(() => { setCopied(key); setTimeout(() => setCopied(null), 1800) }, () => setCopied('failed'))
 
@@ -477,16 +477,25 @@ function Links() {
       {l.active ? (
         <>
           <code className="addr">{linkUrl(l.id)}</code>
-          <div className="actions">
+          <div className="actions share">
+            <span className="actlabel">Share it</span>
             <button className="small" onClick={() => copy('url' + l.id, linkUrl(l.id))}>{copied === 'url' + l.id ? 'Copied ✓' : 'Copy link'}</button>
-            <button className="small" onClick={() => copy('btn' + l.id, buttonHtml(l.id, l.amount))}>{copied === 'btn' + l.id ? 'Copied ✓' : 'Copy button code'}</button>
-            <button className="small" onClick={() => { copy('fr' + l.id, framerCode(l.id)); setFramerHelp(l.id) }}>{copied === 'fr' + l.id ? 'Copied ✓' : 'Copy for Framer'}</button>
+            <span className="muted small">Send it in a chat, an email or your bio.</span>
+          </div>
+          <div className="actions site">
+            <span className="actlabel">Put it on your site</span>
+            <button className="small" onClick={() => { copy('btn' + l.id, buttonHtml(l.id, l.amount)); setSiteHelp('html' + l.id) }}>{copied === 'btn' + l.id ? 'Copied ✓' : 'HTML button'}</button>
+            <button className="small" onClick={() => { copy('fr' + l.id, framerCode(l.id)); setSiteHelp('framer' + l.id) }}>{copied === 'fr' + l.id ? 'Copied ✓' : 'Framer'}</button>
             {/* Only a picture of the button: clicking it here would make the merchant a buyer and create a new order. */}
             <span className="preview" title="Preview of the button for your website" aria-hidden="true" inert dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
           </div>
           {copied === 'failed' && <p className="muted small">Couldn't copy: select the link above instead.</p>}
-          {framerHelp === l.id && (
-            <p className="muted small framerhelp"><b className="ink">In Framer:</b> Assets → Code → + → New code file, name it HeldPayButton,
+          {siteHelp === 'html' + l.id && (
+            <p className="muted small sitehelp"><b className="ink">HTML button copied.</b> Paste it into an HTML or Embed block on your site
+              (Wix, Squarespace, Shopify, Webflow and most others). It shows "Pay {usd(l.amount)} with Held" and opens this link.</p>
+          )}
+          {siteHelp === 'framer' + l.id && (
+            <p className="muted small sitehelp"><b className="ink">In Framer:</b> Assets → Code → + → New code file, name it HeldPayButton,
               replace everything in it with what you copied, and save. Then drag HeldPayButton onto your page. Your link is already
               filled in; the price, label and colors are in the panel on the right.</p>
           )}

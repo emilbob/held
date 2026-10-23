@@ -65,6 +65,8 @@ async function daily(): Promise<{ status: number, body: unknown }> {
   return { status: 200, body: { ok: true, backup: key, orders: Object.keys(snap.orders).length, payments: Object.keys(snap.payments).length, cleaned } }
 }
 
+const PUBLIC_LINK = /^\/api\/links\/[A-Za-z0-9_-]+$/
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const url = new URL(req.url ?? '/', 'http://x'), path = url.pathname
   if (path === '/api/cron/daily') {
@@ -83,6 +85,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const r = await api.handle(req.method ?? 'GET', path, req.headers, body as Record<string, unknown>, url.searchParams)
     res.setHeader('content-type', 'application/json')
     res.setHeader('cache-control', 'no-store')
+    // The public link read (item, price, on/off) is open to other sites, so a shop's "Pay with Held" button on its own
+    // site (Framer component) can show the live price. Nothing else is: no other route is readable cross-site.
+    if (req.method === 'GET' && PUBLIC_LINK.test(path)) res.setHeader('access-control-allow-origin', '*')
     res.status(r.status).send(toJson(r.body))
   } catch (e) {
     res.status(500).json({ error: (e as Error).message })

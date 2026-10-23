@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { CountUp, useEntrance } from './anim.tsx'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
+import framerSource from './framer/HeldPayButton.tsx?raw'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
 import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
 import { acceptedTokensOf, NOTE_MAX, NOTES_PER_SIDE, type CheckoutLinkView, type Config, type Merchant, type Order, type OrderStatus, type Payment } from '../../shared/api.ts'
@@ -431,6 +432,10 @@ export const buttonHtml = (id: string, amount: string) =>
   `border-radius:10px;background:#0b0d10;border:1px solid #D5F94F;color:#fff;font:600 15px/1.2 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;` +
   `text-decoration:none"><img src="${location.origin}/held-favicon.png" width="20" height="20" alt="" style="display:block">` +
   `Pay ${usd(amount)} with Held<span style="font-weight:400;font-size:12px;color:#D5F94F">buyer protected</span></a>`
+// The Framer code component (src/framer/HeldPayButton.tsx) with this link already filled in, ready to paste.
+const FRAMER_LINK = 'const DEFAULT_LINK = ""'
+if (!framerSource.includes(FRAMER_LINK)) throw new Error('HeldPayButton.tsx lost its DEFAULT_LINK line')
+export const framerCode = (id: string) => framerSource.replace(FRAMER_LINK, `const DEFAULT_LINK = ${JSON.stringify(linkUrl(id))}`)
 
 function Links() {
   const [data, err, refresh] = usePoll(() => api<{ links: CheckoutLinkView[] }>('/links'), 5000, [])
@@ -440,6 +445,7 @@ function Links() {
   const [formErr, setFormErr] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null) // link id waiting for "Remove for good?"
+  const [framerHelp, setFramerHelp] = useState<string | null>(null) // link id whose Framer steps are showing
   const copy = (key: string, text: string) => navigator.clipboard.writeText(text)
     .then(() => { setCopied(key); setTimeout(() => setCopied(null), 1800) }, () => setCopied('failed'))
 
@@ -474,10 +480,16 @@ function Links() {
           <div className="actions">
             <button className="small" onClick={() => copy('url' + l.id, linkUrl(l.id))}>{copied === 'url' + l.id ? 'Copied ✓' : 'Copy link'}</button>
             <button className="small" onClick={() => copy('btn' + l.id, buttonHtml(l.id, l.amount))}>{copied === 'btn' + l.id ? 'Copied ✓' : 'Copy button code'}</button>
+            <button className="small" onClick={() => { copy('fr' + l.id, framerCode(l.id)); setFramerHelp(l.id) }}>{copied === 'fr' + l.id ? 'Copied ✓' : 'Copy for Framer'}</button>
             {/* Only a picture of the button: clicking it here would make the merchant a buyer and create a new order. */}
             <span className="preview" title="Preview of the button for your website" aria-hidden="true" inert dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
           </div>
           {copied === 'failed' && <p className="muted small">Couldn't copy: select the link above instead.</p>}
+          {framerHelp === l.id && (
+            <p className="muted small framerhelp"><b className="ink">In Framer:</b> Assets → Code → + → New code file, name it HeldPayButton,
+              replace everything in it with what you copied, and save. Then drag HeldPayButton onto your page. Your link is already
+              filled in; the price, label and colors are in the panel on the right.</p>
+          )}
         </>
       ) : <p className="muted small">Turned off: buyers who open it see that it's no longer available.</p>}
     </div>

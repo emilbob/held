@@ -144,6 +144,9 @@ input:focus-visible { outline: none; border-color: var(--lime); }
   header { padding: 10px 16px; gap: 10px }
   header .tag { display: none }
   header nav { gap: 16px }
+  /* The full nav needs ~640px: below this, How it works / Roadmap / FAQ / Tempo move out (Roadmap + FAQ are in the footer). */
+  .wide-only { display: none }
+  .narrow-only { display: inline }
   main { padding: 0 16px }
   footer { margin: 28px 16px 32px; padding: 14px 0 0; flex-direction: column }
   main { margin: 20px auto }
@@ -155,8 +158,6 @@ input:focus-visible { outline: none; border-color: var(--lime); }
   .landing h1 { font-size: 22px }
 }
 @media (max-width: 480px) {
-  .wide-only { display: none }
-  .narrow-only { display: inline }
   .how { grid-template-columns: 1fr }
   .neworder input, .neworder .amt { max-width: none; flex: 1 1 100% }
   .neworder button { flex: 1 1 100% }

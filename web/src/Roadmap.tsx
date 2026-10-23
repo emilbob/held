@@ -13,7 +13,7 @@ const stages = [
       'Disputes decided by Held\'s neutral resolver within a deadline; after it the buyer is refunded',
       'Buyers can withdraw a dispute; shops can change their settings whenever nothing is held',
       'Held\'s server holds no keys and never signs a release or refund',
-      '"Pay with Held" button for any website, with live-price versions for Framer and Webflow',
+      '"Pay with Held" button for any website, with live-price versions for Framer, Webflow and WordPress',
     ],
   },
   {
@@ -38,7 +38,7 @@ const stages = [
       'Independent resolvers, approved by Held, that shops can choose from',
       'Refunds to an address the buyer chooses, so payments sent from an exchange are protected too',
       'Higher order limits',
-      'Checkout plugin for WordPress',
+      'WooCommerce payment method: pay for a whole cart with Held',
       'From mid-2027: a 1% fee on released payments, written into each shop\'s contract when it\'s set up. Refunds are always free',
     ],
   },

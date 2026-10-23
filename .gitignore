@@ -22,3 +22,4 @@ e2e/.cft/
 .env*
 .env*.local
 alerts.env
+wordpress/held-pay-button/button.js

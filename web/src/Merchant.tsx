@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { CountUp, useEntrance } from './anim.tsx'
 import type { Address, Hex } from 'viem'
 import * as W from './wallet.ts'
-import { FramerLogo, WebflowLogo } from './Logo.tsx'
+import { FramerLogo, WebflowLogo, WordPressLogo } from './Logo.tsx'
 import framerSource from './framer/HeldPayButton.tsx?raw'
 import { runSetup, type MiningProgress, type SetupState, type SetupStep } from './setup.ts'
 import { api, session, signInWallet, usePoll, useNow, useConfig, useWallet, WalletPicker, Badge, Result, Notes, usd, short, txUrl, addrUrl, countdown, duration, openSandboxResolver, isSandboxShop, type Msg } from './ui.tsx'
@@ -449,7 +449,7 @@ function Links() {
   const [formErr, setFormErr] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null) // link id waiting for "Remove for good?"
-  const [siteHelp, setSiteHelp] = useState<string | null>(null) // 'html'/'framer' + link id: which "how to paste it" note is showing
+  const [siteHelp, setSiteHelp] = useState<string | null>(null) // 'html'/'framer'/'webflow'/'wordpress' + link id: which "how to paste it" note is showing
   const copy = (key: string, text: string) => navigator.clipboard.writeText(text)
     .then(() => { setCopied(key); setTimeout(() => setCopied(null), 1800) }, () => setCopied('failed'))
 
@@ -491,6 +491,7 @@ function Links() {
             <button className="small" onClick={() => { copy('btn' + l.id, buttonHtml(l.id, l.amount)); setSiteHelp('html' + l.id) }}>{copied === 'btn' + l.id ? 'Copied ✓' : 'HTML button'}</button>
             <button className="small" onClick={() => { copy('fr' + l.id, framerCode(l.id)); setSiteHelp('framer' + l.id) }}>{copied === 'fr' + l.id ? 'Copied ✓' : <><FramerLogo size={13} /> Framer</>}</button>
             <button className="small" onClick={() => { copy('wf' + l.id, embedCode(l.id)); setSiteHelp('webflow' + l.id) }}>{copied === 'wf' + l.id ? 'Copied ✓' : <><WebflowLogo size={11} /> Webflow</>}</button>
+            <button className="small" onClick={() => { copy('wp' + l.id, linkUrl(l.id)); setSiteHelp('wordpress' + l.id) }}>{copied === 'wp' + l.id ? 'Copied ✓' : <><WordPressLogo size={13} /> WordPress</>}</button>
             {/* Only a picture of the button: clicking it here would make the merchant a buyer and create a new order. */}
             <span className="preview" title="Preview of the button for your website" aria-hidden="true" inert dangerouslySetInnerHTML={{ __html: buttonHtml(l.id, l.amount) }} />
           </div>
@@ -503,6 +504,12 @@ function Links() {
             <p className="muted small sitehelp"><b className="ink">In Webflow:</b> Add (+) → Code Embed, paste what you copied, and save. The
               button shows the live price and greys out if you turn this link off. Code Embed needs a paid Webflow site plan; on a free
               plan, add a Button instead and set its link to <code>{linkUrl(l.id)}</code>.</p>
+          )}
+          {siteHelp === 'wordpress' + l.id && (
+            <p className="muted small sitehelp"><b className="ink">In WordPress:</b> install the Held plugin once: <a href="/held-pay-button.zip" download>download
+              held-pay-button.zip</a>, then in WordPress go to Plugins → Add New Plugin → Upload Plugin, and activate it. Then add
+              the <b>Pay with Held</b> block and paste your link (it's copied), or paste the link on its own line and it turns into the
+              button. Classic editor: <code>[held_button link="{linkUrl(l.id)}"]</code>. WordPress.com needs a plan that allows plugins.</p>
           )}
           {siteHelp === 'framer' + l.id && (
             <p className="muted small sitehelp"><b className="ink">In Framer:</b> Assets → Code → + → New code file, name it HeldPayButton,

@@ -17,7 +17,8 @@
     "typecheck": "tsc && npm --prefix web run typecheck",
     "test:e2e": "node scripts/merchant-e2e.ts",
     "test:links": "node scripts/links-check.ts",
-    "sandbox:reset": "node scripts/sandbox-reset.ts"
+    "sandbox:reset": "node scripts/sandbox-reset.ts",
+    "build:wp-plugin": "node scripts/wp-plugin.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.35.0",

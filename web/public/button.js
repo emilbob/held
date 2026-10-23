@@ -5,6 +5,7 @@
  *
  * Optional: data-held-label="Buy the poster"  data-held-theme="light"  data-held-tagline="false"
  *           data-held-target="_self" (open in the same tab)  data-held-radius="0"
+ *           data-held-preview="true" (a picture of the button that can't be clicked, for site editors)
  * The button shows the link's live price and greys out when the merchant turns the link off. It renders in a shadow
  * root, so the site's own CSS can't restyle it. Same look and rules as the Framer component (src/framer/HeldPayButton.tsx).
  */
@@ -39,10 +40,11 @@
     var label = (d.heldLabel || '').trim()
     var text = off ? 'No longer available' : label || (info ? 'Pay ' + usd(info.amount) + ' with Held' : 'Pay with Held')
     var root = host.shadowRoot || host.attachShadow({ mode: 'open' })
+    var link = !off && d.heldPreview !== 'true'
 
-    var el = document.createElement(off ? 'span' : 'a')
+    var el = document.createElement(link ? 'a' : 'span')
     el.className = 'b'
-    if (!off) {
+    if (link) {
       el.href = target.origin + '/#/buy/' + target.id
       el.target = d.heldTarget === '_self' ? '_self' : '_blank'
       el.rel = 'noopener'
@@ -68,7 +70,7 @@
       '.b{all:initial;box-sizing:border-box;display:inline-flex;align-items:center;gap:10px;padding:12px 20px;white-space:nowrap;' +
       'border-radius:' + radius + 'px;background:' + c.background + ';border:1px solid ' + c.border + ';color:' + c.color + ';' +
       "font:600 15px/1.2 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;text-decoration:none;" +
-      'cursor:' + (off ? 'default' : 'pointer') + ';opacity:' + (off ? 0.5 : 1) + '}' +
+      'cursor:' + (link ? 'pointer' : 'default') + ';opacity:' + (off ? 0.5 : 1) + '}' +
       'a.b:hover{filter:brightness(1.12)}a.b:focus-visible{outline:2px solid ' + LIME + ';outline-offset:2px}' +
       'img{display:block;width:20px;height:20px}' +
       '.t{font-weight:400;font-size:12px;color:' + c.accent + '}'

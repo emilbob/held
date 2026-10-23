@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "held/pay-button",
+  "version": "1.0.0",
+  "title": "Pay with Held",
+  "category": "widgets",
+  "icon": "money-alt",
+  "description": "A \"Pay with Held\" button for one of your checkout links: stablecoin payment with buyer protection, showing the live price.",
+  "keywords": ["held", "pay", "checkout", "buy", "stablecoin", "button"],
+  "textdomain": "held-pay-button",
+  "attributes": {
+    "link": { "type": "string", "default": "" },
+    "label": { "type": "string", "default": "" },
+    "theme": { "type": "string", "enum": ["dark", "light"], "default": "dark" },
+    "tagline": { "type": "boolean", "default": true },
+    "newTab": { "type": "boolean", "default": true },
+    "radius": { "type": "number", "default": 10 },
+    "align": { "type": "string", "enum": ["", "left", "center", "right"], "default": "" }
+  },
+  "supports": { "html": false, "spacing": { "margin": true } },
+  "editorScript": "held-pay-button-editor",
+  "script": "held-pay-button"
+}

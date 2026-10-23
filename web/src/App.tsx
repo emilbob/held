@@ -32,7 +32,7 @@ export default function App() {
     : route.startsWith('/terms') ? <Terms />
     : route.startsWith('/privacy') ? <Privacy />
     : route.startsWith('/roadmap') ? <Roadmap />
-    : route.startsWith('/faq') ? <Faq />
+    : route.startsWith('/faq') ? <Faq open={route.split('/')[2]} />
     : route.startsWith('/feedback/inbox') ? <FeedbackInbox />
     : route.startsWith('/feedback') ? <Feedback />
     : <Landing />

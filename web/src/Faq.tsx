@@ -1,12 +1,13 @@
 // FAQ (#/faq): plain answers, each one true to what the contract and app actually do (contracts/HeldArbiter.sol).
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { NET } from './wallet.ts'
 import { usd } from './ui.tsx'
 
 const coins = NET.tokens.map((t) => t.symbol).join(', ')
 const CONTACT = 'https://github.com/emilbob/held/issues'
 
-const sections: [string, [string, ReactNode][]][] = [
+// A question can carry an id: #/faq/<id> opens it and scrolls to it (the landing links to #/faq/website).
+const sections: [string, [string, ReactNode, string?][]][] = [
   ['For buyers', [
     ['How does Held protect my payment?',
       <>You pay with a normal stablecoin transfer to the order's own address. Tempo holds the payment instead of passing it to the
@@ -48,7 +49,7 @@ const sections: [string, [string, ReactNode][]][] = [
     ['Can I add a "Pay with Held" button to my website?',
       <>Yes. Make a checkout link on your dashboard, then use <b>Copy button code</b> for any site that accepts HTML, or <b>Copy for
         Framer</b> for a Framer site. In Framer, add a new code file (Assets → Code), paste it, and drag the button onto your page; it
-        shows the link's price and greys out if you turn the link off. Plugins for Webflow and WordPress are planned.</>],
+        shows the link's price and greys out if you turn the link off. Plugins for Webflow and WordPress are planned.</>, 'website'],
   ]],
   ['Safety and trust', [
     ['Who actually holds the money?',
@@ -77,7 +78,8 @@ const sections: [string, [string, ReactNode][]][] = [
   ]],
 ]
 
-export default function Faq() {
+export default function Faq({ open }: { open?: string }) {
+  useEffect(() => { if (open) document.getElementById(`faq-${open}`)?.scrollIntoView({ block: 'center' }) }, [open])
   return (
     <div className="narrow legal faq">
       <div className="card">
@@ -86,7 +88,7 @@ export default function Faq() {
         {sections.map(([title, qs]) => (
           <section key={title}>
             <h2>{title}</h2>
-            {qs.map(([q, a]) => <details key={q}><summary>{q}</summary><p>{a}</p></details>)}
+            {qs.map(([q, a, id]) => <details key={q} id={id && `faq-${id}`} open={!!id && id === open}><summary>{q}</summary><p>{a}</p></details>)}
           </section>
         ))}
         <p className="muted small">Something not answered here? <a href="#/feedback">Send us feedback</a> or <a href={CONTACT} target="_blank" rel="noopener noreferrer">open an issue on GitHub</a>.</p>

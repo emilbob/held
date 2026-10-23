@@ -66,6 +66,11 @@ export default function Landing() {
               <WalletPicker w={w} choice="real" />
             </div>
           )}
+          <a className="worksin" href="#/faq/website">
+            <span className="new">New</span>
+            <svg viewBox="0 0 14 21" width="16" height="24" aria-hidden="true"><path fill="currentColor" d="M0 0h14v7H7zM0 7h7l7 7H0zM0 14h7v7z" /></svg>
+            Now on Framer: add Held to your site <span aria-hidden="true">→</span>
+          </a>
           <p className="hint">Buying something? Open the checkout link your merchant sent you.</p>
         </div>
         <div className="hero-visual"><HeldFrame cycle className="frame-canvas" /></div>
@@ -85,13 +90,6 @@ export default function Landing() {
           {start()}
         </div>
         {!ready && !w.restoring && <p className="hint">Connect your wallet at the top of this page to start accepting payments.</p>}
-        <div className="works" aria-label="Works on your website">
-          <span>Works on your website</span>
-          <span className="badge lime">Any HTML site</span>
-          <span className="badge lime">Framer</span>
-          <span className="badge grey">Webflow · soon</span>
-          <span className="badge grey">WordPress · soon</span>
-        </div>
         <p className="askfb">Held is in beta, and your feedback decides what we build next. <a href="#/feedback">Tell us what you think</a>.</p>
       </section>
     </div>

@@ -3,7 +3,7 @@
 fire()      soft roar + crackles and the odd pop, panned where the fireplace sits in frame
 wind()      gusting wind behind the glass (muffled), with a faint whistle and leaves skittering on each gust
 room()      room tone and the mantel clock's quiet tick
-steps()     the pumpkin's small wooden footfalls, one per landing frame in the timeline
+steps()     the pumpkin's hops landing on the floorboards, one per landing frame in the timeline
 shimmer()   the moment it notices the lantern: a soft rising air, then a cascade of glassy chimes
 """
 import numpy as np
@@ -95,14 +95,14 @@ def room(dur):
 
 
 def footstep(r, soft=1.0):
-    """A tiny foot on old floorboards: a soft felt-like impact, the board's hollow knock (two damped modes), and the
-    pumpkin's own body thump — light, round, never a click."""
+    """The jack-o'-lantern landing a hop on old floorboards: a soft impact, the board's hollow knock (two damped modes),
+    and the heavy pumpkin's own low body thump — weighty and round, never a click."""
     ln = int(0.18 * SR)
     t = np.arange(ln) / SR
     imp = r.standard_normal(ln) * np.exp(-t / 0.002)
     imp = lp(imp, 3500, 2)
-    knock = resonator(imp, r.uniform(420, 520), 9) * 0.7 + resonator(imp, r.uniform(900, 1100), 14) * 0.35
-    thump = np.sin(2 * np.pi * r.uniform(150, 175) * t) * np.exp(-t / 0.035) * 0.35   # hollow pumpkin body
+    knock = resonator(imp, r.uniform(300, 370), 9) * 0.6 + resonator(imp, r.uniform(700, 850), 14) * 0.25
+    thump = np.sin(2 * np.pi * r.uniform(92, 108) * t) * np.exp(-t / 0.06) * 0.6     # hollow pumpkin body
     tap = hp(imp, 2000) * 0.08
     x = (knock + thump + tap) * soft
     return lp(x, 5000) * np.minimum(1, t / 0.0008)
@@ -115,7 +115,7 @@ def steps(dur, tl, pan_of_time):
     for i, s in enumerate(times):
         soft = 0.75 + 0.25 * r.random()
         if i == len(times) - 1:
-            soft *= 0.7                                    # the last step is a careful stop
+            soft *= 0.8                                    # the last hop is a careful stop
         bus.add(footstep(r, soft) * 0.5, s, pan=pan_of_time(s))
     return bus
 
@@ -143,7 +143,7 @@ def shimmer(dur, at):
     notes = [81, 86, 88, 90, 93, 98]                       # A5 D6 E6 F#6 A6 D7
     for i, nt in enumerate(notes):
         bus.add(chime(midi(nt), 2.6, 1.0, r) * 0.11 * (1 - i * 0.07), at + i * 0.055 + r.uniform(0, 0.01), pan=0.3 + 0.07 * i)
-    # a second, softer sprinkle as the eyes brighten
+    # a second, softer sprinkle as the carved face brightens
     for i, nt in enumerate([93, 90, 98, 95]):
         bus.add(chime(midi(nt), 2.0, 0.7, r) * 0.05, at + 0.55 + i * 0.12, pan=0.65 - 0.08 * i)
     # warm bloom: low sine pair swelling with the lantern

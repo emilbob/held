@@ -43,7 +43,6 @@ def fill_lights():
               shadow=False, specular=0.0)
     flicker(b.data, 'energy', 1.2, 0.25, speed=1.4, seed=61)
     room_fill = light('room_fill', 'AREA', (0.4, -2.5, 2.6), 20.0, kelvin=3000, size=3.0, rot=(0, 0, 0), specular=0.0)
-    # the eye light: a small, specular-only light near the camera that gives the character's eyes their catchlights
     return b, room_fill
 
 
@@ -132,20 +131,16 @@ def build():
     haze(M)
     fill_lights()
     cam, tgt = animate.build_camera()
-    # the character's eye light rides with the camera: specular only, so it adds catchlights and nothing else
-    el = light('eye_light', 'POINT', (0, 0, 0), 0.4, kelvin=3000, size=0.03, diffuse=0.0, volume=0.0, shadow=False)
-    el.parent = cam
-    el.location = (0.05, 0.08, 0)
     # the lantern's light on the pumpkin's face: a small hidden area light at the lantern, aimed at where the pumpkin
     # stops; it swells with the bloom (animate_lantern). And a cool moonlight rim from the window side.
     from lib import aim
     lk = light('lantern_key', 'AREA', (animate.LANTERN.x + 0.08, animate.LANTERN.y + 0.03, z + 0.15), 0.4, kelvin=2000,
                size=0.12, shape='DISK', volume=0.0)
-    aim(lk, (animate.WALK_TO.x, animate.WALK_TO.y, 0.15))
+    aim(lk, (animate.WALK_TO.x, animate.WALK_TO.y, 0.09))
     lk.visible_camera = lk.visible_glossy = False
     L['key'] = lk
     rim = light('moon_rim', 'SPOT', (-1.3, 2.0, 1.2), 6.0, color=(0.55, 0.7, 1.0), size=0.2, spot=14, blend=0.6, volume=0.0)
-    aim(rim, (animate.WALK_TO.x, animate.WALK_TO.y, 0.16))
+    aim(rim, (animate.WALK_TO.x, animate.WALK_TO.y, 0.10))
     animate.animate_hero(rig)
     animate.animate_lantern(L)
     animate.animate_camera(cam, tgt, rig)
@@ -154,7 +149,8 @@ def build():
 
 VIEWS = {   # fixed test cameras (location, target, lens, f-stop) for look development
     'fire': ((0.75, 0.2, 0.55), (0.75, 1.95, 0.3), 45, 4.0),
-    'hero': ((-0.05, 0.38, 0.17), (0.25, 0.8, 0.15), 50, 4.0),
+    'hero': ((-0.05, 0.38, 0.12), (0.25, 0.8, 0.09), 50, 4.0),
+    'face': ((-0.12, 0.50, 0.13), (0.25, 0.72, 0.08), 50, 5.6),       # the jack-o'-lantern's face, frames 112+
     'lantern': ((-0.3, 0.05, 0.25), (-0.3, 0.5, 0.2), 50, 4.0),
     'mantel': ((0.7, -0.4, 1.35), (0.7, 1.7, 1.3), 40, 5.6),
     'window': ((-1.3, -1.0, 1.3), (-1.6, 2.2, 1.6), 30, 5.6),

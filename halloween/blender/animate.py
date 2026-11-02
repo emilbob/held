@@ -1,4 +1,4 @@
-"""Scene 01 animation: the pumpkin's trot and its moment of wonder, the lantern's bloom, the camera move.
+"""Scene 01 animation: the jack-o'-lantern's hops and the moment it sees the lantern, the lantern's bloom, the camera move.
 All timing comes from timeline.py so the sound lines up."""
 import bpy, math
 from mathutils import Vector
@@ -8,7 +8,7 @@ import timeline as T
 # story positions on the floor (see README layout)
 LANTERN = Vector((-0.30, 0.50))     # on two old books on the floor, left of the hearth
 WALK_FROM = Vector((1.15, 0.90))    # hidden in front of the armchair, whose back is to the camera
-WALK_TO = Vector((0.25, 0.72))      # it trots left and a little towards the camera, so we see its face
+WALK_TO = Vector((0.25, 0.72))      # it hops left and a little towards the camera, so we see its face
 
 
 def heading(d):
@@ -38,117 +38,89 @@ def walk_pos(f):
     return p + side * 0.06 * math.sin(math.pi * s)
 
 
+def hop_frame(f):
+    """Warps time so the pumpkin travels in hops: within each step it barely moves on the ground and covers the
+    distance in the air."""
+    for land in T.STEPS:
+        start = land - T.STEP
+        if start <= f < land:
+            t = (f - start) / T.STEP
+            return start + T.STEP * ease(ease(t))
+    return f
+
+
+def key_vector_handles(ob, path, index, frames):
+    """Sharp contacts: the keys at these frames get vector handles (a hard landing, not an eased one)."""
+    for fc in fcurves(ob):
+        if fc.data_path == path and fc.array_index == index:
+            for kp in fc.keyframe_points:
+                if int(round(kp.co.x)) in frames:
+                    kp.handle_left_type = kp.handle_right_type = 'VECTOR'
+
+
 def animate_hero(rig):
+    """A heavy, deliberate creature: it hops on its base (no squash), leaning into each hop and rocking on landing,
+    stops, turns to the lantern, and the candle inside flares as it sees it."""
     root, body = rig['root'], rig['body']
-    legs, arms, lids, eyes = rig['legs'], rig['arms'], rig['lids'], rig['eyes']
-    # --- path: key every 2 frames from the walk's start to its stop, then hold
+    # --- path: keyed every frame through the hops, then held
     prev = None
-    for f in range(T.START, T.WALK_STOP + 1, 2):
-        p = walk_pos(f)
-        nxt = walk_pos(f + 2)
+    for f in range(T.START, T.WALK_STOP + 1):
+        g = hop_frame(f)
+        p = walk_pos(g)
+        nxt = walk_pos(g + 2)
         h = heading(nxt - p) if (nxt - p).length > 1e-5 else prev
         prev = h if h is not None else heading(WALK_TO - WALK_FROM)
         key(root, 'location', f, (p.x, p.y, 0))
         key(root, 'rotation_euler', f, prev, index=2)
-    # turn towards the lantern (with a small overshoot), eyes first
+    # it turns to face the lantern: a slow pivot on its base, with a small overshoot
     end_h = prev
     face = heading(LANTERN - WALK_TO)
     key(root, 'rotation_euler', T.TURN[0], end_h, 2)
-    key(root, 'rotation_euler', T.TURN[0] + 8, face + math.radians(6), 2)
+    key(root, 'rotation_euler', T.TURN[0] + 9, face + math.radians(4), 2)
     key(root, 'rotation_euler', T.TURN[1], face, 2)
     key(root, 'rotation_euler', T.END, face, 2)
     key(root, 'location', T.END, (WALK_TO.x, WALK_TO.y, 0))
 
-    # --- the trot: per step a hop (body up mid-step, squash on landing), legs and arms swinging, a side-to-side roll
-    rest_z = body.location.z
-    steps = T.STEPS
-    for i, f in enumerate(steps):
+    # --- the hops: rx > 0 leans the top forward (towards -Y), ry rolls it side to side
+    lands = []
+    for i, f in enumerate(T.STEPS):
         side = 1 if i % 2 else -1
-        mid = f - T.STEP // 2
-        key(body, 'location', mid, rest_z + 0.022, 2)
-        key(body, 'location', f, rest_z - 0.004, 2)
-        key(body, 'scale', mid, (0.97, 0.97, 1.05))
-        key(body, 'scale', f, (1.05, 1.05, 0.93))
-        key(body, 'scale', f + 2, (0.99, 0.99, 1.01))
-        key(body, 'rotation_euler', mid, math.radians(7) * side, 1)
-        key(body, 'rotation_euler', mid, math.radians(-6), 0)                  # leaning into the walk
-        for k, leg in enumerate(legs):
-            s = side * (1 if k else -1)
-            key(leg, 'rotation_euler', mid, math.radians(32) * s, 0)
-            key(leg, 'rotation_euler', f, math.radians(-14) * s, 0)
-        for k, arm in enumerate(arms):
-            s = side * (-1 if k else 1)
-            key(arm, 'rotation_euler', mid, math.radians(35) * s, 0)
-            key(arm, 'rotation_euler', mid, math.radians(-15 if k else 15), 1)
-    stop = steps[-1]
-    # --- stopping: settle, then the moment of noticing: a little rise and stretch, then a happy bob
-    key(body, 'location', stop + 4, rest_z, 2)
-    key(body, 'scale', stop + 4, (1, 1, 1))
-    key(body, 'rotation_euler', stop + 4, 0.0, 1)
-    key(body, 'rotation_euler', stop + 4, math.radians(-3), 0)
-    for leg in legs:
-        key(leg, 'rotation_euler', stop + 4, 0.0, 0)
-    for k, arm in enumerate(arms):
-        key(arm, 'rotation_euler', stop + 4, 0.0, 0)
-        key(arm, 'rotation_euler', stop + 4, 0.0, 1)
+        start = f - T.STEP
+        key(body, 'location', start + 1, 0.0, 2)
+        key(body, 'rotation_euler', start + 1, math.radians(-4), 0)            # gathers itself, rocking back
+        key(body, 'location', f - T.STEP // 2, 0.026, 2)
+        key(body, 'rotation_euler', f - T.STEP // 2, math.radians(9), 0)      # leans into the hop
+        key(body, 'rotation_euler', f - T.STEP // 2, math.radians(5) * side, 1)
+        key(body, 'location', f, 0.0, 2)
+        key(body, 'rotation_euler', f, math.radians(3), 0)
+        key(body, 'rotation_euler', f, math.radians(2) * side, 1)
+        lands.append(f)
+    key_vector_handles(body, 'location', 2, set(lands))
+    stop = T.STEPS[-1]
+    # --- stopping: it rocks to rest on its round base
+    for df, rx, ry in ((4, -3.5, -1.0), (9, 1.5, 0.5), (14, -0.5, 0.0), (18, 0.0, 0.0)):
+        key(body, 'rotation_euler', stop + df, math.radians(rx), 0)
+        key(body, 'rotation_euler', stop + df, math.radians(ry), 1)
+    key(body, 'location', stop + 4, 0.0, 2)
+    # --- the notice: it tips back a little, as if looking up at the lantern, and stays there
     n = T.NOTICE_AT
-    key(body, 'scale', n - 2, (1.03, 1.03, 0.96))              # anticipation
-    key(body, 'location', n - 2, rest_z - 0.003, 2)
-    key(body, 'scale', n + 4, (0.97, 0.97, 1.07))               # "oh!"
-    key(body, 'location', n + 4, rest_z + 0.01, 2)
-    key(body, 'rotation_euler', n + 4, math.radians(6), 0)      # leans back a touch, looking up
-    for k, arm in enumerate(arms):                              # hands lift with delight
-        s = 1 if k else -1
-        key(arm, 'rotation_euler', n - 1, 0.0, 1)
-        key(arm, 'rotation_euler', n + 6, math.radians(-40) * s, 1)
-        key(arm, 'rotation_euler', n + 6, math.radians(-30), 0)
-    key(body, 'scale', n + 12, (1, 1, 1))
-    key(body, 'location', n + 12, rest_z, 2)
-    s0 = T.SETTLE
-    key(body, 'location', s0, rest_z, 2)
-    key(body, 'location', s0 + 4, rest_z + 0.012, 2)
-    key(body, 'location', s0 + 8, rest_z, 2)
-    key(body, 'scale', s0 + 8, (1.02, 1.02, 0.98))
-    key(body, 'scale', s0 + 12, (1, 1, 1))
-    key(body, 'rotation_euler', T.END, math.radians(4), 0)
-    for k, arm in enumerate(arms):
-        s = 1 if k else -1
-        key(arm, 'rotation_euler', T.END, math.radians(-30) * s, 1)
-        key(arm, 'rotation_euler', T.END, math.radians(-22), 0)
-
-    # --- eyes: look ahead while walking, dart to the lantern, then the body follows (the eyes keep aiming)
-    look = rig['look']
-    for f in range(T.START, n - 4, 4):
-        p = walk_pos(f)
-        ahead = walk_pos(f + 12)
-        d = (ahead - p)
-        d = d.normalized() if d.length > 1e-5 else (WALK_TO - WALK_FROM).normalized()
-        key(look, 'location', f, (p.x + d.x * 0.8, p.y + d.y * 0.8, 0.1))
-    lz = 0.074 + 0.17                                            # the lantern's glowing body
-    key(look, 'location', n - 3, (LANTERN.x, LANTERN.y, lz))
-    key(look, 'location', T.END, (LANTERN.x, LANTERN.y, lz + 0.01))
-    # lids: rest at -25°, blink once mid-walk, open wide at the notice
-    for lid in lids:
-        key(lid, 'rotation_euler', T.START, math.radians(-8), 0)
-        key(lid, 'rotation_euler', 80, math.radians(-8), 0)
-        key(lid, 'rotation_euler', 82, math.radians(40), 0)
-        key(lid, 'rotation_euler', 85, math.radians(-8), 0)
-        key(lid, 'rotation_euler', n - 1, math.radians(-8), 0)
-        key(lid, 'rotation_euler', n + 3, math.radians(-48), 0)
-        key(lid, 'rotation_euler', T.END, math.radians(-40), 0)
-    for e in eyes:
-        key(e, 'scale', n - 1, (1, 1, 1))
-        key(e, 'scale', n + 3, (1.1, 1.1, 1.14))
-        key(e, 'scale', T.END, (1.07, 1.07, 1.1))
-    # pupils dilate, the irises catch the light
-    em = bpy.data.materials['eye'].node_tree
-    pupil, glow = em.nodes['pupil'].outputs[0], em.nodes['glow'].outputs[0]
-    for f, pv in ((T.START, 0.36), (n, 0.36), (n + 5, 0.54), (T.END, 0.5)):
-        pupil.default_value = pv
-        pupil.keyframe_insert('default_value', frame=f)
-    for f, g in ((T.START, 0.0), (T.EYES_BRIGHT[0], 0.0), (T.EYES_BRIGHT[1], 0.3), (T.END, 0.24)):
-        glow.default_value = g
-        glow.keyframe_insert('default_value', frame=f)
+    key(body, 'rotation_euler', n, 0.0, 0)
+    key(body, 'rotation_euler', n + 8, math.radians(-5), 0)
+    key(body, 'rotation_euler', T.END, math.radians(-4), 0)
+    # the candle inside flares: light, flame and the flesh's inner glow (keys ride under the flicker noise)
+    a, b = T.EYES_BRIGHT
+    ld = rig['candle_light'].data
+    for f, e in ((T.START, 2.5), (a, 2.5), (b, 6.0), (T.END, 5.0)):
+        ld.energy = e
+        ld.keyframe_insert('energy', frame=f)
+    fl = rig['flame']
+    for f, sz in ((T.START, 1.0), (a, 1.0), (a + 6, 1.45), (T.END, 1.3)):
+        fl.scale[2] = sz
+        fl.keyframe_insert('scale', index=2, frame=f)
+    gl = bpy.data.materials['flesh'].node_tree.nodes['glow'].outputs[0]
+    for f, g in ((T.START, 0.15), (a, 0.15), (b, 0.6), (T.END, 0.45)):
+        gl.default_value = g
+        gl.keyframe_insert('default_value', frame=f)
 
 
 def animate_lantern(L):
@@ -198,9 +170,9 @@ def animate_camera(cam, tgt, rig):
         # frame, camera position, target, lens, f-stop
         (1, (0.55, -3.35, 1.40), (0.45, 1.6, 0.80), 30, 4.0),
         (40, (0.42, -2.75, 1.18), (0.35, 1.4, 0.62), 30, 3.2),
-        (72, (-0.45, -1.25, 0.46), (*pk(72), 0.16), 32, 2.4),
-        (100, (-0.36, -0.52, 0.28), (*pk(100), 0.15), 35, 2.0),
-        (144, (-0.44, -0.34, 0.24), (WALK_TO.x - 0.02, WALK_TO.y, 0.16), 36, 1.8),
+        (72, (-0.45, -1.25, 0.42), (*pk(72), 0.10), 32, 2.4),
+        (100, (-0.36, -0.52, 0.22), (*pk(100), 0.09), 35, 2.0),
+        (144, (-0.44, -0.34, 0.17), (WALK_TO.x - 0.02, WALK_TO.y, 0.09), 36, 1.8),
     ]
     for f, p, t, lens, fs in keys:
         cam.location = p
@@ -214,7 +186,7 @@ def animate_camera(cam, tgt, rig):
     # follow the pumpkin smoothly between 60 and 100 (extra target keys)
     for f in range(56, 100, 8):
         p = pk(f)
-        tgt.location = (p.x, p.y, 0.16)
+        tgt.location = (p.x, p.y, 0.10)
         tgt.keyframe_insert('location', frame=f)
     # a barely perceptible drift, so the camera breathes
     for fc in fcurves(cam):

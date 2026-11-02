@@ -4,8 +4,8 @@ The body is a grid in (u, phi) — u from the bottom pole to the top, phi around
 radius is modulated into rounded lobes with sharp grooves, with dimples at both poles. Each vertex stores 'groove'
 (0 on a lobe, 1 in a groove) for the skin shader. The stem is a ridged, tapering, curving tube.
 
-The character is a hierarchy of empties (the rig): root (walks the floor) → body (bob, tilt, squash) → eyes, lids,
-arms; root → legs. Eyes look along their local -Y and are aimed with a Damped Track at the 'look' target.
+The character is a carved jack-o'-lantern: the body made hollow (solidify), its face and lid cut with boolean cutters,
+the result baked into one mesh, a candle inside. The rig: root (travels the floor) → body (hop, tilt, roll).
 """
 import bpy, bmesh, math
 from mathutils import Vector, Matrix
@@ -17,7 +17,7 @@ VARIETIES = {
     'deep': ((0.55, 0.12, 0.02), (0.28, 0.06, 0.015), (0.8, 0.35, 0.1)),
     'white': ((0.72, 0.68, 0.58), (0.42, 0.44, 0.34), (0.85, 0.8, 0.7)),
     'jarrah': ((0.30, 0.36, 0.34), (0.18, 0.22, 0.21), (0.45, 0.5, 0.46)),    # blue-grey heirloom
-    'hero': ((0.66, 0.17, 0.01), (0.36, 0.075, 0.008), (0.9, 0.48, 0.12)),       # the character: a touch brighter
+    'hero': ((0.56, 0.15, 0.012), (0.27, 0.06, 0.008), (0.75, 0.40, 0.11)),      # the character: deep, aged orange
 }
 
 
@@ -106,7 +106,9 @@ def stem_mesh(name, R, seed, mat, c='Pumpkins', length=None, curl=1.0):
     return ob
 
 
-def skin_mat(name, variety='orange'):
+def skin_mat(name, variety='orange', aged=False):
+    """aged=True (the character, seen close): pale vertical striations along the lobes, dark bruised blemishes, a
+    duller, rougher surface."""
     lobe_c, groove_c, speck_c = VARIETIES[variety]
     m, nt, bsdf, out = node_mat(name)
     attr = nt.nodes.new('ShaderNodeAttribute')
@@ -131,11 +133,29 @@ def skin_mat(name, variety='orange'):
     nt.links.new(tc.outputs['Object'], vor.inputs['Vector'])
     sp = map_range(nt, vor.outputs['Distance'], 0.0, 0.12, 0.55, 0.0)
     col = mix_rgb(nt, col, speck_c, sp)
+    if aged:
+        # fine vertical striations, paler and yellower, strongest on the lobes
+        stz = nt.nodes.new('ShaderNodeTexNoise')
+        mps = nt.nodes.new('ShaderNodeMapping')
+        mps.inputs['Scale'].default_value = (70, 70, 4)
+        nt.links.new(tc.outputs['Object'], mps.inputs[0])
+        nt.links.new(mps.outputs[0], stz.inputs['Vector'])
+        stz.inputs['Detail'].default_value = 6
+        stripe = map_range(nt, stz.outputs['Fac'], 0.52, 0.68, 0.0, 0.45)
+        col = mix_rgb(nt, col, tuple(min(1, c * 1.5 + 0.05) for c in lobe_c), stripe)
+        # bruises and scars: sparse dark brown patches
+        bl = nt.nodes.new('ShaderNodeTexNoise')
+        bl.inputs['Scale'].default_value = 26
+        bl.inputs['Detail'].default_value = 10
+        bl.inputs['Roughness'].default_value = 0.65
+        nt.links.new(tc.outputs['Object'], bl.inputs['Vector'])
+        bruise = map_range(nt, bl.outputs['Fac'], 0.66, 0.76, 0.0, 0.85)
+        col = mix_rgb(nt, col, (0.10, 0.035, 0.01), bruise)
     nt.links.new(col, bsdf.inputs['Base Color'])
     # waxy: moderate roughness, a soft coat, a little subsurface
     nt.links.new(map_range(nt, nz.outputs['Fac'], 0.3, 0.7, 0.32, 0.48), bsdf.inputs['Roughness'])
-    bsdf.inputs['Coat Weight'].default_value = 0.35
-    bsdf.inputs['Coat Roughness'].default_value = 0.28
+    bsdf.inputs['Coat Weight'].default_value = 0.12 if aged else 0.35
+    bsdf.inputs['Coat Roughness'].default_value = 0.4 if aged else 0.28
     bsdf.inputs['Subsurface Weight'].default_value = 0.15
     bsdf.inputs['Subsurface Radius'].default_value = (1.0, 0.4, 0.1)
     bsdf.inputs['Subsurface Scale'].default_value = 0.01
@@ -147,7 +167,7 @@ def skin_mat(name, variety='orange'):
     nt.links.new(mp2.outputs[0], streak.inputs['Vector'])
     streak.inputs['Detail'].default_value = 4
     bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.12
+    bp.inputs['Strength'].default_value = 0.3 if aged else 0.12
     bp.inputs['Distance'].default_value = 0.0008
     add = nt.nodes.new('ShaderNodeMath')
     add.operation = 'ADD'
@@ -200,85 +220,6 @@ def decor(M, name, loc, R=0.1, variety='orange', squash=0.75, ribs=10, seed=0, r
     return root
 
 
-# ---------------------------------------------------------------- the character
-
-HERO_R = 0.12
-HERO_SQUASH = 0.8
-LEG = 0.072                      # hip height above the floor at rest
-
-
-def eye_mat(name='eye'):
-    """Sclera, iris and pupil in one shader, laid out around the eye's local -Y axis (its gaze). Two values drive the
-    expression: 'pupil' (radius as a fraction of the iris) and 'glow' (warm light inside the iris)."""
-    m, nt, bsdf, out = node_mat(name)
-    tc = nt.nodes.new('ShaderNodeTexCoord')
-    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
-    nt.links.new(tc.outputs['Object'], sep.inputs[0])
-    # d = distance from the gaze axis in the XZ plane (object space, the eye mesh is a unit sphere scaled)
-    comb = nt.nodes.new('ShaderNodeCombineXYZ')
-    nt.links.new(sep.outputs['X'], comb.inputs['X'])
-    nt.links.new(sep.outputs['Z'], comb.inputs['Y'])
-    ln = nt.nodes.new('ShaderNodeVectorMath')
-    ln.operation = 'LENGTH'
-    nt.links.new(comb.outputs[0], ln.inputs[0])
-    front = map_range(nt, sep.outputs['Y'], -0.05, -0.35, 0.0, 1.0)       # only the front hemisphere
-    pupil_v = nt.nodes.new('ShaderNodeValue')
-    pupil_v.name = 'pupil'
-    pupil_v.outputs[0].default_value = 0.42
-    glow_v = nt.nodes.new('ShaderNodeValue')
-    glow_v.name = 'glow'
-    glow_v.outputs[0].default_value = 0.0
-    IRIS = 0.68
-    iris = map_range(nt, ln.outputs['Value'], IRIS - 0.015, IRIS + 0.015, 1.0, 0.0)
-    pr = nt.nodes.new('ShaderNodeMath')
-    pr.operation = 'MULTIPLY'
-    pr.inputs[1].default_value = IRIS
-    nt.links.new(pupil_v.outputs[0], pr.inputs[0])
-    psub = nt.nodes.new('ShaderNodeMath')
-    psub.operation = 'SUBTRACT'
-    nt.links.new(ln.outputs['Value'], psub.inputs[0])
-    nt.links.new(pr.outputs[0], psub.inputs[1])
-    pupil = map_range(nt, psub.outputs[0], -0.012, 0.012, 1.0, 0.0)
-    # iris pattern: radial fibres (noise on angle) and a darker limbal ring
-    rad = map_range(nt, ln.outputs['Value'], 0.0, IRIS, 0.0, 1.0)
-    fib = nt.nodes.new('ShaderNodeTexNoise')
-    fib.inputs['Scale'].default_value = 40
-    fib.inputs['Detail'].default_value = 3
-    nt.links.new(comb.outputs[0], fib.inputs['Vector'])
-    iris_col = mix_rgb(nt, (0.22, 0.10, 0.03), (0.62, 0.36, 0.10), map_range(nt, fib.outputs['Fac'], 0.35, 0.65, 0, 1))
-    iris_col = mix_rgb(nt, iris_col, (0.05, 0.025, 0.01), map_range(nt, rad, 0.75, 1.0, 0, 1))
-    m_front = nt.nodes.new('ShaderNodeMath')
-    m_front.operation = 'MULTIPLY'
-    nt.links.new(iris, m_front.inputs[0])
-    nt.links.new(front, m_front.inputs[1])
-    col = mix_rgb(nt, (0.80, 0.76, 0.70), iris_col, m_front.outputs[0])
-    m_pf = nt.nodes.new('ShaderNodeMath')
-    m_pf.operation = 'MULTIPLY'
-    nt.links.new(pupil, m_pf.inputs[0])
-    nt.links.new(front, m_pf.inputs[1])
-    col = mix_rgb(nt, col, (0.004, 0.003, 0.003), m_pf.outputs[0])
-    nt.links.new(col, bsdf.inputs['Base Color'])
-    bsdf.inputs['Roughness'].default_value = 0.35
-    bsdf.inputs['Coat Weight'].default_value = 1.0
-    bsdf.inputs['Coat Roughness'].default_value = 0.015
-    bsdf.inputs['Coat IOR'].default_value = 1.38
-    bsdf.inputs['Subsurface Weight'].default_value = 0.2
-    bsdf.inputs['Subsurface Radius'].default_value = (1.0, 0.5, 0.4)
-    bsdf.inputs['Subsurface Scale'].default_value = 0.005
-    # glow: warm light inside the iris (not the pupil), strength = glow
-    ig = nt.nodes.new('ShaderNodeMath')
-    ig.operation = 'SUBTRACT'
-    nt.links.new(m_front.outputs[0], ig.inputs[0])
-    nt.links.new(m_pf.outputs[0], ig.inputs[1])
-    gs = nt.nodes.new('ShaderNodeMath')
-    gs.operation = 'MULTIPLY'
-    nt.links.new(ig.outputs[0], gs.inputs[0])
-    nt.links.new(glow_v.outputs[0], gs.inputs[1])
-    bsdf.inputs['Emission Color'].default_value = (1.0, 0.55, 0.18, 1)
-    nt.links.new(gs.outputs[0], bsdf.inputs['Emission Strength'])
-    return m
-
-
 def sphere(name, r, mat, c, segs=32, rings=16, scale=(1, 1, 1)):
     bm = bmesh.new()
     bmesh.ops.create_uvsphere(bm, u_segments=segs, v_segments=rings, radius=r)
@@ -287,124 +228,162 @@ def sphere(name, r, mat, c, segs=32, rings=16, scale=(1, 1, 1)):
     return mesh_obj(name, bm, c, mat)
 
 
-def lid_mesh(name, r, mat, c):
-    """Upper eyelid: a shell slightly larger than the eye covering its top; rotating it about X opens/closes it."""
+# ---------------------------------------------------------------- the character: a carved jack-o'-lantern
+
+HERO_R = 0.13
+HERO_SQUASH = 0.84
+WALL = 0.014                     # the pumpkin's wall thickness
+
+# the carved face, in units of HERO_R on the front (-Y) of the pumpkin, as seen from the front: (x right, z up).
+# Stern, not jolly: the eyes slant down towards the nose like a frown, the mouth is a wide jagged grimace.
+EYE_L = [(-0.60, 0.33), (-0.17, 0.17), (-0.29, 0.03), (-0.53, 0.10)]
+EYE_R = [(-x, z) for x, z in reversed(EYE_L)]
+NOSE = [(-0.075, -0.06), (0.075, -0.06), (0.0, 0.06)]
+MOUTH = [(-0.62, -0.13), (-0.40, -0.24), (-0.30, -0.25), (-0.25, -0.37), (-0.19, -0.26),
+         (0.11, -0.27), (0.17, -0.38), (0.22, -0.26), (0.40, -0.24), (0.62, -0.13),
+         (0.47, -0.33), (0.26, -0.44), (0.05, -0.47), (0.01, -0.36), (-0.04, -0.47),
+         (-0.26, -0.45), (-0.46, -0.34)]
+
+
+def flesh_mat(name='flesh'):
+    """The carved flesh: pale, fibrous, translucent. 'glow' (a Value node) adds the candle's warmth from within."""
+    m, nt, bsdf, out = node_mat(name)
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (60, 60, 8)
+    nt.links.new(tc.outputs['Object'], mp.inputs[0])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Detail'].default_value = 8
+    nt.links.new(mp.outputs[0], nz.inputs['Vector'])
+    f = map_range(nt, nz.outputs['Fac'], 0.3, 0.7, 0, 1)
+    col = mix_rgb(nt, (0.42, 0.13, 0.015), (0.78, 0.34, 0.05), f)
+    nt.links.new(col, bsdf.inputs['Base Color'])
+    bsdf.inputs['Roughness'].default_value = 0.5
+    bsdf.inputs['Subsurface Weight'].default_value = 0.4
+    bsdf.inputs['Subsurface Radius'].default_value = (1.0, 0.5, 0.15)
+    bsdf.inputs['Subsurface Scale'].default_value = 0.01
+    glow = nt.nodes.new('ShaderNodeValue')
+    glow.name = 'glow'
+    glow.outputs[0].default_value = 0.15
+    bsdf.inputs['Emission Color'].default_value = (1.0, 0.42, 0.07, 1)
+    gm = nt.nodes.new('ShaderNodeMath')
+    gm.operation = 'MULTIPLY'
+    nt.links.new(glow.outputs[0], gm.inputs[0])
+    nt.links.new(map_range(nt, nz.outputs['Fac'], 0.3, 0.7, 0.6, 1.2), gm.inputs[1])
+    nt.links.new(gm.outputs[0], bsdf.inputs['Emission Strength'])
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.4
+    bp.inputs['Distance'].default_value = 0.0015
+    nt.links.new(nz.outputs['Fac'], bp.inputs['Height'])
+    nt.links.new(bp.outputs[0], bsdf.inputs['Normal'])
+    return m
+
+
+def radial_prism(name, loops, mat, c, near=0.5, far=1.6):
+    """A solid cutter: each closed loop of points (mesh space) is extruded along rays from the pumpkin's centre, from
+    near× to far× its distance, so the cut walls point at the centre the way a knife does. One loop → a solid prism;
+    two loops (outer, inner, same length) → a thin annular wall (the lid's kerf)."""
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=16, radius=r)
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -r * 0.05], context='VERTS')
-    ob = mesh_obj(name, bm, c, mat)
-    sol = ob.modifiers.new('thick', 'SOLIDIFY')
-    sol.thickness = r * 0.12
-    subsurf(ob, 1)
+    rings = [[bm.verts.new(Vector(p) * s) for p in lp] for lp in loops for s in (near, far)]
+    n = len(loops[0])
+
+    def band(a, b):
+        for k in range(n):
+            bm.faces.new((a[k], a[(k + 1) % n], b[(k + 1) % n], b[k]))
+    if len(loops) == 1:
+        bm.faces.new(rings[0])
+        bm.faces.new(rings[1])
+        band(rings[0], rings[1])
+    else:
+        band(rings[0], rings[1])          # outer wall
+        band(rings[2], rings[3])          # inner wall
+        band(rings[0], rings[2])          # near cap
+        band(rings[1], rings[3])          # far cap
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    ob = mesh_obj(name, bm, c, mat, smooth_shade=False)
+    for p in ob.data.polygons:
+        p.material_index = len(ob.data.materials) - 1
+    ob.hide_render = True
     return ob
 
 
-def vine_mat(name='vine'):
-    m, nt, bsdf, out = node_mat(name)
-    nz = noise(nt, 120, 4)
-    nt.links.new(mix_rgb(nt, (0.10, 0.14, 0.04), (0.20, 0.26, 0.08), map_range(nt, nz.outputs['Fac'], 0.3, 0.7, 0, 1)),
-                 bsdf.inputs['Base Color'])
-    bsdf.inputs['Roughness'].default_value = 0.5
-    bsdf.inputs['Sheen Weight'].default_value = 0.4
-    bsdf.inputs['Subsurface Weight'].default_value = 0.2
-    bsdf.inputs['Subsurface Radius'].default_value = (0.4, 1.0, 0.2)
-    bsdf.inputs['Subsurface Scale'].default_value = 0.004
-    return m
+def carved_body(M, c):
+    """The hollow, carved pumpkin as one baked mesh: skin outside (slot 0), flesh inside and on every cut (slot 1)."""
+    R, SQ = HERO_R, HERO_SQUASH
+    ob, top_z = body_mesh('hero_mesh', R, SQ, ribs=10, depth=0.11, dip=0.3, seed=42, rows=48, per_rib=12, c=c)
+    ob.modifiers['sub'].levels = ob.modifiers['sub'].render_levels = 1
+    ob.data.materials.append(M['skin_hero'])
+    ob.data.materials.append(M['flesh'])
+    sol =ob.modifiers.new('wall', 'SOLIDIFY')
+    sol.thickness = WALL
+    sol.offset = -1
+    sol.use_even_offset = True
+    sol.material_offset = 1
+    sol.material_offset_rim = 1
+    cutters = []
+    for nm, poly in (('eyeL', EYE_L), ('eyeR', EYE_R), ('nose', NOSE), ('mouth', MOUTH)):
+        lp = [(x * R, -R, z * R * SQ + R * 0.05) for x, z in poly]
+        cutters.append(radial_prism('cut_' + nm, [lp], [M['skin_hero'], M['flesh']], c))
+    # the lid: an irregular ring around the stem with a key notch at the back, cut as a thin kerf
+    Rg = rng(7)
+    h0, rho, kerf = R * SQ * 0.88, R * 0.36, 0.0013
+    outer, inner = [], []
+    N = 40
+    for k in range(N):
+        a = 2 * math.pi * k / N
+        r = rho * (1 + 0.06 * math.sin(5 * a + 1.0) + Rg.uniform(-0.015, 0.015))
+        if abs(((a - math.pi / 2 + math.pi) % (2 * math.pi)) - math.pi) < 0.18:
+            r += R * 0.05                                                       # the notch, at the back (+Y)
+        outer.append(((r + kerf) * math.cos(a), (r + kerf) * math.sin(a), h0))
+        inner.append(((r - kerf) * math.cos(a), (r - kerf) * math.sin(a), h0))
+    cutters.append(radial_prism('cut_lid', [outer, inner], [M['skin_hero'], M['flesh']], c, near=0.6, far=1.4))
+    for ct in cutters:
+        b = ob.modifiers.new(ct.name, 'BOOLEAN')
+        b.operation = 'DIFFERENCE'
+        b.solver = 'EXACT'
+        b.object = ct
+        b.material_mode = 'INDEX'           # the cutters' faces use slot 1 (flesh), so every cut wall is flesh
+    # bake the modifier stack into the mesh (it never changes, and booleans are slow to re-evaluate per frame)
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
+    # deeper grooves make the inner wall fold through itself and the exact boolean then returns almost nothing
+    assert len(me.polygons) > 30000, f'carving failed: {len(me.polygons)} faces'
+    ob.modifiers.clear()
+    old = ob.data
+    ob.data = me
+    bpy.data.meshes.remove(old)
+    for ct in cutters:
+        bpy.data.objects.remove(ct)
+    assert [m.name for m in me.materials[:2]] == ['skin_hero', 'flesh'], list(me.materials)   # (clearing them resets indices)
+    for p in me.polygons:
+        p.material_index = min(p.material_index, 1)
+        p.use_smooth = True
+    me.set_sharp_from_angle(angle=math.radians(35))
+    return ob, top_z
 
 
 def build_hero(M, c='Hero'):
-    """The pumpkin character. Returns the rig: dict of empties and the eye material."""
+    """The character: a carved jack-o'-lantern with a candle burning inside. No limbs: it hops and rocks on its base.
+    Returns the rig: root (travels the floor) → body (hop, tilt, roll; pivot at the base) → mesh, stem, candle."""
+    from fire import candle
     R, SQ = HERO_R, HERO_SQUASH
-    M['skin_hero'] = skin_mat('skin_hero', 'hero')
+    M['skin_hero'] = skin_mat('skin_hero', 'hero', aged=True)
     M.setdefault('stem', stem_mat())
-    M['eye'] = eye_mat()
-    M['vine'] = vine_mat()
+    M['flesh'] = flesh_mat()
     rig = {}
     root = rig['root'] = empty('hero_root', c=c)
-    # body pivot at the bottom of the body (so squash keeps it on its legs)
+    body = rig['body'] = empty('hero_body', (0, 0, 0), c, root)
     bottom = R * SQ * (1 - 0.3)
-    body = rig['body'] = empty('hero_body', (0, 0, LEG), c, root)
-    mesh, top_z = body_mesh('hero_mesh', R, SQ, ribs=10, depth=0.13, dip=0.3, seed=42, c=c)
-    mesh.data.materials.append(M['skin_hero'])
+    mesh, top_z = carved_body(M, c)
     mesh.parent = body
     mesh.location = (0, 0, bottom)
-    centre_z = bottom
-    st = stem_mesh('hero_stem', R * 0.8, 5, M['stem'], c=c, length=R * 0.62, curl=1.8)
+    st = stem_mesh('hero_stem', R * 1.05, 5, M['stem'], c=c, length=R * 0.42, curl=1.3)
     st.parent = body
     st.location = (0, 0, bottom + top_z - R * 0.05)
-    # a curly tendril from the stem base
-    pts = []
-    for i in range(22):
-        t = i / 21
-        a = t * 4.5 * math.pi
-        rr = 0.012 * (1 - 0.6 * t)
-        pts.append((0.02 + rr * math.cos(a) + t * 0.035, rr * math.sin(a) + 0.01, 0.006 + t * 0.03))
-    td = tube('hero_tendril', pts, [0.0022 * (1 - 0.6 * i / 21) for i in range(22)], M['vine'], segs=6, c=c)
-    td.parent = body
-    td.location = (0, 0, bottom + top_z - R * 0.06)
-    # eyes: on the front (-Y), a little above the equator, set into the skin
-    er = 0.031
-    rig['eyes'] = []
-    rig['lids'] = []
-    for side in (-1, 1):
-        a = math.radians(20) * side
-        ex = math.sin(a) * R * 0.8
-        ey = -math.cos(a) * R * 0.8
-        piv = empty(f'hero_eye_piv_{"L" if side > 0 else "R"}', (ex, ey, centre_z + R * 0.22), c, body)
-        eye = sphere(f'hero_eye_{"L" if side > 0 else "R"}', 1.0, M['eye'], c)
-        eye.parent = piv
-        eye.scale = (er, er * 0.78, er * 1.1)          # unit sphere scaled: the shader's object coords stay normalised
-        rig['eyes'].append(piv)
-        lid = lid_mesh(f'hero_lid_{"L" if side > 0 else "R"}', er * 1.06, M['skin_hero'], c)
-        lid.parent = piv
-        lid.scale = (1, 0.9, 1.1)
-        lid.rotation_euler = (math.radians(-8), 0, 0)           # rest: lids cover the top of the eye a little
-        rig['lids'].append(lid)
-    # a small, simple mouth: a soft dark crease, slightly smiling
-    pts = []
-    for i in range(9):
-        t = (i / 8) * 2 - 1
-        a = t * math.radians(13)
-        pts.append((math.sin(a) * R * 0.97, -math.cos(a) * R * 0.97, centre_z - R * 0.08 + 0.008 * (t * t)))
-    mouth = tube('hero_mouth', pts, [0.0025 + 0.0015 * (1 - abs((i / 8) * 2 - 1)) for i in range(9)],
-                 M.setdefault('mouth', simple_dark()), segs=8, c=c)
-    mouth.parent = body
-    # arms: short vine limbs from the sides, mitten hands
-    rig['arms'] = []
-    for side in (-1, 1):
-        sh = empty(f'hero_shoulder_{"L" if side > 0 else "R"}', (side * R * 0.93, -0.01, centre_z + 0.005), c, body)
-        a = tube(f'hero_arm_{"L" if side > 0 else "R"}', [(0, 0, 0), (side * 0.022, -0.004, -0.018), (side * 0.032, -0.008, -0.045)],
-                 [0.0115, 0.0095, 0.0085], M['vine'], segs=10, c=c)
-        a.parent = sh
-        subsurf(a, 1)
-        h = sphere(f'hero_hand_{"L" if side > 0 else "R"}', 0.0145, M['vine'], c, scale=(0.85, 0.7, 1.15))
-        h.parent = sh
-        h.location = (side * 0.034, -0.009, -0.052)
-        rig['arms'].append(sh)
-    # legs: stubby, with rounded feet; pivot at the hip
-    rig['legs'] = []
-    for side in (-1, 1):
-        hip = empty(f'hero_hip_{"L" if side > 0 else "R"}', (side * 0.042, 0.0, LEG + 0.012), c, root)
-        lg = tube(f'hero_leg_{"L" if side > 0 else "R"}', [(0, 0, 0.01), (0, 0, -0.02), (0, -0.002, -LEG + 0.008)],
-                  [0.0125, 0.0115, 0.0105], M['vine'], segs=10, c=c)
-        lg.parent = hip
-        subsurf(lg, 1)
-        ft = sphere(f'hero_foot_{"L" if side > 0 else "R"}', 0.019, M['vine'], c, scale=(1.0, 1.4, 0.6))
-        ft.parent = hip
-        ft.location = (0, -0.009, -LEG - 0.012 + 0.0115)
-        rig['legs'].append(hip)
-    # gaze target
-    rig['look'] = empty('hero_look', (0, -1.0, LEG + centre_z + R * 0.2), c)
-    for piv in rig['eyes']:
-        con = piv.constraints.new('DAMPED_TRACK')
-        con.target = rig['look']
-        con.track_axis = 'TRACK_NEGATIVE_Y'
-    rig['centre_z'] = LEG + centre_z
+    # the candle, standing on the inside floor; its light is the only way the carving glows
+    cr, lt = candle('hero_candle', (0, 0.01, WALL + 0.004), h=0.045, r=0.017, M=M, power=2.5, seed=31, c=c)
+    cr.parent = body
+    rig['candle_light'] = lt
+    rig['flame'] = bpy.data.objects['hero_candle_flame']
+    rig['centre_z'] = bottom
     return rig
-
-
-def simple_dark():
-    m, nt, bsdf, out = node_mat('mouth')
-    bsdf.inputs['Base Color'].default_value = (0.06, 0.015, 0.005, 1)
-    bsdf.inputs['Roughness'].default_value = 0.6
-    return m

@@ -1,16 +1,16 @@
 """Scene 01 score: soft felt piano, celesta, pizzicato strings and a string pad. Original, synthesized.
 
-The tempo is locked to the pumpkin's trot: one footfall every 7 frames = an eighth note at 102.86 BPM, so the
-pizzicato lands on its steps. Harmony: D dorian, mysterious but warm.
+The tempo is locked to the pumpkin's hops: one landing every 8 frames = an eighth note at 90 BPM, so the
+pizzicato lands on its hops. Harmony: D dorian, mysterious but warm.
   0.0 s  Dm9 pad breathes in; a low piano D; the celesta asks a question (A5 C6 B5 ... G5)
-  2.0 s  the trot: pizzicato on every step, climbing (Bbmaj7 → Gm9 at the 5th step)
+  2.1 s  the hops: pizzicato on every landing, climbing (Bbmaj7 → Gm9 at the 5th hop)
   4.0 s  it stops: the pad thins to an A7sus, a held breath
   4.46 s it notices the lantern: D major add9 opens up; piano bell tones and a celesta answer
 """
 import numpy as np
 from dsp import SR, Bus, rng, t_axis, lp, hp, resonator, adsr, midi
 
-EIGHTH = 7 / 24                                   # seconds: one trot step
+EIGHTH = 8 / 24                                   # seconds: one hop (timeline.STEP frames)
 QUARTER = 2 * EIGHTH
 
 

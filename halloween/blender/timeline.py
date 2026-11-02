@@ -1,6 +1,6 @@
 """Scene 01 timeline: one source of truth for picture and sound. Frames are 1-based at 24 fps (frame 1 = 0.0 s).
 
-The pumpkin's footfalls are derived here so the animation (pumpkin.py walk) and the footsteps (audio/sfx.py) agree.
+The pumpkin's landings are derived here so the animation (animate.py hops) and the footsteps (audio/sfx.py) agree.
 Run as a script to write out/timeline.json for the audio tools (which don't import bpy).
 """
 import json, os
@@ -10,18 +10,18 @@ START, END = 1, 144
 
 # acts
 ESTABLISH = (1, 48)          # wide push-in
-REVEAL = (49, 96)            # the pumpkin trots in, camera follows
+REVEAL = (49, 96)            # the pumpkin hops in, camera follows
 NOTICE = (97, 144)           # the pumpkin notices the lantern
 
-# the pumpkin's walk: it enters at WALK_IN, steps every STEP frames, the last step lands at WALK_STOP
+# the pumpkin's hops: it enters at WALK_IN, hops every STEP frames, the last hop lands at WALK_STOP
 WALK_IN = 44
-STEP = 7                      # ~3.4 steps a second: a small creature's quick trot
+STEP = 8                      # 3 hops a second: heavy and deliberate
 WALK_STOP = 100
-STEPS = list(range(WALK_IN + 4, WALK_STOP + 1, STEP))       # frames at which a foot lands
+STEPS = list(range(WALK_STOP, WALK_IN, -STEP))[::-1]      # frames at which it lands: 52, 60, ... 100
 TURN = (100, 112)             # turns its body towards the lantern
-NOTICE_AT = 108               # it sees the lantern: eyes widen, pupils dilate
+NOTICE_AT = 108               # it sees the lantern
 LANTERN_BLOOM = (104, 124)    # the lantern's glow swells
-EYES_BRIGHT = (110, 126)      # the eyes catch the light and brighten
+EYES_BRIGHT = (110, 126)      # the candle inside flares: the carved face burns brighter
 SETTLE = 132                  # a small happy bob, then stillness
 
 

@@ -131,7 +131,7 @@ def skin_mat(name, variety='orange', aged=False):
     vor = nt.nodes.new('ShaderNodeTexVoronoi')
     vor.inputs['Scale'].default_value = 90
     nt.links.new(tc.outputs['Object'], vor.inputs['Vector'])
-    sp = map_range(nt, vor.outputs['Distance'], 0.0, 0.12, 0.1 if aged else 0.55, 0.0)
+    sp = map_range(nt, vor.outputs['Distance'], 0.0, 0.12, 0.55, 0.0)
     col = mix_rgb(nt, col, speck_c, sp)
     if aged:
         # fine vertical striations, paler and yellower, strongest on the lobes
@@ -234,53 +234,15 @@ HERO_R = 0.13
 HERO_SQUASH = 0.84
 WALL = 0.014                     # the pumpkin's wall thickness
 
-# The carved faces, in units of HERO_R on the front (-Y) of the pumpkin, as seen from the front (x right, z up). Each
-# face is a list of closed polygons. Like a stop-motion puppet, the character swaps whole faces to change expression.
-
-def ellipse(cx, cz, rx, rz, rot=0.0, n=28):
-    c, s_ = math.cos(math.radians(rot)), math.sin(math.radians(rot))
-    return [(cx + rx * math.cos(a) * c - rz * math.sin(a) * s_, cz + rx * math.cos(a) * s_ + rz * math.sin(a) * c)
-            for a in (2 * math.pi * k / n for k in range(n))]
-
-
-def arc_band(cx, cz, w, h_out, h_in, n=16):
-    """A crescent band between two parabolas through the same end points: h > 0 bulges up (∩, closed happy eyes),
-    h < 0 sags down (∪, a smile). |h_out| > |h_in|; the band tapers to points at x = cx ± w."""
-    xs = [cx - w + 2 * w * k / n for k in range(n + 1)]
-    outer = [(x, cz + h_out * (1 - ((x - cx) / w) ** 2)) for x in xs]
-    inner = [(x, cz + h_in * (1 - ((x - cx) / w) ** 2)) for x in reversed(xs[1:-1])]
-    return outer + inner
-
-
-def mirror(poly):
-    return [(-x, z) for x, z in reversed(poly)]
-
-
-NOSE = [(-0.075, -0.06), (0.075, -0.06), (0.0, 0.07)]
-_stern_eye = [(-0.60, 0.33), (-0.17, 0.17), (-0.29, 0.03), (-0.53, 0.10)]
-_hope_eye = ellipse(-0.31, 0.18, 0.14, 0.12, rot=14)       # inner corner (towards +x) raised
-FACES = {
-    # the first jack-o'-lantern: frowning eyes, jagged grimace (approved look, kept for reference)
-    'stern': [_stern_eye, mirror(_stern_eye), NOSE,
-              [(-0.62, -0.13), (-0.40, -0.24), (-0.30, -0.25), (-0.25, -0.37), (-0.19, -0.26),
-               (0.11, -0.27), (0.17, -0.38), (0.22, -0.26), (0.40, -0.24), (0.62, -0.13),
-               (0.47, -0.33), (0.26, -0.44), (0.05, -0.47), (0.01, -0.36), (-0.04, -0.47),
-               (-0.26, -0.45), (-0.46, -0.34)]],
-    # round eyes, the left a touch larger; a small closed mouth, slightly lopsided
-    'curious': [ellipse(-0.31, 0.19, 0.14, 0.16), ellipse(0.31, 0.18, 0.125, 0.145), NOSE,
-                arc_band(0.04, -0.30, 0.17, -0.07, -0.025)],
-    # big round eyes, a small round "o"
-    'wonder': [ellipse(-0.31, 0.20, 0.16, 0.19), ellipse(0.31, 0.20, 0.16, 0.19), NOSE, ellipse(0.0, -0.32, 0.07, 0.08)],
-    # soft eyes tilted up at the inner corners, a gentle smile
-    'hopeful': [_hope_eye, mirror(_hope_eye), NOSE, arc_band(0.0, -0.24, 0.30, -0.15, -0.07)],
-    # tall eyes, a big "O"
-    'surprised': [ellipse(-0.31, 0.22, 0.12, 0.21), ellipse(0.31, 0.22, 0.12, 0.21), NOSE,
-                  ellipse(0.0, -0.34, 0.12, 0.15)],
-    # closed, smiling crescent eyes and a wide open smile
-    'delighted': [arc_band(-0.31, 0.12, 0.17, 0.17, 0.08), arc_band(0.31, 0.12, 0.17, 0.17, 0.08), NOSE,
-                  arc_band(0.0, -0.17, 0.46, -0.30, -0.08)],
-}
-FACE_ORDER = ['curious', 'wonder', 'hopeful', 'surprised', 'delighted', 'stern']
+# the carved face, in units of HERO_R on the front (-Y) of the pumpkin, as seen from the front: (x right, z up).
+# Stern, not jolly: the eyes slant down towards the nose like a frown, the mouth is a wide jagged grimace.
+EYE_L = [(-0.60, 0.33), (-0.17, 0.17), (-0.29, 0.03), (-0.53, 0.10)]
+EYE_R = [(-x, z) for x, z in reversed(EYE_L)]
+NOSE = [(-0.075, -0.06), (0.075, -0.06), (0.0, 0.06)]
+MOUTH = [(-0.62, -0.13), (-0.40, -0.24), (-0.30, -0.25), (-0.25, -0.37), (-0.19, -0.26),
+         (0.11, -0.27), (0.17, -0.38), (0.22, -0.26), (0.40, -0.24), (0.62, -0.13),
+         (0.47, -0.33), (0.26, -0.44), (0.05, -0.47), (0.01, -0.36), (-0.04, -0.47),
+         (-0.26, -0.45), (-0.46, -0.34)]
 
 
 def flesh_mat(name='flesh'):
@@ -345,11 +307,10 @@ def radial_prism(name, loops, mat, c, near=0.5, far=1.6):
     return ob
 
 
-def carved_body(M, c, face='curious'):
-    """The hollow, carved pumpkin as one baked mesh: skin outside (slot 0), flesh inside and on every cut (slot 1).
-    Every face is the same pumpkin (same seed, same lid) with a different carving."""
+def carved_body(M, c):
+    """The hollow, carved pumpkin as one baked mesh: skin outside (slot 0), flesh inside and on every cut (slot 1)."""
     R, SQ = HERO_R, HERO_SQUASH
-    ob, top_z = body_mesh('hero_face_' + face, R, SQ, ribs=10, depth=0.11, dip=0.3, seed=42, rows=48, per_rib=12, c=c)
+    ob, top_z = body_mesh('hero_mesh', R, SQ, ribs=10, depth=0.11, dip=0.3, seed=42, rows=48, per_rib=12, c=c)
     ob.modifiers['sub'].levels = ob.modifiers['sub'].render_levels = 1
     ob.data.materials.append(M['skin_hero'])
     ob.data.materials.append(M['flesh'])
@@ -360,9 +321,9 @@ def carved_body(M, c, face='curious'):
     sol.material_offset = 1
     sol.material_offset_rim = 1
     cutters = []
-    for i, poly in enumerate(FACES[face]):
-        lp = [(x * FACE_SCALE * R, -R, z * FACE_SCALE * R * SQ + R * 0.03) for x, z in poly]
-        cutters.append(radial_prism(f'cut_{face}_{i}', [lp], [M['skin_hero'], M['flesh']], c))
+    for nm, poly in (('eyeL', EYE_L), ('eyeR', EYE_R), ('nose', NOSE), ('mouth', MOUTH)):
+        lp = [(x * R, -R, z * R * SQ + R * 0.05) for x, z in poly]
+        cutters.append(radial_prism('cut_' + nm, [lp], [M['skin_hero'], M['flesh']], c))
     # the lid: an irregular ring around the stem with a key notch at the back, cut as a thin kerf
     Rg = rng(7)
     h0, rho, kerf = R * SQ * 0.88, R * 0.36, 0.0013
@@ -401,163 +362,28 @@ def carved_body(M, c, face='curious'):
     return ob, top_z
 
 
-def vine_mat(name='vine'):
-    """Living-but-tough vine: olive to brown along fine lengthwise fibres, rough, with a faint fuzz (sheen)."""
-    m, nt, bsdf, out = node_mat(name)
-    tc = nt.nodes.new('ShaderNodeTexCoord')
-    nz = nt.nodes.new('ShaderNodeTexNoise')
-    nz.inputs['Scale'].default_value = 140
-    nz.inputs['Detail'].default_value = 6
-    nt.links.new(tc.outputs['Object'], nz.inputs['Vector'])
-    blot = nt.nodes.new('ShaderNodeTexNoise')
-    blot.inputs['Scale'].default_value = 18
-    nt.links.new(tc.outputs['Object'], blot.inputs['Vector'])
-    col = mix_rgb(nt, (0.07, 0.08, 0.025), (0.17, 0.17, 0.06), map_range(nt, nz.outputs['Fac'], 0.3, 0.7, 0, 1))
-    col = mix_rgb(nt, col, (0.16, 0.10, 0.04), map_range(nt, blot.outputs['Fac'], 0.5, 0.7, 0, 0.8))
-    nt.links.new(col, bsdf.inputs['Base Color'])
-    bsdf.inputs['Roughness'].default_value = 0.62
-    bsdf.inputs['Sheen Weight'].default_value = 0.35
-    bsdf.inputs['Sheen Roughness'].default_value = 0.4
-    bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.5
-    bp.inputs['Distance'].default_value = 0.0008
-    nt.links.new(nz.outputs['Fac'], bp.inputs['Height'])
-    nt.links.new(bp.outputs[0], bsdf.inputs['Normal'])
-    return m
-
-
-def vine(name, a, b, r0, r1, mat, c, seed, bend=0.15):
-    """A gnarled vine segment from a to b (local coords): a slight bow, a twist of thickness and small bumps."""
-    Rg = rng(seed)
-    a, b = Vector(a), Vector(b)
-    d = b - a
-    side = d.orthogonal().normalized()
-    side.rotate(__import__('mathutils').Quaternion(d.normalized(), Rg.uniform(0, 6.28)))
-    n = 9
-    pts, radii = [], []
-    for i in range(n):
-        t = i / (n - 1)
-        pts.append(a + d * t + side * math.sin(math.pi * t) * d.length * bend)
-        radii.append((r0 + (r1 - r0) * t) * (1 + 0.12 * math.sin(t * 9 + seed) + Rg.uniform(-0.05, 0.05)))
-    ob = tube(name, pts, radii, mat, segs=10, c=c)
-    subsurf(ob, 1)
-    return ob
-
-
-def knot(name, r, mat, c, seed):
-    """A vine knot covering a joint: a lumpy, slightly flattened sphere."""
-    Rg = rng(seed + 50)
-    ob = sphere(name, r, mat, c, segs=16, rings=10, scale=(1 + Rg.uniform(-0.1, 0.15), 1 + Rg.uniform(-0.1, 0.15), 0.85))
-    subsurf(ob, 1)
-    return ob
-
-
-def tendrils(name, base, dirs, length, r, mat, c, seed, curl=1.0):
-    """Three tendril fingers (or root toes) from a point, each curling at its tip; one object per tendril."""
-    obs = []
-    for k, dv in enumerate(dirs):
-        dv = Vector(dv).normalized()
-        down = dv.cross(Vector((0, 0, 1))).normalized() if abs(dv.z) < 0.9 else Vector((1, 0, 0))
-        curlv = dv.cross(down).normalized()
-        pts, radii = [Vector(base)], [r]
-        p, n = Vector(base), 8
-        for i in range(1, n):
-            t = i / (n - 1)
-            ang = t * t * 2.2 * curl                     # the tip curls more than the base
-            p = p + (dv * math.cos(ang) + curlv * math.sin(ang)) * (length / (n - 1))
-            pts.append(p.copy())
-            radii.append(r * (1 - 0.65 * t))
-        obs.append(tube(f'{name}{k}', pts, radii, mat, segs=8, c=c))
-    return obs
-
-
-LEG = 0.075                      # hip height above the floor at rest: the body stands on its legs
-UPPER, LOWER = 0.042, 0.042      # thigh and shin
-ARM_U, ARM_L = 0.056, 0.05       # upper arm and forearm
-FACE_SCALE = 1.15               # all carvings, about the face's centre
-
-
 def build_hero(M, c='Hero'):
-    """The character: a carved jack-o'-lantern with a candle burning inside, on thin gnarled vine arms and legs.
-
-    Rig (empties; rotate them to pose):
-      root (travels the floor, heading = rotation z)
-        body (bob, lean, roll; pivot at the base of the pumpkin) → faces (one visible), stem, candle,
-          shoulder_L/R → elbow → wrist (+ three tendril fingers)
-        hip_L/R → knee → ankle (+ a root-like foot)
-    Faces: rig['faces'][name] — show one with set_face(rig, name, frame)."""
+    """The character: a carved jack-o'-lantern with a candle burning inside. No limbs: it hops and rocks on its base.
+    Returns the rig: root (travels the floor) → body (hop, tilt, roll; pivot at the base) → mesh, stem, candle."""
     from fire import candle
     R, SQ = HERO_R, HERO_SQUASH
     M['skin_hero'] = skin_mat('skin_hero', 'hero', aged=True)
     M.setdefault('stem', stem_mat())
     M['flesh'] = flesh_mat()
-    M['vine'] = vine_mat()
-    V = M['vine']
     rig = {}
     root = rig['root'] = empty('hero_root', c=c)
-    body = rig['body'] = empty('hero_body', (0, 0, LEG), c, root)
+    body = rig['body'] = empty('hero_body', (0, 0, 0), c, root)
     bottom = R * SQ * (1 - 0.3)
-    rig['faces'] = {}
-    for fc in FACE_ORDER:
-        mesh, top_z = carved_body(M, c, fc)
-        mesh.parent = body
-        mesh.location = (0, 0, bottom)
-        rig['faces'][fc] = mesh
+    mesh, top_z = carved_body(M, c)
+    mesh.parent = body
+    mesh.location = (0, 0, bottom)
     st = stem_mesh('hero_stem', R * 1.05, 5, M['stem'], c=c, length=R * 0.42, curl=1.3)
     st.parent = body
     st.location = (0, 0, bottom + top_z - R * 0.05)
+    # the candle, standing on the inside floor; its light is the only way the carving glows
     cr, lt = candle('hero_candle', (0, 0.01, WALL + 0.004), h=0.045, r=0.017, M=M, power=2.5, seed=31, c=c)
     cr.parent = body
     rig['candle_light'] = lt
     rig['flame'] = bpy.data.objects['hero_candle_flame']
-    rig['centre_z'] = LEG + bottom
-    # --- arms: from the sides a little below the equator; at rest they hang down and slightly out
-    rig['arm'] = {}
-    for side, nm in ((-1, 'R'), (1, 'L')):          # the character's own left is +X (it faces -Y)
-        sh = empty(f'hero_shoulder_{nm}', (side * R * 0.93, -0.02, bottom - R * 0.02), c, body)
-        up = vine(f'hero_upperarm_{nm}', (0, 0, 0), (0, 0, -ARM_U), 0.0095, 0.0078, V, c, seed=10 + side)
-        up.parent = sh
-        knot(f'hero_shoulderknot_{nm}', 0.012, V, c, 3 + side).parent = sh
-        el = empty(f'hero_elbow_{nm}', (0, 0, -ARM_U), c, sh)
-        lo = vine(f'hero_forearm_{nm}', (0, 0, 0), (0, 0, -ARM_L), 0.0078, 0.0064, V, c, seed=20 + side)
-        lo.parent = el
-        knot(f'hero_elbowknot_{nm}', 0.0095, V, c, 5 + side).parent = el
-        wr = empty(f'hero_wrist_{nm}', (0, 0, -ARM_L), c, el)
-        knot(f'hero_wristknot_{nm}', 0.0078, V, c, 7 + side).parent = wr
-        for t in tendrils(f'hero_finger_{nm}', (0, 0, 0), [(side * 0.5, -0.5, -1), (0, -0.35, -1), (-side * 0.45, -0.1, -1)],
-                          0.036, 0.0045, V, c, seed=30 + side):
-            t.parent = wr
-        sh.rotation_euler = (math.radians(4), side * math.radians(-18), 0)        # out from the body
-        el.rotation_euler = (math.radians(-22), 0, 0)                            # forearm a little forward
-        rig['arm'][nm] = (sh, el, wr)
-    # --- legs: under the body, a little apart; knees slightly bent; feet like small splayed roots
-    rig['leg'] = {}
-    for side, nm in ((-1, 'R'), (1, 'L')):
-        hp_ = empty(f'hero_hip_{nm}', (side * 0.04, 0.0, LEG + 0.01), c, root)
-        th = vine(f'hero_thigh_{nm}', (0, 0, 0.012), (0, 0, -UPPER), 0.0085, 0.007, V, c, seed=40 + side, bend=0.08)
-        th.parent = hp_
-        kn = empty(f'hero_knee_{nm}', (0, 0, -UPPER), c, hp_)
-        sn = vine(f'hero_shin_{nm}', (0, 0, 0), (0, 0, -LOWER), 0.007, 0.0058, V, c, seed=50 + side, bend=0.08)
-        sn.parent = kn
-        knot(f'hero_kneeknot_{nm}', 0.0085, V, c, 9 + side).parent = kn
-        an = empty(f'hero_ankle_{nm}', (0, 0, -LOWER), c, kn)
-        knot(f'hero_ankleknot_{nm}', 0.0075, V, c, 11 + side).parent = an
-        for t in tendrils(f'hero_toe_{nm}', (0, 0, -0.004), [(side * 0.6, -1, -0.15), (0, -1, -0.12), (-side * 0.5, -0.9, -0.1)],
-                          0.038, 0.005, V, c, seed=60 + side, curl=-0.5):
-            t.parent = an
-        hp_.rotation_euler = (math.radians(-6), 0, 0)
-        kn.rotation_euler = (math.radians(12), 0, 0)
-        an.rotation_euler = (math.radians(-6), 0, 0)
-        rig['leg'][nm] = (hp_, kn, an)
-    set_face(rig, 'curious')
+    rig['centre_z'] = bottom
     return rig
-
-
-def set_face(rig, name, frame=None):
-    """Show one carved face and hide the others; with frame, key it (constant: faces swap on the frame)."""
-    for fc, ob in rig['faces'].items():
-        hide = fc != name
-        ob.hide_render = ob.hide_viewport = hide
-        if frame is not None:
-            ob.keyframe_insert('hide_render', frame=frame)
-            ob.keyframe_insert('hide_viewport', frame=frame)

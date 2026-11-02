@@ -19,6 +19,16 @@ SHOTS = {
 }
 ACTS = {1: (1, 144), 2: (145, 288), 3: (289, 456), 4: (457, 600), 5: (601, 720)}
 
+# Acts II–III story beats (frames), shared by the animation (act2.py, act3.py) and the sound (audio/acts23.py)
+EV = dict(
+    turn=(147, 156), hops=[(157, 165), (166, 174)],            # the pumpkin turns from the lantern, hops to the laptop
+    tap1=182, tap2=202,                                         # it presses "Pay with Held", then "Pay $48.00"
+    rise=(222, 246), glee=(252, 268), leave=272,                # the ghost rises, wriggles with glee, turns to go
+    attempt=(289, 322), pulse=(323, 338), snap=339,             # dissolving; the held badge pulses; it snaps back whole
+    sag=(366, 388), resolve=(398, 408), turn_go=(410, 420),     # it slumps, draws itself up, turns to fetch the lantern
+    screen=421,                                                 # the Held screen; the three-note Held signature
+)
+
 # acts
 ESTABLISH = (1, 48)          # wide push-in
 REVEAL = (49, 96)            # the pumpkin hops in, camera follows
@@ -41,7 +51,7 @@ def sec(frame):
 
 
 def as_dict():
-    return dict(fps=FPS, start=START, end=END, steps=STEPS, steps_s=[sec(f) for f in STEPS], walk_in=WALK_IN,
+    return dict(ev={k: v for k, v in EV.items()}, acts=ACTS, film_end=FILM_END, fps=FPS, start=START, end=END, steps=STEPS, steps_s=[sec(f) for f in STEPS], walk_in=WALK_IN,
                 walk_stop=WALK_STOP, notice_at=NOTICE_AT, notice_s=sec(NOTICE_AT), lantern_bloom=LANTERN_BLOOM,
                 eyes_bright=EYES_BRIGHT, settle=SETTLE, duration_s=(END - START + 1) / FPS)
 

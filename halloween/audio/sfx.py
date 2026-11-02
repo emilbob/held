@@ -30,7 +30,7 @@ def fire(dur, pan_curve):
         ln = int(r.uniform(0.0015, 0.008) * SR)
         burst = r.standard_normal(ln) * np.exp(-np.arange(ln) / (ln * 0.25))
         burst = hp(burst, r.uniform(1500, 4000), 2)
-        amp = r.lognormal(-1.3, 0.7)
+        amp = min(r.lognormal(-1.3, 0.7), 0.8)            # (the lognormal's rare tail made one 10 dB spike)
         # clusters: a crackle often brings a quick second
         bus.add(burst * amp * 0.5, k, pan=float(np.clip(pan_curve[min(int(k * SR), n - 1)] + r.uniform(-0.08, 0.08), 0, 1)))
         if r.random() < 0.3:

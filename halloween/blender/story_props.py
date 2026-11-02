@@ -91,7 +91,7 @@ def build_laptop(M, loc, rz=0.0, open_deg=108, c='Laptop'):
         q.parent = hinge
         q.location = (0, -0.0011 - i * 0.00002, 0.012)
         L['screens'][page] = q
-    hinge.rotation_euler = (math.radians(open_deg - 90), 0, 0)     # the lid starts upright at 90°
+    hinge.rotation_euler = (-math.radians(open_deg - 90), 0, 0)    # past upright = leaning back (a +x rotation tips it forward)
     set_screen(L, 'shop')
     return L
 

@@ -79,9 +79,107 @@ def linen_mat(name='linen'):
     mix.inputs['Fac'].default_value = 0.1
     nt.links.new(bsdf.outputs[0], mix.inputs[1])
     nt.links.new(tr.outputs[0], mix.inputs[2])
-    nt.links.new(mix.outputs[0], out.inputs['Surface'])
+    # dissolve: 'dissolve' 0 = whole, 1 = gone; the cloth goes from the hem upwards, in a ragged, smoky edge
+    d = nt.nodes.new('ShaderNodeValue')
+    d.name = 'dissolve'
+    d.outputs[0].default_value = 0.0
+    h = map_range(nt, sep.outputs['Z'], -0.30, 0.08, 0.0, 1.0)              # 0 at the hem, 1 at the crown
+    rag = nt.nodes.new('ShaderNodeTexNoise')
+    rag.inputs['Scale'].default_value = 30
+    rag.inputs['Detail'].default_value = 5
+    nt.links.new(tc.outputs['Object'], rag.inputs['Vector'])
+    edge = nt.nodes.new('ShaderNodeMath')
+    edge.operation = 'MULTIPLY_ADD'                                         # h * 0.75 + noise * 0.25
+    nt.links.new(h, edge.inputs[0])
+    edge.inputs[1].default_value = 0.75
+    rn = nt.nodes.new('ShaderNodeMath')
+    rn.operation = 'MULTIPLY'
+    nt.links.new(rag.outputs['Fac'], rn.inputs[0])
+    rn.inputs[1].default_value = 0.25
+    nt.links.new(rn.outputs[0], edge.inputs[2])
+    lvl = nt.nodes.new('ShaderNodeMath')
+    lvl.operation = 'MULTIPLY'
+    nt.links.new(d.outputs[0], lvl.inputs[0])
+    lvl.inputs[1].default_value = 1.15
+    gone = nt.nodes.new('ShaderNodeMath')
+    gone.operation = 'LESS_THAN'
+    nt.links.new(edge.outputs[0], gone.inputs[0])
+    nt.links.new(lvl.outputs[0], gone.inputs[1])
+    tp = nt.nodes.new('ShaderNodeBsdfTransparent')
+    mix2 = nt.nodes.new('ShaderNodeMixShader')
+    nt.links.new(gone.outputs[0], mix2.inputs['Fac'])
+    nt.links.new(mix.outputs[0], mix2.inputs[1])
+    nt.links.new(tp.outputs[0], mix2.inputs[2])
+    nt.links.new(mix2.outputs[0], out.inputs['Surface'])
+    m.surface_render_method = 'DITHERED'
     m.use_backface_culling = False
     return m
+
+
+def smoke_mat(name='ghost_smoke'):
+    """A soft, pale, slowly churning wisp: alpha from stretched noise inside a round falloff; 'amount' fades it."""
+    m, nt, bsdf, out = node_mat(name)
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.name = 'drift'
+    mp.inputs['Scale'].default_value = (6, 6, 3)
+    nt.links.new(tc.outputs['UV'], mp.inputs[0])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 3.0
+    nz.inputs['Detail'].default_value = 6
+    nz.inputs['Distortion'].default_value = 1.2
+    nt.links.new(mp.outputs[0], nz.inputs['Vector'])
+    # radial falloff around the card's centre (UV 0.5, 0.5)
+    sub = nt.nodes.new('ShaderNodeVectorMath')
+    sub.operation = 'SUBTRACT'
+    sub.inputs[1].default_value = (0.5, 0.5, 0)
+    nt.links.new(tc.outputs['UV'], sub.inputs[0])
+    ln = nt.nodes.new('ShaderNodeVectorMath')
+    ln.operation = 'LENGTH'
+    nt.links.new(sub.outputs[0], ln.inputs[0])
+    fall = map_range(nt, ln.outputs['Value'], 0.15, 0.5, 1.0, 0.0)
+    a = nt.nodes.new('ShaderNodeMath')
+    a.operation = 'MULTIPLY'
+    nt.links.new(map_range(nt, nz.outputs['Fac'], 0.35, 0.68, 0.0, 1.0), a.inputs[0])
+    nt.links.new(fall, a.inputs[1])
+    amt = nt.nodes.new('ShaderNodeValue')
+    amt.name = 'amount'
+    amt.outputs[0].default_value = 0.0
+    a2 = nt.nodes.new('ShaderNodeMath')
+    a2.operation = 'MULTIPLY'
+    nt.links.new(a.outputs[0], a2.inputs[0])
+    nt.links.new(amt.outputs[0], a2.inputs[1])
+    bsdf.inputs['Base Color'].default_value = (0.66, 0.64, 0.6, 1)
+    bsdf.inputs['Roughness'].default_value = 1.0
+    bsdf.inputs['Specular IOR Level'].default_value = 0.0
+    nt.links.new(a2.outputs[0], bsdf.inputs['Alpha'])
+    m.surface_render_method = 'BLENDED'
+    m.use_transparency_overlap = True
+    return m
+
+
+def smoke(M, rig, n=8, c='Ghost'):
+    """Wisps around the ghost's hem: vertical cards that face their target (an act points them at its camera)."""
+    import bmesh
+    M.setdefault('ghost_smoke', smoke_mat())
+    Rg = rng(21)
+    cards = []
+    for i in range(n):
+        bm = bmesh.new()
+        uv = bm.loops.layers.uv.new('UVMap')
+        w = Rg.uniform(0.2, 0.34)
+        vs = [bm.verts.new((x, 0, z)) for x, z in ((-w / 2, -w / 2), (w / 2, -w / 2), (w / 2, w / 2), (-w / 2, w / 2))]
+        f = bm.faces.new(vs)
+        for l, co in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+            l[uv].uv = co
+        ob = mesh_obj(f'ghost_wisp{i}', bm, c, M['ghost_smoke'], smooth_shade=False)
+        ob.parent = rig['root']
+        a = 2 * math.pi * i / n + Rg.uniform(-0.4, 0.4)
+        ob.location = (0.08 * math.cos(a), 0.08 * math.sin(a), 0.06 + Rg.uniform(0, 0.22))
+        ob.visible_shadow = False
+        cards.append(ob)
+    rig['wisps'] = cards
+    return cards
 
 
 def void_mat(name='ghost_void'):

@@ -123,13 +123,13 @@ def animate_hero(rig):
         gl.keyframe_insert('default_value', frame=f)
 
 
-def keep_on_floor(rig):
+def keep_on_floor(rig, f0=T.START, f1=T.END):
     """Tilting the body about its base pushes the rim of the pumpkin below the floor. For every frame, find the lowest
     contact point after the body's tilt and hop and key the lift empty so it just touches the floor."""
     from mathutils import Euler
     body, lift = rig['body'], rig['lift']
     sc = bpy.context.scene
-    for f in range(T.START, T.END + 1):
+    for f in range(f0, f1 + 1):
         sc.frame_set(f)
         rot = Euler(body.rotation_euler).to_matrix()
         low = min((rot @ (Vector(p) * Vector(body.scale))).z for p in rig['contact']) + body.location.z

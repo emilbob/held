@@ -186,6 +186,7 @@ def score(dur, tl):
                           bright=1300), sec(ev['resolve'][0]), 0.28, 0.5)
     # the Held screen: the signature over a soft, open pad
     sg = sec(ev['screen'])
-    bus.add(music.strings([50, 57, 62, 64, 69], dur - sg + 0.5, attack=0.5, release=1.0, seed=26, bright=1800), sg, 0.18)
+    end3 = tl['acts']['3'][1] / 24                                       # the pad ends with Act III
+    bus.add(music.strings([50, 57, 62, 64, 69], end3 - sg + 0.3, attack=0.5, release=1.0, seed=26, bright=1800), sg, 0.18)
     signature(sg + 0.25, bus)
     return bus

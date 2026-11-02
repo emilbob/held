@@ -106,8 +106,9 @@ def set_screen(L, page, frame=None):
 
 # ---------------------------------------------------------------- the package
 
-PW, PD, PH = 0.20, 0.15, 0.11    # the box
-LID_H = 0.035
+PW, PD, PH = 0.25, 0.25, 0.42    # the box: tall enough for the lantern (37 cm with its ring) standing inside
+LID_H = 0.045
+WALL = 0.005
 
 
 def kraft_mat(name='kraft'):
@@ -191,16 +192,33 @@ def _bow(mat, c):
 
 
 def build_package(M, loc, rz=0.0, c='Package'):
+    """The delivery: a tall kraft-wrapped box. Its four walls are hinged at the bottom so they can fall open outward
+    (P['walls'][side] = hinge empty, rotation 'open' = 90° about its axis); the lid lifts off; the twine slides off.
+    The lantern stands inside on the base (the act moves it there)."""
     kraft = M.setdefault('kraft', kraft_mat())
     tw = M.setdefault('twine', twine_mat())
     P = {}
     root = P['root'] = empty('package_root', loc, c)
     root.rotation_euler = (0, 0, rz)
-    b = box('package_box', PW, PD, PH - LID_H + 0.004, (0, 0, 0), bevel=0.0025, mat=kraft, c=c, origin='bottom')
-    b.parent = root
-    P['box'] = b
+    base = box('package_base', PW, PD, WALL, (0, 0, 0), bevel=0.0015, mat=kraft, c=c, origin='bottom')
+    base.parent = root
+    h = PH - LID_H + 0.006                         # the walls run up under the lid
+    P['walls'] = {}
+    # side: (hinge position, wall size (x, y), open rotation axis index, open angle)
+    sides = {
+        'front': ((0, -PD / 2, 0), (PW, WALL), 0, math.radians(92)),     # falls towards -Y
+        'back': ((0, PD / 2, 0), (PW, WALL), 0, math.radians(-92)),
+        'left': ((-PW / 2, 0, 0), (WALL, PD - 2 * WALL), 1, math.radians(-92)),
+        'right': ((PW / 2, 0, 0), (WALL, PD - 2 * WALL), 1, math.radians(92)),
+    }
+    for side, (pos, (sx, sy), axis, ang) in sides.items():
+        hg = empty(f'package_hinge_{side}', pos, c, root)
+        inward = Vector(pos).normalized() * (-WALL / 2)
+        w = box(f'package_wall_{side}', sx, sy, h, tuple(inward), bevel=0.0015, mat=kraft, c=c, origin='bottom')
+        w.parent = hg
+        P['walls'][side] = (hg, axis, ang)
     lid = P['lid'] = empty('package_lid', (0, 0, PH - LID_H), c, root)
-    lb = box('package_lidbox', PW + 0.004, PD + 0.004, LID_H, (0, 0, 0), bevel=0.0025, mat=kraft, c=c, origin='bottom')
+    lb = box('package_lidbox', PW + 0.006, PD + 0.006, LID_H, (0, 0, 0), bevel=0.0025, mat=kraft, c=c, origin='bottom')
     lb.parent = lid
     tw_root = P['twine'] = empty('package_twine', (0, 0, 0), c, root)
     for ob in [_band('package_twine_x', 'x', tw, c), _band('package_twine_y', 'y', tw, c)] + _bow(tw, c):

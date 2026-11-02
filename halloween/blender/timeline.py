@@ -27,6 +27,16 @@ EV = dict(
     attempt=(289, 322), pulse=(323, 338), snap=339,             # dissolving; the held badge pulses; it snaps back whole
     sag=(366, 388), resolve=(398, 408), turn_go=(410, 420),     # it slumps, draws itself up, turns to fetch the lantern
     screen=421,                                                 # the Held screen; the three-note Held signature
+    # Act IV
+    knocks=[460, 465, 470], startle=461, turn_door=(468, 480),  # knock knock knock; the pumpkin starts, turns
+    enter=(478, 512), set_down=(512, 520), hop_pkg=(522, 530),  # the ghost floats in with the package, sets it down
+    twine=(532, 546), lid=(540, 554), walls=(552, 562),         # the twine floats off, the lid lifts, the walls fall open
+    glow=(556, 570), joy=(561, 571), hop_back=(572, 580),       # the lantern glows; the pumpkin's joy; back to the laptop
+    confirm=588,                                                # "I got it: release payment" → Paid to merchant
+    # Act V
+    turn_ghost=(601, 610), hops_v=[(612, 620), (621, 629)],     # it turns to the ghost, hops to the lantern's side
+    hesitate=(630, 642), join=(642, 660), settle=(660, 668),    # the ghost hesitates, then joins it
+    endcard=694,                                                # the room fades into the Held end card (12-frame dissolve)
 )
 
 # acts

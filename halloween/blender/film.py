@@ -9,7 +9,7 @@ Each act renders on its own (--act N) into its own folder, so a fix re-renders o
 """
 import bpy, sys, os, time, argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import stage, cast, act1, act2, act3
+import stage, cast, act1, act2, act3, act4, act5
 import timeline as T
 
 
@@ -19,6 +19,8 @@ def build():
     act1.build(S, C)
     A2 = act2.build(S, C)
     act3.build(S, C, A2)
+    act4.build(S, C)
+    act5.build(S, C)
     bpy.context.scene.frame_set(T.START)
     return dict(S=S, C=C, M=S['M'], rig=C['hero'], lantern=S['lantern'])
 

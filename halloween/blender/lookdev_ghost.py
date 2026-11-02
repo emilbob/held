@@ -33,8 +33,9 @@ def main():
     cam.animation_data_clear()
     cam.constraints.clear()
     cam.data.animation_data_clear()
-    tgt = Vector((G.x, G.y, 0.24))
-    cam.location = (G.x - 0.35, G.y - 0.62, 0.26)
+    hz = g['body'].location.z                       # the head's centre
+    tgt = Vector((G.x, G.y, hz - 0.09))
+    cam.location = (G.x - 0.42, G.y - 0.74, hz - 0.05)
     aim(cam, tgt)
     cam.data.lens = 50
     cam.data.dof.focus_object = None

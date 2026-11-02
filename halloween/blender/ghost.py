@@ -12,7 +12,8 @@ from lib import mesh_obj, node_mat, map_range, mix_rgb, rng, subsurf, empty
 from pumpkin import radial_prism, sphere
 
 HEAD_R = 0.075
-GHOST_HEM = 0.265                # from the head's centre down to the hem
+GHOST_HEM = 0.265                # from the head's centre down to the hem (before folds and drag)
+GHOST_FLOAT = 0.025              # the lowest point of the hem floats this high above the floor
 # the profile of the drape (radius, height) from the crown down to the hem
 PROFILE = [(0.0, 0.075), (0.04, 0.065), (0.066, 0.04), (0.077, 0.0), (0.079, -0.04), (0.086, -0.10), (0.10, -0.17),
            (0.13, -0.225), (0.152, -0.265)]
@@ -91,7 +92,7 @@ def void_mat(name='ghost_void'):
     return m
 
 
-def sheet_mesh(name, mat, c, seed=3, rows=64, cols=120):
+def sheet_mesh(name, mat, c, seed=3, rows=96, cols=180):
     Rg = rng(seed)
     phase = [Rg.uniform(0, 6.28) for _ in range(4)]
     fray = [Rg.uniform(-1, 1) for _ in range(cols)]
@@ -117,7 +118,7 @@ def sheet_mesh(name, mat, c, seed=3, rows=64, cols=120):
                 z += 0.004 * fray[k]                                    # the frayed hem
             # crumpled cloth everywhere (softly on the head), creases deeper in the drape
             q = Vector((r * math.cos(phi), r * math.sin(phi), z))
-            r += (0.004 + 0.009 * drape_s) * noise.noise(q * 16 + Vector(phase[:3])) + 0.002 * noise.noise(q * 45)
+            r += (0.0025 + 0.009 * drape_s) * noise.noise(q * 16 + Vector(phase[:3])) + 0.0008 * drape_s * noise.noise(q * 45)
             v = bm.verts.new((r * math.cos(phi), r * math.sin(phi), z))
             v[hem] = drape_s
             row.append(v)
@@ -143,22 +144,26 @@ def ellipse(cx, cz, rx, rz, rot=0.0, n=28):
             for a in (2 * math.pi * k / n for k in range(n))]
 
 
-def torn(poly, seed, amt=0.0022):
+def torn(poly, seed, amt=0.0006):
     """Roughen a cut-out's outline, as if the hole had been cut by hand and pulled."""
     Rg = rng(seed)
     cx = sum(x for x, _ in poly) / len(poly)
     cz = sum(z for _, z in poly) / len(poly)
     out = []
-    for x, z in poly:
+    wob = [Rg.uniform(-1, 1) for _ in range(5)]
+    for i, (x, z) in enumerate(poly):
         d = Vector((x - cx, z - cz))
-        f = 1 + Rg.uniform(-1, 1) * amt / max(d.length, 1e-4)
+        a = 2 * math.pi * i / len(poly)
+        # a smooth, low-frequency wobble (hand-cut), not jagged noise
+        w = sum(wob[k] * math.sin((k + 2) * a + k) for k in range(len(wob))) / len(wob)
+        f = 1 + w * amt / max(d.length, 1e-4)
         out.append((cx + d.x * f, cz + d.y * f))
     return out
 
 
 # two hand-cut holes, not quite matching: the left a little larger and higher, both narrowing at the inner corner
-EYES = [torn(ellipse(-0.025, 0.008, 0.0125, 0.0155, rot=-16, n=22), 1),
-        torn(ellipse(0.025, 0.003, 0.0105, 0.0145, rot=12, n=22), 2)]
+EYES = [torn(ellipse(-0.025, 0.008, 0.0125, 0.0155, rot=-16, n=40), 1),
+        torn(ellipse(0.025, 0.003, 0.0105, 0.0145, rot=12, n=40), 2)]
 
 
 def build(M, loc=(0, 0, 0), rz=0.0, c='Ghost'):
@@ -182,7 +187,7 @@ def build(M, loc=(0, 0, 0), rz=0.0, c='Ghost'):
         b.object = ct
     dg = bpy.context.evaluated_depsgraph_get()
     me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
-    assert len(me.polygons) > 10000, f'ghost carving failed: {len(me.polygons)} faces'
+    assert len(me.polygons) > 30000, f'ghost carving failed: {len(me.polygons)} faces'
     ob.modifiers.clear()
     old = ob.data
     ob.data = me
@@ -192,6 +197,7 @@ def build(M, loc=(0, 0, 0), rz=0.0, c='Ghost'):
     for p in me.polygons:
         p.use_smooth = True
     me.set_sharp_from_angle(angle=math.radians(50))
+    body.location.z = -min(v.co.z for v in me.vertices) + GHOST_FLOAT
     # the hem ripples (only the draped part moves): a slow wave along the normals
     vg = ob.vertex_groups.new(name='hem')
     hem = me.attributes['hem'].data

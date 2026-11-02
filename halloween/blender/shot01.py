@@ -142,6 +142,7 @@ def build():
     rim = light('moon_rim', 'SPOT', (-1.3, 2.0, 1.2), 6.0, color=(0.55, 0.7, 1.0), size=0.2, spot=14, blend=0.6, volume=0.0)
     aim(rim, (animate.WALK_TO.x, animate.WALK_TO.y, 0.10))
     animate.animate_hero(rig)
+    animate.keep_on_floor(rig)
     animate.animate_lantern(L)
     animate.animate_camera(cam, tgt, rig)
     return dict(M=M, rig=rig, lantern=L, cam=cam)

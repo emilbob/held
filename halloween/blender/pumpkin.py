@@ -199,6 +199,12 @@ def stem_mat(name='stem'):
     return m
 
 
+def rest_height(ob):
+    """How high to lift a pumpkin mesh so its lowest point touches the floor. The lowest point is not the bottom pole
+    (the pole sits in a dimple; the ring of lobes around it hangs lower), so measure it."""
+    return -min(v.co.z for v in ob.data.vertices) + 0.0003
+
+
 def decor(M, name, loc, R=0.1, variety='orange', squash=0.75, ribs=10, seed=0, rz=0.0, c='Pumpkins'):
     """A decorative pumpkin resting on a surface at loc (its bottom touches loc's z)."""
     key = 'skin_' + variety
@@ -210,7 +216,7 @@ def decor(M, name, loc, R=0.1, variety='orange', squash=0.75, ribs=10, seed=0, r
     body, top_z = body_mesh(name + '_body', R, squash, ribs, seed=seed, c=c)
     body.data.materials.append(M[key])
     body.parent = root
-    bottom = R * squash * (1 - 0.35)
+    bottom = rest_height(body)
     body.location = (0, 0, bottom)
     st = stem_mesh(name + '_stem', R, seed, M['stem'], c=c)
     st.parent = root
@@ -372,18 +378,23 @@ def build_hero(M, c='Hero'):
     M['flesh'] = flesh_mat()
     rig = {}
     root = rig['root'] = empty('hero_root', c=c)
-    body = rig['body'] = empty('hero_body', (0, 0, 0), c, root)
-    bottom = R * SQ * (1 - 0.3)
+    # lift: keyed by animate.keep_on_floor so tilts and rocks never push the pumpkin into the floor
+    lift = rig['lift'] = empty('hero_lift', (0, 0, 0), c, root)
+    body = rig['body'] = empty('hero_body', (0, 0, 0), c, lift)
     mesh, top_z = carved_body(M, c)
+    pole = R * SQ * (1 - 0.3)                   # the bottom pole's depth below the mesh centre
+    bottom = rest_height(mesh)
     mesh.parent = body
     mesh.location = (0, 0, bottom)
     st = stem_mesh('hero_stem', R * 1.05, 5, M['stem'], c=c, length=R * 0.42, curl=1.3)
     st.parent = body
     st.location = (0, 0, bottom + top_z - R * 0.05)
     # the candle, standing on the inside floor; its light is the only way the carving glows
-    cr, lt = candle('hero_candle', (0, 0.01, WALL + 0.004), h=0.045, r=0.017, M=M, power=2.5, seed=31, c=c)
+    cr, lt = candle('hero_candle', (0, 0.01, bottom - pole + WALL + 0.004), h=0.045, r=0.017, M=M, power=2.5, seed=31, c=c)
     cr.parent = body
     rig['candle_light'] = lt
     rig['flame'] = bpy.data.objects['hero_candle_flame']
     rig['centre_z'] = bottom
+    # the points that can touch the floor (body space): the lower part of the skin
+    rig['contact'] = [v.co + mesh.location for v in mesh.data.vertices if v.co.z + bottom < 0.035][::5]
     return rig

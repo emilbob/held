@@ -1,11 +1,11 @@
-"""Scene 01 score: soft felt piano, celesta, pizzicato strings and a string pad. Original, synthesized.
+"""Scene 01 score: felt piano, low pizzicato strings and a dark string pad. Original, synthesized.
 
 The tempo is locked to the pumpkin's hops: one landing every 8 frames = an eighth note at 90 BPM, so the
-pizzicato lands on its hops. Harmony: D dorian, mysterious but warm.
-  0.0 s  Dm9 pad breathes in; a low piano D; the celesta asks a question (A5 C6 B5 ... G5)
-  2.1 s  the hops: pizzicato on every landing, climbing (Bbmaj7 → Gm9 at the 5th hop)
+pizzicato lands on its hops. Harmony: D minor, with a flat-two (Eb) and the harmonic-minor C# for unease.
+  0.0 s  Dm(add9) pad, low and dark; a low piano D and A; a slow piano question (D5 F5 E5 ... C#5)
+  2.1 s  the hops: low pizzicato on every landing, creeping up (Eb → Gm at the 5th hop)
   4.0 s  it stops: the pad thins to an A7sus, a held breath
-  4.46 s it notices the lantern: D major add9 opens up; piano bell tones and a celesta answer
+  4.46 s it sees the lantern: D minor opens, deep and wide; piano bells, and the question is answered (F5 E5 C#5 D5)
 """
 import numpy as np
 from dsp import SR, Bus, rng, t_axis, lp, hp, resonator, adsr, midi
@@ -92,30 +92,32 @@ def score(dur, tl):
     bus = Bus(dur)
     steps = tl['steps_s']
     notice = tl['notice_s']
-    # --- the room: Dm9 pad and a low piano D
-    bus.add(strings([50, 57, 60, 64, 65], steps[0] + 0.6, attack=1.1, release=0.9, seed=1), 0.0, 0.32, 0.5)
+    # --- the room: a dark Dm(add9) pad and a low piano D and A
+    bus.add(strings([38, 50, 57, 64, 65], steps[0] + 0.6, attack=1.1, release=0.9, seed=1, bright=1100), 0.0, 0.34, 0.5)
     bus.add(piano(38, 4.0, 0.35, r) + piano(45, 4.0, 0.3, r), 0.05, 0.5, 0.45)
-    # celesta question: A5 C6 B5 . G5 (quarters, the last one held)
-    for i, (nt, k) in enumerate(((81, 1), (84, 2), (83, 3), (79, 4.5))):
-        bus.add(celesta(nt, 2.2, 0.5, r), 0.15 + k * QUARTER * 0.62, 0.55, 0.62)
-    # --- the trot: Bbmaj7 then Gm9 under pizzicato on every step
-    bus.add(strings([46, 53, 57, 62], steps[4] - steps[0] + 0.2, attack=0.35, release=0.5, seed=2, vel=0.5), steps[0] - 0.1, 0.24, 0.5)
-    bus.add(strings([43, 50, 53, 57, 58], steps[-1] - steps[4] + 0.6, attack=0.3, release=0.5, seed=3), steps[4] - 0.05, 0.24, 0.5)
-    line = [62, 65, 69, 65, 67, 70, 74, 72]               # D4 F4 A4 F4 | G4 Bb4 D5 C5: tiptoeing upwards
+    # the question, on soft piano: D5 F5 E5 . C#5 (the last one held, unresolved)
+    for i, (nt, k) in enumerate(((74, 1), (77, 2), (76, 3), (73, 4.5))):
+        bus.add(piano(nt, 2.6, 0.3, r), 0.15 + k * QUARTER * 0.62, 0.36, 0.6)
+    # --- the hops: Eb (the flat two) then Gm under low pizzicato on every landing
+    bus.add(strings([39, 51, 55, 58], steps[4] - steps[0] + 0.2, attack=0.35, release=0.5, seed=2, vel=0.5, bright=1100),
+            steps[0] - 0.1, 0.26, 0.5)
+    bus.add(strings([43, 50, 55, 58, 62], steps[-1] - steps[4] + 0.6, attack=0.3, release=0.5, seed=3, bright=1100),
+            steps[4] - 0.05, 0.26, 0.5)
+    line = [50, 51, 53, 51, 55, 58, 57, 61]               # D3 Eb3 F3 Eb3 | G3 Bb3 A3 C#4: creeping upwards
     for i, s in enumerate(steps):
         nt = line[i % len(line)]
-        bus.add(pizz(nt, 1.0, 0.55 + 0.05 * (i % 2), r), s, 0.62, 0.42 + 0.03 * (i % 3))
+        bus.add(pizz(nt, 1.2, 0.6 + 0.05 * (i % 2), r), s, 0.66, 0.42 + 0.03 * (i % 3))
         if i in (0, 4):
-            bus.add(pizz(nt - 24 + (0 if i == 0 else -3), 1.4, 0.7, r), s, 0.5, 0.45)      # bass on the changes
-    bus.add(piano(58, 2.5, 0.3, r) + piano(62, 2.5, 0.28, r), steps[0], 0.35, 0.55)
+            bus.add(pizz(nt - 12, 1.6, 0.7, r), s, 0.5, 0.45)                                 # bass on the changes: D2, G2
     # --- the stop: a held breath (A7sus4 thin pad)
-    bus.add(strings([57, 62, 64, 67], notice - steps[-1] + 0.5, attack=0.25, release=0.45, seed=4, vel=0.4, bright=1400),
-            steps[-1] + 0.05, 0.2, 0.5)
-    # --- wonder: D major add9 opens; piano bells; the celesta answers the opening question, resolved
-    bus.add(strings([50, 57, 62, 66, 69, 76], dur - notice + 0.2, attack=0.6, release=1.5, seed=5, bright=2400), notice - 0.05, 0.34, 0.5)
-    bus.add(piano(38, 3.0, 0.4, r), notice, 0.5, 0.45)
-    for k, nt in enumerate((74, 78, 81)):
-        bus.add(piano(nt, 3.0, 0.42, r), notice + 0.02 + k * 0.03, 0.3, 0.58)
-    for k, nt in enumerate((78, 81, 83, 86)):             # F#5 A5 B5 D6
-        bus.add(celesta(nt, 2.2, 0.45, r), notice + 0.75 + k * EIGHTH, 0.5, 0.65)
+    bus.add(strings([45, 57, 62, 64, 67], notice - steps[-1] + 0.5, attack=0.25, release=0.45, seed=4, vel=0.4, bright=1000),
+            steps[-1] + 0.05, 0.22, 0.5)
+    # --- the sight: D minor opens, deep and wide; low piano bells; the question answered, resolved to D
+    bus.add(strings([38, 45, 50, 57, 62, 65, 69], dur - notice + 0.2, attack=0.6, release=1.5, seed=5, bright=1500),
+            notice - 0.05, 0.36, 0.5)
+    bus.add(piano(38, 3.0, 0.45, r) + piano(45, 3.0, 0.4, r), notice, 0.5, 0.45)
+    for k, nt in enumerate((62, 65, 69)):
+        bus.add(piano(nt, 3.0, 0.38, r), notice + 0.02 + k * 0.03, 0.3, 0.58)
+    for k, nt in enumerate((77, 76, 73, 74)):             # F5 E5 C#5 D5
+        bus.add(piano(nt, 2.4, 0.3, r), notice + 0.75 + k * QUARTER * 0.75, 0.34, 0.62)
     return bus

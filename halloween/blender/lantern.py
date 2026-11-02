@@ -77,7 +77,8 @@ def seeded_glass():
 
 
 def moon_frieze_mat():
-    """The cap's frieze band: iron, with crescent moons cut through it — where the cut is, it glows."""
+    """The cap's frieze band: iron, with a pointed gothic slot cut through each face — where the cut is, it glows.
+    (Crescent moons were tried first: in the close shots two of them read as cartoon eyes.)"""
     m, nt, bsdf, out = node_mat('lantern_frieze')
     bsdf.inputs['Base Color'].default_value = (0.03, 0.028, 0.026, 1)
     bsdf.inputs['Metallic'].default_value = 0.85
@@ -90,22 +91,31 @@ def moon_frieze_mat():
     fr.operation = 'FRACT'
     nt.links.new(sep.outputs['X'], fr.inputs[0])
 
-    def disc(cx, cy, r):
-        c = nt.nodes.new('ShaderNodeCombineXYZ')
-        nt.links.new(fr.outputs[0], c.inputs['X'])
-        nt.links.new(sep.outputs['Y'], c.inputs['Y'])
-        d = nt.nodes.new('ShaderNodeVectorMath')
-        d.operation = 'DISTANCE'
-        d.inputs[1].default_value = (cx, cy, 0)
-        nt.links.new(c.outputs[0], d.inputs[0])
-        return map_range(nt, d.outputs['Value'], r - 0.01, r + 0.01, 1.0, 0.0)
-    a = disc(0.5, 0.5, 0.3)
-    b = disc(0.62, 0.58, 0.27)
-    cres = nt.nodes.new('ShaderNodeMath')
-    cres.operation = 'SUBTRACT'
-    cres.use_clamp = True
-    nt.links.new(a, cres.inputs[0])
-    nt.links.new(b, cres.inputs[1])
+    # one narrow pointed (gothic) slot per face: |u - 0.5| < W, above a sill, under an arch that peaks at the centre
+    W = 0.085
+
+    def math_node(op, x, y=None, clamp=False):
+        n = nt.nodes.new('ShaderNodeMath')
+        n.operation = op
+        n.use_clamp = clamp
+        for i, v in enumerate((x, y)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                n.inputs[i].default_value = v
+            else:
+                nt.links.new(v, n.inputs[i])
+        return n.outputs[0]
+    du = math_node('ABSOLUTE', math_node('SUBTRACT', fr.outputs[0], 0.5))
+    side = map_range(nt, du, W - 0.012, W, 1.0, 0.0)
+    sill = map_range(nt, sep.outputs['Y'], 0.16, 0.19, 0.0, 1.0)
+    arch = math_node('SUBTRACT', math_node('SUBTRACT', sep.outputs['Y'], 0.84), math_node('MULTIPLY', du, -2.6))
+    top = map_range(nt, arch, -0.02, 0.0, 1.0, 0.0)
+    slot = math_node('MULTIPLY', math_node('MULTIPLY', side, sill), top)
+
+    class _Out:                                    # keeps the code below (it multiplies cres.outputs[0]) unchanged
+        outputs = [slot]
+    cres = _Out
     g = nt.nodes.new('ShaderNodeValue')
     g.name = 'glow'
     g.outputs[0].default_value = 2.5

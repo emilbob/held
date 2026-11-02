@@ -4,7 +4,7 @@ fire()      soft roar + crackles and the odd pop, panned where the fireplace sit
 wind()      gusting wind behind the glass (muffled), with a faint whistle and leaves skittering on each gust
 room()      room tone and the mantel clock's quiet tick
 steps()     the pumpkin's hops landing on the floorboards, one per landing frame in the timeline
-shimmer()   the moment it notices the lantern: a soft rising air, then a cascade of glassy chimes
+shimmer()   the moment it sees the lantern: the candle inside flares, a deep bloom, three low chimes
 """
 import numpy as np
 from dsp import SR, Bus, rng, t_axis, lp, hp, bp, resonator, pink, smooth_noise, adsr, midi
@@ -129,26 +129,28 @@ def chime(f, dur=2.4, bright=1.0, r=None):
 
 
 def shimmer(dur, at):
-    """The notice: 0.5 s of soft air rising into it, then a quick upward cascade of chimes (a D major add9 spread)
-    and a warm low bloom under it as the lantern swells."""
+    """The notice: the candle inside the pumpkin catches and flares: a low breath of air drawn in, a soft 'whump' of
+    flame, a deep bloom under it as the lantern swells, and three low, dark chimes (D minor)."""
     r = rng(5)
     bus = Bus(dur)
-    # rising air
+    # the air drawn in, low and breathy
     ln = int(0.9 * SR)
     t = np.arange(ln) / SR
     air = r.standard_normal(ln)
-    air = bp(air, 1500, 9000, 2) * (t / t[-1]) ** 2.5 * np.exp(-np.maximum(0, t - 0.6) * 9)
-    bus.add(air * 0.07, at - 0.6, pan=0.4)
-    # cascade
-    notes = [81, 86, 88, 90, 93, 98]                       # A5 D6 E6 F#6 A6 D7
-    for i, nt in enumerate(notes):
-        bus.add(chime(midi(nt), 2.6, 1.0, r) * 0.11 * (1 - i * 0.07), at + i * 0.055 + r.uniform(0, 0.01), pan=0.3 + 0.07 * i)
-    # a second, softer sprinkle as the carved face brightens
-    for i, nt in enumerate([93, 90, 98, 95]):
-        bus.add(chime(midi(nt), 2.0, 0.7, r) * 0.05, at + 0.55 + i * 0.12, pan=0.65 - 0.08 * i)
-    # warm bloom: low sine pair swelling with the lantern
+    air = bp(air, 250, 2200, 2) * (t / t[-1]) ** 2.5 * np.exp(-np.maximum(0, t - 0.6) * 9)
+    bus.add(air * 0.09, at - 0.6, pan=0.45)
+    # the flame flaring: a short low-passed noise burst with a falling body
+    ln = int(0.8 * SR)
+    t = np.arange(ln) / SR
+    whump = lp(r.standard_normal(ln), 900, 2) * np.exp(-t / 0.18) * np.minimum(1, t / 0.03)
+    whump += np.sin(2 * np.pi * (70 - 25 * t) * t) * np.exp(-t / 0.25) * 0.5
+    bus.add(whump * 0.08, at + 0.05, pan=0.5)
+    # three low chimes, slow: D5 F5 A4
+    for i, nt in enumerate([74, 77, 69]):
+        bus.add(chime(midi(nt), 2.6, 0.6, r) * 0.06, at + 0.1 + i * 0.22 + r.uniform(0, 0.01), pan=0.35 + 0.12 * i)
+    # deep bloom: a low sine pair swelling with the lantern
     ln = int(2.2 * SR)
     t = np.arange(ln) / SR
-    bloom = (np.sin(2 * np.pi * midi(50) * t) + 0.5 * np.sin(2 * np.pi * midi(57) * t)) * adsr(ln, 0.5, 0.3, 0.7, 1.2)
-    bus.add(lp(bloom, 600) * 0.05, at - 0.15, pan=0.4)
+    bloom = (np.sin(2 * np.pi * midi(38) * t) + 0.5 * np.sin(2 * np.pi * midi(45) * t)) * adsr(ln, 0.5, 0.3, 0.7, 1.2)
+    bus.add(lp(bloom, 400) * 0.07, at - 0.15, pan=0.45)
     return bus

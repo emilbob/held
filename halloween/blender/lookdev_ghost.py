@@ -6,7 +6,7 @@ last frame and a closer 3/4 view.
 import bpy, sys, os, math, argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mathutils import Vector
-import shot01, animate, ghost
+import film, stage, animate, ghost
 from lib import aim
 
 
@@ -17,8 +17,8 @@ def main():
     ap.add_argument('--pct', type=int, default=50)
     ap.add_argument('--samples', type=int, default=32)
     a = ap.parse_args(argv)
-    built = shot01.build()
-    shot01.render_settings(a.pct, a.samples)
+    built = film.build()
+    stage.render_settings(a.pct, a.samples)
     G = Vector((0.66, 0.98))
     cam_pos = Vector((-0.44, -0.34))
     g = ghost.build(built['M'], (G.x, G.y, 0), rz=animate.heading(cam_pos.lerp(animate.WALK_TO, 0.5) - G))

@@ -160,16 +160,16 @@ def animate_lantern(L):
         kd.keyframe_insert('energy', frame=f)
 
 
-def build_camera():
-    cd = bpy.data.cameras.new('cam')
+def build_camera(name='cam'):
+    cd = bpy.data.cameras.new(name)
     cd.sensor_width = 36
     cd.dof.use_dof = True
     cd.dof.aperture_blades = 7
     cd.clip_start = 0.02
-    cam = bpy.data.objects.new('cam', cd)
+    cam = bpy.data.objects.new(name, cd)
     link(cam, 'Camera')
     bpy.context.scene.camera = cam
-    tgt = empty('cam_target', c='Camera')
+    tgt = empty(name + '_target', c='Camera')
     con = cam.constraints.new('TRACK_TO')
     con.target = tgt
     con.track_axis = 'TRACK_NEGATIVE_Z'

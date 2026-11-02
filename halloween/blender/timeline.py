@@ -6,7 +6,18 @@ Run as a script to write out/timeline.json for the audio tools (which don't impo
 import json, os
 
 FPS = 24
-START, END = 1, 144
+START, END = 1, 144           # Act I (Scene 01)
+FILM_END = 720                # the whole film: 30 s
+
+# every shot of the film: name → (first frame, last frame). Acts: I 1–144, II 145–288, III 289–456, IV 457–600, V 601–720.
+SHOTS = {
+    's01_establish': (1, 48), 's02_reveal': (49, 96), 's03_discovery': (97, 144),
+    's04_purchase': (145, 216), 's05_trick': (217, 288),
+    's06_attempt': (289, 360), 's07_realization': (361, 456),
+    's08_return': (457, 528), 's09_reveal': (529, 600),
+    's10_friendship': (601, 672), 's11_finale': (673, 720),
+}
+ACTS = {1: (1, 144), 2: (145, 288), 3: (289, 456), 4: (457, 600), 5: (601, 720)}
 
 # acts
 ESTABLISH = (1, 48)          # wide push-in

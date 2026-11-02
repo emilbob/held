@@ -5,7 +5,7 @@
 import bpy, sys, os, math, argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mathutils import Vector
-import shot01, animate, story_props as SP
+import film, stage, animate, story_props as SP
 from lib import aim
 
 
@@ -16,8 +16,8 @@ def main():
     ap.add_argument('--pct', type=int, default=50)
     ap.add_argument('--samples', type=int, default=32)
     a = ap.parse_args(argv)
-    built = shot01.build()
-    shot01.render_settings(a.pct, a.samples)
+    built = film.build()
+    stage.render_settings(a.pct, a.samples)
     M = built['M']
     LP = Vector((0.62, 0.30))                       # the laptop on the rug, its screen towards the camera side
     L = SP.build_laptop(M, (LP.x, LP.y, 0.012), rz=math.radians(-20))

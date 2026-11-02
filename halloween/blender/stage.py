@@ -1,14 +1,11 @@
-"""Scene 01, "The Perfect Halloween": build the room, the pumpkin and the lantern, animate, render with Eevee.
-
-  blender -b --factory-startup -P blender/shot01.py -- --still 120 --out renders/tests/s120.png [--pct 66] [--samples 64]
-  blender -b --factory-startup -P blender/shot01.py -- --frames 1-144 --out renders/preview [--pct 66]
-  blender -b --factory-startup -P blender/shot01.py -- --save renders/scene01.blend      (open it in the UI)
-"""
-import bpy, sys, os, math, time, argparse
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from lib import box, light, node_mat, empty, ROOT, flicker
-import materials, room, fire, props, outside, lantern, pumpkin, animate
+"""The set: the one sitting room the whole film plays in. Room, fire, props, the night outside, the lantern, haze, world,
+fill lights, Eevee and compositor settings, and fixed look-development cameras (VIEWS)."""
+import bpy, math
+from lib import box, light, node_mat, empty, aim, flicker
+import materials, room, fire, props, outside, lantern
 import timeline as T
+
+LANTERN = (-0.30, 0.50)          # on two old books on the floor, left of the hearth (the story's lantern)
 
 
 def haze(M):
@@ -69,7 +66,7 @@ def render_settings(pct=66, samples=64):
     sc.render.resolution_x, sc.render.resolution_y = 1920, 1080
     sc.render.resolution_percentage = pct
     sc.render.fps = T.FPS
-    sc.frame_start, sc.frame_end = T.START, T.END
+    sc.frame_start, sc.frame_end = T.START, T.FILM_END
     sc.render.film_transparent = False
     # Filmic, not AgX: AgX turns this film's saturated candle- and firelit oranges salmon-pink (tested side by side)
     sc.view_settings.view_transform = 'Filmic'
@@ -116,36 +113,21 @@ def compositor(sc):
 
 
 def build():
+    """Builds the room; returns dict(M=materials, lantern=lantern rig, lantern_z=its stand height)."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
-    sc.frame_start, sc.frame_end = T.START, T.END
+    sc.frame_start, sc.frame_end = T.START, T.FILM_END
     M = materials.build()
     room.build(M)
     fire.build_hearth_fire(M)
     props.build(M)
     outside.build(M)
-    z = props.build_lantern_stand(M, tuple(animate.LANTERN))
-    L = lantern.build(M, (*animate.LANTERN, z), rz=10)
-    rig = pumpkin.build_hero(M)
+    z = props.build_lantern_stand(M, LANTERN)
+    L = lantern.build(M, (*LANTERN, z), rz=10)
     world()
     haze(M)
     fill_lights()
-    cam, tgt = animate.build_camera()
-    # the lantern's light on the pumpkin's face: a small hidden area light at the lantern, aimed at where the pumpkin
-    # stops; it swells with the bloom (animate_lantern). And a cool moonlight rim from the window side.
-    from lib import aim
-    lk = light('lantern_key', 'AREA', (animate.LANTERN.x + 0.08, animate.LANTERN.y + 0.03, z + 0.15), 0.4, kelvin=2000,
-               size=0.12, shape='DISK', volume=0.0)
-    aim(lk, (animate.WALK_TO.x, animate.WALK_TO.y, 0.09))
-    lk.visible_camera = lk.visible_glossy = False
-    L['key'] = lk
-    rim = light('moon_rim', 'SPOT', (-1.3, 2.0, 1.2), 6.0, color=(0.55, 0.7, 1.0), size=0.2, spot=14, blend=0.6, volume=0.0)
-    aim(rim, (animate.WALK_TO.x, animate.WALK_TO.y, 0.10))
-    animate.animate_hero(rig)
-    animate.keep_on_floor(rig)
-    animate.animate_lantern(L)
-    animate.animate_camera(cam, tgt, rig)
-    return dict(M=M, rig=rig, lantern=L, cam=cam)
+    return dict(M=M, lantern=L, lantern_z=z)
 
 
 VIEWS = {   # fixed test cameras (location, target, lens, f-stop) for look development
@@ -159,72 +141,19 @@ VIEWS = {   # fixed test cameras (location, target, lens, f-stop) for look devel
 
 
 def view(name):
+    """Replace the active camera's move with a fixed look-development view."""
     cam = bpy.context.scene.camera
     cam.animation_data_clear()
     cam.constraints.clear()
-    tgt = bpy.data.objects['cam_target']
-    tgt.animation_data_clear()
+    tgt = bpy.data.objects.get(cam.name + '_target')
+    if tgt:
+        tgt.animation_data_clear()
     loc, t, lens, fs = VIEWS[name]
     cam.location = loc
     tgt.location = t
-    from lib import aim
     aim(cam, t)
     cam.data.animation_data_clear()
     cam.data.lens = lens
     cam.data.dof.aperture_fstop = fs
 
 
-def main():
-    argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--still', type=int)
-    ap.add_argument('--frames')
-    ap.add_argument('--out')
-    ap.add_argument('--pct', type=int, default=66)
-    ap.add_argument('--samples', type=int, default=64)
-    ap.add_argument('--save')
-    ap.add_argument('--view', choices=sorted(VIEWS))
-    ap.add_argument('--nohaze', action='store_true')
-    ap.add_argument('--vt', help='view transform test: name[,look]')
-    ap.add_argument('--wb', help='white balance test: off, or temperature,tint')
-    a = ap.parse_args(argv)
-    t0 = time.time()
-    build()
-    render_settings(a.pct, a.samples)
-    if a.view:
-        view(a.view)
-    if a.vt:
-        vs = bpy.context.scene.view_settings
-        name, *look = a.vt.split(',')
-        vs.view_transform = name
-        vs.look = look[0] if look else 'None'
-    if a.wb:
-        vs = bpy.context.scene.view_settings
-        if a.wb == 'off':
-            vs.use_white_balance = False
-        else:
-            vs.white_balance_temperature, vs.white_balance_tint = map(float, a.wb.split(','))
-    if a.nohaze:
-        bpy.data.objects['haze'].hide_render = True
-    print(f'BUILD_TIME {time.time() - t0:.1f}s')
-    sc = bpy.context.scene
-    if a.save:
-        bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(a.save))
-    if a.still is not None:
-        sc.frame_set(a.still)
-        sc.render.filepath = os.path.abspath(a.out)
-        t0 = time.time()
-        bpy.ops.render.render(write_still=True)
-        print(f'RENDER_TIME {time.time() - t0:.1f}s')
-    elif a.frames:
-        f0, f1 = map(int, a.frames.split('-'))
-        sc.frame_start, sc.frame_end = f0, f1
-        sc.render.filepath = os.path.join(os.path.abspath(a.out), 'f')
-        sc.render.use_overwrite = False
-        t0 = time.time()
-        bpy.ops.render.render(animation=True)
-        print(f'RENDER_TIME {time.time() - t0:.1f}s for {f1 - f0 + 1} frames')
-
-
-if __name__ == '__main__':
-    main()

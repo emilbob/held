@@ -54,22 +54,25 @@ wind, footsteps, room tone, a shimmer cue; music for felt piano, celesta, pizzic
 
 ## Layout
 
+The whole film (see PLAN.md) is one set, one cast, and one module per act; each act renders on its own.
+
 ```
-blender/lib.py         geometry, material, light and import helpers
-blender/timeline.py    frame numbers shared by picture and sound (also written to out/timeline.json)
-blender/materials.py   the material library
-blender/room.py        architecture: floor, walls, window, fireplace
-blender/outside.py     the night outside the window: sky, branches, blowing leaves
-blender/fire.py        hearth fire, candle flames, flicker lights
-blender/props.py       furniture, books, candles, decorative pumpkins, dried flowers
-blender/lantern.py     the Halloween lantern
-blender/pumpkin.py     decorative pumpkins and the jack-o'-lantern character: carved mesh, materials, candle, rig
-blender/animate.py     the pumpkin's hops and reaction, the lantern's bloom, the camera move
-blender/shot01.py      Scene 01: build, lights, Eevee and compositor settings, render CLI (--still/--frames/--view)
+blender/film.py        entry point: builds stage + cast + every act, renders (--act N / --frames / --still / --view / --save)
+blender/stage.py       the one room: builds the set, haze, world, fill lights, Eevee + compositor settings, look-dev VIEWS
+blender/cast.py        the cast and story props, built once; show() brings them on and off stage
+blender/act1.py        Act I (shots 01–03, frames 1–144): camera, lantern key and moon rim lights, calls animate.py
+blender/animate.py     Act I animation: the pumpkin's hops and reaction, keep_on_floor, the lantern's bloom, the camera move
+blender/timeline.py    frame numbers for picture and sound: every shot (SHOTS), every act (ACTS), Act I's events
+blender/pumpkin.py     decorative pumpkins and the jack-o'-lantern: carved mesh, materials, candle, rig
+blender/ghost.py       the ghost: linen sheet, eye holes, void, hem ripple
+blender/story_props.py the laptop (one screen per Held page, set_screen) and the wrapped package
+blender/lib.py, materials.py, room.py, outside.py, fire.py, props.py, lantern.py     helpers and the set's pieces
+blender/lookdev_*.py   stills of the ghost and the props for review
+ui/                    the laptop's pages: tools/render_ui.py (real Held checkout HTML → ui/png via headless Chrome)
 audio/                 dsp.py (toolkit), sfx.py, music.py, mix.py → out/scene01_audio.wav (+ out/stems/)
 tools/fetch_assets.py  CC0 assets (Poly Haven) → assets/ + assets/CREDITS.md
-tools/assemble.py      frames + audio → out/scene01.mp4
-renders/               tests/ (stills), preview/, final/
+tools/assemble.py      frames + audio → mp4
+renders/               tests/ (stills), act1/ … (one folder per act)
 ```
 
 ## Commands
@@ -77,9 +80,10 @@ renders/               tests/ (stills), preview/, final/
 ```sh
 python3 -m venv .venv && .venv/bin/pip install numpy scipy                   # once
 .venv/bin/python -I tools/fetch_assets.py                                   # once
-blender -b --factory-startup -P blender/shot01.py -- --still 120 --out renders/tests/s120.png
-blender -b --factory-startup -P blender/shot01.py -- --frames 1-144 --out renders/preview --pct 66
-blender -b --factory-startup -P blender/shot01.py -- --still 60 --view fire --out renders/tests/fire.png   # look-dev cameras: face fire hero lantern mantel window
+python3 tools/render_ui.py                                                  # the laptop's pages
+blender -b --factory-startup -P blender/film.py -- --still 120 --out renders/tests/s120.png
+blender -b --factory-startup -P blender/film.py -- --act 1 --out renders/act1 --pct 66              # 720p preview of Act I
+blender -b --factory-startup -P blender/film.py -- --still 60 --view fire --out renders/tests/fire.png   # look-dev cameras: face fire hero lantern mantel window
 python3 blender/timeline.py && .venv/bin/python audio/mix.py
-.venv/bin/python tools/assemble.py --src renders/preview --out out/scene01_preview.mp4
+.venv/bin/python tools/assemble.py --src renders/act1 --out out/act1_preview.mp4
 ```

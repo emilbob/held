@@ -66,16 +66,17 @@ blender/
   ghost.py           ghost mesh, material, expression keys, smoke cards       (new)
   laptop.py          laptop + screen material that shows interface images     (new)
   package.py         wrapped box, ribbon, paper                               (new)
-  set.py             builds the whole room once (from today's shot01.build)   (new)
-  shots/s01.py … s11.py   each shot: blocking, animation, camera, lights      (new; s01–s03 = today's scene)
-  film.py            CLI: --shot N | --act N | --frames a-b | --still f | --view
+  stage.py           builds the whole room once                                (done)
+  cast.py            the pumpkin, ghost, laptop, package, built once; show()  (done)
+  act1.py … act5.py  each act: blocking, animation, cameras (one per shot, cut by markers), lights
+  film.py            CLI: --act N | --frames a-b | --still f | --view
 ui/                  the Held screens as HTML → PNG (headless Chrome), used on the laptop
 timeline.py          every shot's frame range and every sound event, for picture and sound
 audio/               dsp, sfx, music, mix (exist), extended per act
 tools/assemble.py    shots → film.mp4 with audio, grade and the logo card
 ```
 
-Each shot renders on its own into `renders/<shot>/`, so a fix re-renders only that shot.
+Each act renders on its own into `renders/act<N>/`, so a fix re-renders only that act.
 
 ## Render budget (measured on this MacBook Air)
 

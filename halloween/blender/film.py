@@ -35,6 +35,7 @@ def main():
     ap.add_argument('--list', help='comma-separated frames, each written as <out>/fNNNN.png')
     ap.add_argument('--out')
     ap.add_argument('--pct', type=int, default=66)
+    ap.add_argument('--res', help='exact output size WxH (overrides --pct)')
     ap.add_argument('--samples', type=int, default=64)
     ap.add_argument('--save')
     ap.add_argument('--act', type=int, choices=sorted(T.ACTS))
@@ -46,6 +47,10 @@ def main():
     t0 = time.time()
     build()
     stage.render_settings(a.pct, a.samples)
+    if a.res:
+        r = bpy.context.scene.render
+        r.resolution_x, r.resolution_y = map(int, a.res.split('x'))
+        r.resolution_percentage = 100
     if a.act:
         a.frames = '%d-%d' % T.ACTS[a.act]
     if a.view:

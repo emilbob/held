@@ -25,8 +25,8 @@ def main():
     sfx.wind(dur).mix_into(fx, 1.2)
     sfx.room(dur).mix_into(fx, 1.0)
     sfx.steps(dur, tl, step_pan).mix_into(fx, 2.2)
-    acts23.effects(dur, tl).mix_into(fx, 1.0)
-    acts45.effects(dur, tl).mix_into(fx, 1.0)
+    acts23.effects(dur, tl).mix_into(fx, 1.3)
+    acts45.effects(dur, tl).mix_into(fx, 1.3)
     fx.L, fx.R = hp(fx.L, 60), hp(fx.R, 60)
     fx = reverb(fx, reverb_ir(0.6, 0.4, seed=11), wet=0.14)
     magic = reverb(sfx.shimmer(dur, tl['notice_s']), reverb_ir(2.8, 0.7, seed=12), wet=0.4)
@@ -40,13 +40,13 @@ def main():
     a1.R *= fade1
     mus = Bus(dur)
     mus.add_stereo(a1.L, a1.R)
-    acts23.score(dur, tl).mix_into(mus, 1.0)
-    acts45.score(dur, tl).mix_into(mus, 1.0)
+    acts23.score(dur, tl).mix_into(mus, 1.7)          # (written quieter than Act I's score: level them)
+    acts45.score(dur, tl).mix_into(mus, 1.7)
     mus = reverb(mus, reverb_ir(2.6, 0.5, seed=13), wet=0.33)
     ev = tl['ev']
     sec = acts23.sec
     # the room ducks for the wonder in Act I, comes back, and drops away for the pause in Act III
-    p0, s0 = sec(ev['pulse'][0]), sec(ev['snap'])
+    p0, s0 = sec(ev['refused']), sec(ev['snap'])
     ec = sec(ev['endcard'])
     duck = np.interp(t, [0, tl['notice_s'] - 0.3, tl['notice_s'] + 0.4, ACT1 - 0.2, ACT1 + 0.5, p0 - 0.1, p0 + 0.05,
                          s0, s0 + 0.3, ec - 0.2, ec + 0.6, dur],

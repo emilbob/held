@@ -1,8 +1,8 @@
-"""Act V, "Happy Halloween" (frames 601–720).
+"""Act V, "Happy Halloween" (frames 1153–1320).
 
-10 Friendship (601–672): the jack-o'-lantern turns to the ghost, then hops round to the lantern's side, leaving room;
+10 Friendship (1153–1236): the jack-o'-lantern turns to the ghost, then hops round to the lantern's side, leaving room;
    the ghost hesitates, then drifts over and settles on the other side. The camera pulls back.
-11 Finale (673–720): the room glows; the picture dissolves into the Held end card (added in assembly, from
+11 Finale (1237–1320): the room glows; the picture dissolves into the Held end card (added in assembly, from
    timeline.EV['endcard']).
 """
 import bpy, math
@@ -12,21 +12,21 @@ import animate, act2, act4
 import timeline as T
 
 E = T.EV
-BESIDE_L = Vector((0.72, 0.74))         # the pumpkin, left of the lantern
-BESIDE_R = Vector((1.17, 0.78))         # the ghost, right of it
+BESIDE_L = Vector((0.66, 0.70))         # the pumpkin, left of the lantern
+BESIDE_R = Vector((1.27, 0.84))         # the ghost, right of it: 32 cm from the lantern's centre (no overlap)
 
 
 def build(S, C):
     hero, gh, lan = C['hero'], C['ghost'], S['lantern']
     sc = bpy.context.scene
-    sc.frame_set(600)
+    sc.frame_set(1152)
     root, body = hero['root'], hero['body']
     groot, gbody = gh['root'], gh['body']
     z0 = gbody.location.z
-    D.hold(root, 601)
-    D.hold(groot, 601)
-    D.hold(gbody, 601)
-    # it turns to the ghost
+    D.hold(root, 1153)
+    D.hold(groot, 1153)
+    D.hold(gbody, 1153)
+    # it turns to the ghost, then hops round to the lantern's side
     ghost_now = Vector((groot.location.x, groot.location.y))
     D.turn(hero, *E['turn_ghost'], root.rotation_euler.z, D.heading(ghost_now - act2.AT_LAPTOP))
     mid = act2.AT_LAPTOP.lerp(BESIDE_L, 0.5)
@@ -47,22 +47,23 @@ def build(S, C):
     D.key(groot, 'location', a, (back.x, back.y, 0.0))
     D.key(groot, 'location', b, (BESIDE_R.x, BESIDE_R.y, 0.0))
     D.key(groot, 'rotation_euler', a, groot.rotation_euler.z, 2)
-    D.key(groot, 'rotation_euler', b, D.heading(act4.PKG.lerp(BESIDE_L, 0.5) - BESIDE_R), 2)
+    D.key(groot, 'rotation_euler', b, D.heading(Vector((0.45, 0.25)) - BESIDE_R), 2)      # it turns to us too
     a, b = E['settle']
     D.key(gbody, 'scale', a, (1, 1, 1))
-    D.key(gbody, 'scale', a + 4, (1.05, 1.05, 1.02))                         # a contented puff
+    D.key(gbody, 'scale', a + 4, (1.05, 1.05, 1.02))                                       # a contented puff
     D.key(gbody, 'scale', b, (1, 1, 1))
-    for f in range(b, 721, 12):
+    for f in range(b, T.FILM_END + 1, 12):
         D.key(gbody, 'location', f, z0 + 0.005 * math.sin(f * 0.5), 2)
     # the room glows a little warmer at the end
     glass = lan['glass'].node_tree
-    D.value_key(glass, 'glow', 672, 0.42)
-    D.value_key(glass, 'glow', 700, 0.55)
+    D.value_key(glass, 'glow', 1236, 0.42)
+    D.value_key(glass, 'glow', 1270, 0.55)
     lan['glow'].data.energy = 2.0
-    lan['glow'].data.keyframe_insert('energy', frame=672)
+    lan['glow'].data.keyframe_insert('energy', frame=1236)
     lan['glow'].data.energy = 2.8
-    lan['glow'].data.keyframe_insert('energy', frame=700)
-    animate.keep_on_floor(hero, 601, 720)
+    lan['glow'].data.keyframe_insert('energy', frame=1270)
+    animate.keep_on_floor(hero, 1153, T.FILM_END)
     tgt = (0.95, 0.80, 0.17)
-    D.cut('s10', 601, [(601, (0.34, 0.22, 0.26), tgt, 36), (672, (0.10, -0.25, 0.42), tgt, 32)], fstop=3.2)
-    D.cut('s11', 673, [(673, (0.10, -0.25, 0.42), tgt, 32), (720, (-0.18, -0.70, 0.62), tgt, 30)], fstop=4.0)
+    D.cut('s10_friendship', 1153, [(1153, (0.34, 0.22, 0.26), tgt, 36), (1236, (0.10, -0.25, 0.42), tgt, 32)], fstop=3.2)
+    D.cut('s11_finale', 1237, [(1237, (0.10, -0.25, 0.42), tgt, 32), (T.FILM_END, (-0.22, -0.78, 0.64), tgt, 30)],
+          fstop=4.0)

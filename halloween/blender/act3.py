@@ -1,93 +1,105 @@
-"""Act III, "The Held Surprise" (frames 289–456).
+"""Act III, "The Held Surprise" (frames 601–840).
 
-06 The attempt (289–360): close on the ghost, dissolving into smoke... cut to the laptop: the payment is held, the
-   lime badge pulses... cut back: the smoke snaps back, the ghost is whole again, jolted.
-07 The realization (361–456): close on the ghost: it sags (it can't take the money; it will only be paid once the
-   buyer confirms delivery), then straightens with reluctant resolve and turns to go and fetch the lantern. Then the
-   Held screen itself, clean and readable: payment held, the protection window, confirm or dispute.
+06a Vanish (601–640): the ghost dissolves into smoke, its phone hanging in the air before it.
+06b Refused (641–712): close on the phone: "Refused. Only the buyer can pay the merchant before the protection window
+    ends." Held's three notes.
+06c Snap (713–752): the smoke snaps back; the ghost is whole again, jolted: there is nothing to run away with.
+07  Realization (753–840): it slumps (it will be paid only when the buyer confirms delivery), draws itself up with
+    reluctant resolve, and floats off to fetch the lantern; the phone goes with it and is put away.
 """
 import bpy, math
 from mathutils import Vector
 import direct as D
-import act2
+import act2, cast, story_props as SP
 import timeline as T
 
-ATTEMPT, PULSE, SNAP = T.EV['attempt'], T.EV['pulse'], T.EV['snap']
-SAG, RESOLVE, TURN_GO = T.EV['sag'], T.EV['resolve'], T.EV['turn_go']
+E = T.EV
 
 
 def build(S, C, A2):
-    gh, L = C['ghost'], C['laptop']
+    gh, F = C['ghost'], C['phone']
     groot, gbody = gh['root'], gh['body']
     lin = bpy.data.materials['linen'].node_tree
     sm = bpy.data.materials['ghost_smoke'].node_tree
     z0 = gbody.location.z
-    bpy.context.scene.frame_set(288)
-    # ---- 06: it keeps dissolving, then snaps back whole
-    D.value_key(lin, 'dissolve', ATTEMPT[1], 0.62)
-    D.value_key(sm, 'amount', ATTEMPT[1], 1.0)
-    D.value_key(lin, 'dissolve', SNAP, 0.62)
-    D.value_key(lin, 'dissolve', SNAP + 5, 0.0)
-    D.value_key(sm, 'amount', SNAP, 1.0)
-    D.value_key(sm, 'amount', SNAP + 6, 0.0)
-    # the void inside shrinks away with the cloth, and comes back with it
+    sc = bpy.context.scene
+    sc.frame_set(600)
+    a, b = E['attempt']
+    snap = E['snap']
+    # ---- 06: it keeps dissolving, the phone refuses, it snaps back whole
+    D.value_key(lin, 'dissolve', b, 0.62)
+    D.value_key(sm, 'amount', b, 1.0)
+    D.value_key(lin, 'dissolve', snap, 0.62)
+    D.value_key(lin, 'dissolve', snap + 5, 0.0)
+    D.value_key(sm, 'amount', snap, 1.0)
+    D.value_key(sm, 'amount', snap + 6, 0.0)
     vd = gh['void']
-    D.key(vd, 'scale', ATTEMPT[0] + 8, (1, 1, 1))
-    D.key(vd, 'scale', ATTEMPT[1] - 4, (0.0, 0.0, 0.0))
-    D.key(vd, 'scale', SNAP, (0.0, 0.0, 0.0))
-    D.key(vd, 'scale', SNAP + 4, (1, 1, 1))
+    D.key(vd, 'scale', a + 8, (1, 1, 1))
+    D.key(vd, 'scale', b - 4, (0.0, 0.0, 0.0))
+    D.key(vd, 'scale', snap, (0.0, 0.0, 0.0))
+    D.key(vd, 'scale', snap + 4, (1, 1, 1))
     for w in A2['wisps']:
-        D.key(w, 'scale', ATTEMPT[1], (1.6, 1.6, 1.6))
-        D.key(w, 'scale', SNAP, (1.6, 1.6, 1.6))
-        D.key(w, 'scale', SNAP + 6, (0.2, 0.2, 0.2))
-    # the jolt: a jump up, a stretch, spun back round to the laptop
+        D.key(w, 'scale', b, (1.6, 1.6, 1.6))
+        D.key(w, 'scale', snap, (1.6, 1.6, 1.6))
+        D.key(w, 'scale', snap + 6, (0.2, 0.2, 0.2))
+    SP.set_screen(F, 'phone_refused', E['refused'])
+    # the phone: it stays where it was left, then jolts as the refusal lands
+    ph = F['root']
+    hx, hy, hz = act2.PHONE_AT
+    rest = (hx, hy, z0 + hz)
+    D.key(ph, 'location', E['refused'] - 1, rest)
+    D.key(ph, 'location', E['refused'] + 2, (hx, hy, z0 + hz + 0.01))
+    D.key(ph, 'location', E['refused'] + 6, rest)
+    # the jolt: a jump up, a stretch, spun back round to face the room (and the phone)
     look = D.heading(act2.ROOM - act2.GHOST)
-    D.key(groot, 'rotation_euler', SNAP, groot.rotation_euler.z, 2)
-    D.key(groot, 'rotation_euler', SNAP + 4, look, 2)
-    D.key(gbody, 'location', SNAP, z0, 2)
-    D.key(gbody, 'location', SNAP + 3, z0 + 0.035, 2)
-    D.key(gbody, 'location', SNAP + 12, z0 + 0.01, 2)
-    D.key(gbody, 'scale', SNAP, (1, 1, 1))
-    D.key(gbody, 'scale', SNAP + 3, (0.94, 0.94, 1.1))
-    D.key(gbody, 'scale', SNAP + 10, (1, 1, 1))
-    D.key(gbody, 'rotation_euler', SNAP, 0.0, 0)
-    D.key(gbody, 'rotation_euler', SNAP + 3, math.radians(-8), 0)          # recoils, head back
-    D.key(gbody, 'rotation_euler', SNAP + 14, math.radians(-3), 0)
-    # the laptop: the held badge pulses lime
-    held = bpy.data.materials['screen_held'].node_tree
-    for f, v in ((PULSE[0], 1.1), (PULSE[0] + 5, 1.9), (PULSE[0] + 11, 1.2), (PULSE[1], 1.1)):
-        D.value_key(held, 'brightness', f, v)
+    D.key(groot, 'rotation_euler', snap, groot.rotation_euler.z, 2)
+    D.key(groot, 'rotation_euler', snap + 4, look, 2)
+    D.key(gbody, 'location', snap, z0, 2)
+    D.key(gbody, 'location', snap + 3, z0 + 0.035, 2)
+    D.key(gbody, 'location', snap + 12, z0 + 0.01, 2)
+    D.key(gbody, 'scale', snap, (1, 1, 1))
+    D.key(gbody, 'scale', snap + 3, (0.94, 0.94, 1.1))
+    D.key(gbody, 'scale', snap + 10, (1, 1, 1))
+    D.key(gbody, 'rotation_euler', snap, 0.0, 0)
+    D.key(gbody, 'rotation_euler', snap + 3, math.radians(-8), 0)
+    D.key(gbody, 'rotation_euler', snap + 14, math.radians(-3), 0)
     head = Vector((act2.GHOST.x, act2.GHOST.y, act2.PEEK_Z + z0))
-    D.cut('s06a', ATTEMPT[0], [(ATTEMPT[0], (1.10, -0.60, 1.16), tuple(head + Vector((0, 0, -0.06))), 55),
-                               (ATTEMPT[1], (1.12, -0.52, 1.15), tuple(head + Vector((0, 0, -0.06))), 66)], fstop=2.4)
-    c, n = D.screen_center(L, 'held')
-    D.cut('s06b', PULSE[0], [(PULSE[0], tuple(c + n * 0.30 + Vector((0.05, 0, 0.0))), tuple(c), 50),
-                             (PULSE[1], tuple(c + n * 0.27 + Vector((0.045, 0, 0.0))), tuple(c), 50)], fstop=3.5)
-    D.cut('s06c', SNAP, [(SNAP, (1.02, -0.78, 1.08), tuple(head + Vector((0, 0, -0.03))), 48),
-                         (360, (1.04, -0.74, 1.09), tuple(head + Vector((0, 0, -0.03))), 50)], fstop=2.4)
+    D.cut('s06a_vanish', a, [(a, (1.10, -0.60, 1.16), tuple(head + Vector((0, 0, -0.06))), 50),
+                             (b, (1.12, -0.52, 1.15), tuple(head + Vector((0, 0, -0.06))), 58)], fstop=2.4)
+    sc.frame_set(E['refused'] + 10)
+    scr = F['screens']['phone_refused']
+    p0, pc = D.screen_view(scr, 0.36, turn_deg=-24, up=0.04, aim_up=0.035)
+    p1, _ = D.screen_view(scr, 0.30, turn_deg=-22, up=0.04, aim_up=0.035)
+    cam = D.cut('s06b_refused', E['refused'], [(E['refused'], p0, pc, 50), (712, p1, pc, 50)], fstop=4.0)
+    cam.data.clip_start = 0.27          # clip away the ghost's cloth between the camera and the phone
+    D.cut('s06c_snap', snap, [(snap, (1.02, -0.78, 1.08), tuple(head + Vector((0, 0, -0.03))), 46),
+                              (752, (1.04, -0.74, 1.09), tuple(head + Vector((0, 0, -0.03))), 48)], fstop=2.4)
 
     # ---- 07: the realization
-    D.key(gbody, 'location', SAG[0], z0 + 0.01, 2)
-    D.key(gbody, 'location', SAG[1], z0 - 0.03, 2)                         # it sinks
-    D.key(gbody, 'scale', SAG[0], (1, 1, 1))
-    D.key(gbody, 'scale', SAG[1], (1.04, 1.04, 0.92))                      # slumps
-    D.key(gbody, 'rotation_euler', SAG[0], math.radians(-3), 0)
-    D.key(gbody, 'rotation_euler', SAG[1], math.radians(10), 0)            # head drops forward
-    D.key(gbody, 'rotation_euler', RESOLVE[0], math.radians(10), 0)
-    D.key(gbody, 'location', RESOLVE[0], z0 - 0.03, 2)
-    D.key(gbody, 'scale', RESOLVE[0], (1.04, 1.04, 0.92))
-    D.key(gbody, 'location', RESOLVE[1], z0 + 0.01, 2)                     # draws itself up
-    D.key(gbody, 'scale', RESOLVE[1], (0.98, 0.98, 1.04))
-    D.key(gbody, 'rotation_euler', RESOLVE[1], math.radians(-2), 0)
-    D.key(gbody, 'scale', RESOLVE[1] + 6, (1, 1, 1))
-    door = look - math.radians(200)                                        # towards the door, off right
-    D.key(groot, 'rotation_euler', TURN_GO[0], look, 2)
-    D.key(groot, 'rotation_euler', TURN_GO[1], door, 2)
-    D.key(groot, 'location', TURN_GO[0], (act2.GHOST.x, act2.GHOST.y, act2.PEEK_Z), -1)
-    D.key(groot, 'location', 440, (act2.GHOST.x + 0.6, act2.GHOST.y - 0.2, act2.PEEK_Z - 0.2), -1)
-    D.cut('s07a', 361, [(361, (1.08, -0.66, 1.18), tuple(head + Vector((0, 0, -0.05))), 60),
-                        (420, (1.12, -0.56, 1.16), tuple(head + Vector((0, 0, -0.07))), 72)], fstop=2.2)
-    # the Held screen, square on and readable, a slow push
-    up = Vector((0, 0, 0.13))                                # over the pumpkin's stem, looking down a touch
-    D.cut('s07b', 421, [(421, tuple(c + n * 0.50 + up), tuple(c), 50), (456, tuple(c + n * 0.45 + up * 0.9), tuple(c), 50)],
-          fstop=5.6)
+    a, b = E['sag']
+    D.key(gbody, 'location', a, z0 + 0.01, 2)
+    D.key(gbody, 'location', b, z0 - 0.03, 2)                          # it sinks
+    D.key(gbody, 'scale', a, (1, 1, 1))
+    D.key(gbody, 'scale', b, (1.04, 1.04, 0.92))                       # slumps
+    D.key(gbody, 'rotation_euler', a, math.radians(-3), 0)
+    D.key(gbody, 'rotation_euler', b, math.radians(10), 0)             # head drops forward, over the phone
+    c, d = E['resolve']
+    D.key(gbody, 'rotation_euler', c, math.radians(10), 0)
+    D.key(gbody, 'location', c, z0 - 0.03, 2)
+    D.key(gbody, 'scale', c, (1.04, 1.04, 0.92))
+    D.key(gbody, 'location', d, z0 + 0.01, 2)                          # draws itself up
+    D.key(gbody, 'scale', d, (0.98, 0.98, 1.04))
+    D.key(gbody, 'rotation_euler', d, math.radians(-2), 0)
+    D.key(gbody, 'scale', d + 6, (1, 1, 1))
+    # it puts the phone away (down out of sight), turns towards the door and goes
+    D.key(ph, 'location', d, rest)
+    D.key(ph, 'location', d + 10, (hx, hy, z0 + hz - 0.30))
+    cast.show(ph, False, d + 11)
+    e, f = E['turn_go']
+    door = look - math.radians(200)
+    D.key(groot, 'rotation_euler', e, look, 2)
+    D.key(groot, 'rotation_euler', f, door, 2)
+    D.key(groot, 'location', e, (act2.GHOST.x, act2.GHOST.y, act2.PEEK_Z), -1)
+    D.key(groot, 'location', 840, (act2.GHOST.x + 0.8, act2.GHOST.y - 0.25, act2.PEEK_Z - 0.25), -1)
+    D.cut('s07_realization', 753, [(753, (1.08, -0.66, 1.18), tuple(head + Vector((0, 0, -0.05))), 55),
+                                   (840, (1.12, -0.56, 1.16), tuple(head + Vector((0, 0, -0.07))), 66)], fstop=2.2)

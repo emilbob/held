@@ -93,6 +93,15 @@ def thump(r):
     return body + flap
 
 
+def buzz(r, dur=0.5):
+    """A phone's refusal buzz: two short low vibrations."""
+    t = t_axis(dur)
+    env = ((t < 0.16) | ((t > 0.24) & (t < 0.40))).astype(float)
+    env = lp(env, 60)
+    x = np.sin(2 * np.pi * 150 * t) * (0.6 + 0.4 * np.sin(2 * np.pi * 37 * t))
+    return lp(x * env, 900)
+
+
 def effects(dur, tl):
     ev = tl['ev']
     r = rng(31)
@@ -101,21 +110,26 @@ def effects(dur, tl):
         bus.add(sfx.footstep(r, 0.9) * 0.5, sec(b), pan=0.48)
     for f in (ev['tap1'], ev['tap2']):
         bus.add(click(r), sec(f), 0.5, pan=0.5)
-    bus.add(tone(midi(81), 0.35, 0.4), sec(ev['tap1']) + 0.06, 0.25, 0.52)                       # page opens
+    bus.add(tone(midi(81), 0.35, 0.4), sec(ev['tap1']) + 0.06, 0.25, 0.52)                       # the checkout opens
     s2 = sec(ev['tap2']) + 0.08
-    bus.add(tone(midi(81), 0.5, 0.45) + 0, s2, 0.3, 0.52)                                       # confirm: A5 → D6
+    bus.add(tone(midi(81), 0.5, 0.45), s2, 0.3, 0.52)                                           # paid and held: A5 → D6
     bus.add(tone(midi(86), 0.8, 0.45), s2 + 0.11, 0.3, 0.52)
     bus.add(lp(whoosh(r, 0.6, 200, 900), 1200) * 0.05, sec(ev['tap2']) + 0.02, pan=0.5)         # the candle flares
-    # the ghost: rising air, giggle, the whoosh as it turns, the hiss of dissolving
+    # the ghost: rising air; its phone floats up; the tap; the giggle; the whoosh as it turns; the hiss of dissolving
     a, b = ev['rise']
     bus.add(whoosh(r, sec(b) - sec(a) + 0.3, 300, 1400, rise=0.7) * 0.05, sec(a), pan=0.62)
+    a, b = ev['phone_up']
+    bus.add(lp(whoosh(r, sec(b) - sec(a) + 0.2, 600, 2200, rise=0.6), 2500) * 0.03, sec(a), pan=0.6)
+    bus.add(click(r, 0.7), sec(ev['tap_early']), 0.45, pan=0.6)
     bus.add(giggle(r) * 0.07, sec(ev['glee'][0]) + 0.05, pan=0.6)
     bus.add(whoosh(r, 0.7, 2500, 500, rise=0.25) * 0.09, sec(ev['leave']), pan=0.6)
-    a, b = ev['attempt']
-    hiss = whoosh(r, sec(ev['pulse'][0]) - sec(ev['leave']) - 0.2, 1500, 5000, rise=0.85)
+    rf = sec(ev['refused'])
+    hiss = whoosh(r, rf - sec(ev['leave']) - 0.1, 1500, 5000, rise=0.85)
     bus.add(hp(hiss, 1200) * 0.04, sec(ev['leave']) + 0.2, pan=0.6)
-    # the held badge pings
-    bus.add(tone(midi(88), 0.7, 0.4), sec(ev['pulse'][0]) + 0.2, 0.22, 0.5)
+    # refused: the phone buzzes, a low falling two-note
+    bus.add(buzz(r) * 0.18, rf, pan=0.55)
+    bus.add(tone(midi(69), 0.5, 0.45), rf + 0.05, 0.25, 0.55)
+    bus.add(tone(midi(62), 0.9, 0.45), rf + 0.2, 0.25, 0.55)
     # snap back: a reversed rush into a thump
     rush = whoosh(r, 0.35, 5000, 400, rise=0.9)
     bus.add(rush * 0.08, sec(ev['snap']) - 0.3, pan=0.6)
@@ -152,41 +166,50 @@ def score(dur, tl):
     r = rng(17)
     bus = Bus(dur)
     beat = 8 / 24
-    # Act II, the purchase (6.0–9.0): a light, curious pizzicato over a Dm pad continuing Act I's warmth
-    bus.add(music.strings([50, 57, 62, 65], 3.0, attack=0.4, release=0.8, seed=21, bright=1300), 6.0, 0.22, 0.5)
+    a2 = tl['acts']['2'][0]
+    s0 = sec(a2)
+    t1, t2 = sec(ev['tap1']), sec(ev['tap2'])
+    rise = sec(ev['rise'][0])
+    # Act II, the purchase: curious and warm. Dm under the shop, Bbmaj7 under the checkout, an open D add9 once held.
+    bus.add(music.strings([50, 57, 62, 65], t1 - s0 + 0.3, attack=0.4, release=0.8, seed=21, bright=1300), s0, 0.22, 0.5)
+    bus.add(music.strings([46, 53, 57, 62], t2 - t1 + 0.3, attack=0.5, release=0.8, seed=27, bright=1300), t1, 0.22, 0.5)
+    bus.add(music.strings([50, 57, 62, 64, 69], rise - t2 + 0.6, attack=0.5, release=1.0, seed=28, bright=1600), t2, 0.2,
+            0.5)
     for i, nt in enumerate([62, 65, 69, 67, 65, 64]):
-        bus.add(music.pizz(nt, 0.8, 0.5, r), 6.05 + i * beat, 0.45, 0.45 + 0.04 * (i % 3))
-    bus.add(music.celesta(86, 2.0, 0.35, r), sec(ev['tap2']) + 0.25, 0.3, 0.55)
-    # the trick (9.0–12.0): a sneaky staccato line, low reed answering
-    t0 = sec(ev['rise'][0])
-    sneak = [50, 53, 52, 57, 50, 53, 56, 57, 58, 57, 56, 55]          # D F E A | D F G# A | Bb A G# G
-    for i, nt in enumerate(sneak):
-        bus.add(music.pizz(nt, 0.6, 0.6, r), t0 + i * beat * 0.75, 0.5, 0.4 + 0.05 * (i % 2))
-    for k, (nt, d) in enumerate(((38, 0.45), (41, 0.45), (40, 0.45), (45, 0.9))):
-        bus.add(reed(nt, d, 0.55), t0 + 0.75 + k * beat * 1.5, 0.35, 0.55)
-    # the stab as it turns to leave
+        bus.add(music.pizz(nt, 0.8, 0.5, r), s0 + 0.05 + i * beat, 0.45, 0.45 + 0.04 * (i % 3))
+    for i, nt in enumerate([65, 69, 70, 69, 67, 65]):                     # the checkout: the line climbs
+        bus.add(music.pizz(nt, 0.8, 0.45, r), t1 + 0.4 + i * beat * 1.5, 0.4, 0.5 + 0.04 * (i % 2))
+    bus.add(music.celesta(86, 2.0, 0.35, r), t1 + 0.1, 0.25, 0.55)
+    bus.add(music.celesta(86, 2.0, 0.35, r) + music.celesta(90, 2.0, 0.3, r), t2 + 0.25, 0.3, 0.55)
+    # the trick: a sneaky staccato line, low reed answering, twice (rise, then the phone)
+    for t0 in (rise, sec(ev['phone_up'][1])):
+        sneak = [50, 53, 52, 57, 50, 53, 56, 57, 58, 57, 56, 55]          # D F E A | D F G# A | Bb A G# G
+        for i, nt in enumerate(sneak):
+            bus.add(music.pizz(nt, 0.6, 0.6, r), t0 + i * beat * 0.75, 0.48, 0.4 + 0.05 * (i % 2))
+        for k, (nt, d) in enumerate(((38, 0.45), (41, 0.45), (40, 0.45), (45, 0.9))):
+            bus.add(reed(nt, d, 0.55), t0 + 0.75 + k * beat * 1.5, 0.33, 0.55)
+    bus.add(music.pizz(69, 0.8, 0.7, r) + music.pizz(74, 0.8, 0.6, r), sec(ev['tap_early']) + 0.02, 0.45)
+    # the stab as it turns to slip away
     stab = sec(ev['leave'])
     bus.add(music.strings([38, 50, 53, 57, 62], 0.35, attack=0.01, release=0.3, seed=22, vel=0.8, bright=2600), stab, 0.45)
     bus.add(music.piano(38, 2.0, 0.6, r) + music.piano(50, 2.0, 0.5, r), stab, 0.4)
-    # Act III: tremolo suspense under the dissolve, then nothing
+    # Act III: tremolo suspense under the dissolve, cut dead by the refusal
     a = sec(ev['attempt'][0]) - 0.3
-    p = sec(ev['pulse'][0])
+    p = sec(ev['refused'])
     trem = music.strings([69, 74, 75], p - a, attack=0.5, release=0.05, seed=23, vel=0.5, bright=3000)
     tt = np.arange(len(trem)) / SR
     trem *= 0.6 + 0.4 * np.sin(2 * np.pi * 11 * tt)
     trem[int((p - a) * SR):] = 0
     bus.add(trem, a, 0.3, 0.5)
-    # the snap: a low hit
-    s = sec(ev['snap'])
-    bus.add(music.piano(26, 2.5, 0.7, r) + music.piano(38, 2.5, 0.5, r), s + 0.02, 0.45)
-    # slump and resolve: low strings sinking, then rising
-    bus.add(music.strings([45, 52, 57, 60], sec(ev['resolve'][0]) - s, attack=0.6, release=0.4, seed=24, bright=900),
-            s + 0.4, 0.3, 0.5)
-    bus.add(music.strings([47, 54, 59, 62], sec(ev['screen']) - sec(ev['resolve'][0]), attack=0.4, release=0.4, seed=25,
-                          bright=1300), sec(ev['resolve'][0]), 0.28, 0.5)
-    # the Held screen: the signature over a soft, open pad
-    sg = sec(ev['screen'])
-    end3 = tl['acts']['3'][1] / 24                                       # the pad ends with Act III
-    bus.add(music.strings([50, 57, 62, 64, 69], end3 - sg + 0.3, attack=0.5, release=1.0, seed=26, bright=1800), sg, 0.18)
-    signature(sg + 0.25, bus)
+    # Held's signature on the refusal, over a soft open pad until the snap
+    sg = sec(ev['signature'])
+    sn = sec(ev['snap'])
+    bus.add(music.strings([50, 57, 62, 64, 69], sn - sg + 0.2, attack=0.5, release=0.6, seed=26, bright=1800), sg, 0.18)
+    signature(sg, bus)
+    # the snap: a low hit; slump and resolve: low strings sinking, then rising
+    bus.add(music.piano(26, 2.5, 0.7, r) + music.piano(38, 2.5, 0.5, r), sn + 0.02, 0.45)
+    rs = sec(ev['resolve'][0])
+    bus.add(music.strings([45, 52, 57, 60], rs - sn, attack=0.6, release=0.4, seed=24, bright=900), sn + 0.4, 0.3, 0.5)
+    end3 = tl['acts']['3'][1] / 24
+    bus.add(music.strings([47, 54, 59, 62], end3 - rs + 0.3, attack=0.4, release=0.5, seed=25, bright=1300), rs, 0.28, 0.5)
     return bus

@@ -1,8 +1,8 @@
-"""Acts IV–V sound (19–30 s), on the beats in timeline.EV.
+"""Acts IV–V sound (35–55 s), on the beats in timeline.EV.
 
 Effects: three knocks at the door (off right), the ghost's air as it floats in, the package set down (a hollow
-cardboard thud), the pumpkin's hops, the twine whisking off, the lid lifting (a papery scrape), four cardboard walls
-flopping open, the lantern's reveal (a warm cascade), the trackpad click and the release chime, the ghost's soft
+cardboard thud), the pumpkin's hops, the twine whisking off, the cover sliding up off the lantern (a papery scrape
+and air), the lantern's reveal (a warm cascade), the trackpad click and the release chime, the ghost's soft
 laugh at the end.
 Music: the knock cuts Act III's pad; a curious pizzicato as the ghost comes in; a warm D-major swell on the reveal
 (strings, piano, celesta); a gentle resolution for the two of them by the lantern, with bells; and Held's signature
@@ -60,16 +60,18 @@ def effects(dur, tl):
     bus.add(sfx.footstep(r, 0.6) * 0.4, sec(ev['joy'][1]), pan=0.5)
     a, b = ev['twine']
     bus.add(hp(whoosh(r, sec(b) - sec(a), 1800, 5000, rise=0.3), 1500) * 0.05, sec(a), pan=0.6)
-    bus.add(paper(r, 0.5), sec(ev['lid'][0]), 0.6, pan=0.6)
-    a, b = ev['walls']
-    for k in range(4):
-        bus.add(paper(r, 0.25), sec(a + k) + 0.02, 0.4, pan=0.45 + 0.1 * k)
-        bus.add(cardboard(r, 0.6) * 0.35, sec(b + k - 1), pan=0.45 + 0.1 * k)
-    cascade(sec(ev['walls'][1]) + 0.05, bus, [74, 78, 81, 86, 90, 93], gain=0.09, r=r)       # D F# A D F# A: the reveal
+    a, b = ev['cover']
+    bus.add(paper(r, 0.6), sec(a), 0.6, pan=0.6)                                      # the cover slides up off the base
+    bus.add(lp(whoosh(r, sec(b) - sec(a), 500, 1600, rise=0.5), 2000) * 0.05, sec(a) + 0.2, pan=0.62)
+    cascade(sec(ev['glow'][0]) + 0.05, bus, [74, 78, 81, 86, 90, 93], gain=0.09, r=r)       # D F# A D F# A: the reveal
     bus.add(click(r), sec(ev['confirm']), 0.5, pan=0.5)
     s = sec(ev['confirm']) + 0.08
     for k, nt in enumerate((81, 86, 90)):                                             # A5 D6 F#6: released
         bus.add(tone(midi(nt), 0.9, 0.45), s + k * 0.1, 0.3, 0.5)
+    pp = sec(ev['phone_paid'])
+    bus.add(tone(midi(78), 0.6, 0.4), pp + 0.3, 0.25, 0.6)                           # the ghost's phone: paid
+    bus.add(tone(midi(83), 1.0, 0.4), pp + 0.42, 0.25, 0.6)
+    bus.add(giggle(r, n=3, start_f=360) * 0.05, pp + 0.9, pan=0.62)
     laugh = giggle(r, n=5, start_f=330)
     bus.add(laugh * 0.05, sec(ev['settle'][0]) + 0.1, pan=0.62)
     return bus
@@ -84,9 +86,9 @@ def score(dur, tl):
     a = sec(ev['enter'][0])
     for i, nt in enumerate([62, 66, 69, 67, 66, 64, 62, 60, 62]):
         bus.add(music.pizz(nt, 0.7, 0.5, r), a + i * beat * 0.75, 0.42, 0.45 + 0.04 * (i % 3))
-    bus.add(music.strings([50, 57, 62], sec(ev['walls'][0]) - a, attack=0.6, release=0.6, seed=31, bright=1200), a, 0.18)
+    bus.add(music.strings([50, 57, 62], sec(ev['cover'][0]) - a, attack=0.6, release=0.6, seed=31, bright=1200), a, 0.18)
     # the reveal: a warm D major swell, piano and celesta
-    rv = sec(ev['walls'][1])
+    rv = sec(ev['glow'][0])
     bus.add(music.strings([38, 50, 57, 62, 66, 69, 74], sec(ev['turn_ghost'][0]) - rv + 0.6, attack=0.7, release=1.0,
                           seed=32, bright=2600), rv - 0.3, 0.32)
     bus.add(music.piano(38, 3.0, 0.5, r) + music.piano(50, 3.0, 0.4, r), rv, 0.45)

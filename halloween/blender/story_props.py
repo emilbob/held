@@ -1,7 +1,9 @@
 """The film's story props: the laptop that shows the Held checkout, and the wrapped package the ghost delivers.
 
 Laptop rig: root (on the floor, heading) → base (keyboard, trackpad) → lid (hinge, rotation x = opening) → one screen
-plane per page in ui/png, shown with set_screen(). Package rig: root → box, lid (lifts off), twine + bow (slide off).
+plane per page in ui/png, shown with set_screen(). Phone (the ghost's): root → body + one screen plane per page, shown
+with set_screen() too. Package rig: root → base (the lantern stands on it), cover (walls + lid + the HELD print, lifts
+off in one piece), twine + bow (float off).
 """
 import bpy, bmesh, math, os
 from mathutils import Vector
@@ -191,36 +193,80 @@ def _bow(mat, c):
     return obs
 
 
+def stamp_mat(name='package_stamp'):
+    """The HELD print on the kraft: the image's alpha cuts it out, ink sits matte on the paper."""
+    m, nt, bsdf, out = node_mat(name)
+    tx = nt.nodes.new('ShaderNodeTexImage')
+    tx.image = img(os.path.join(UI, 'package_stamp.png'))
+    nt.links.new(tx.outputs['Color'], bsdf.inputs['Base Color'])
+    nt.links.new(tx.outputs['Alpha'], bsdf.inputs['Alpha'])
+    bsdf.inputs['Roughness'].default_value = 0.7
+    m.surface_render_method = 'DITHERED'
+    return m
+
+
 def build_package(M, loc, rz=0.0, c='Package'):
-    """The delivery: a tall kraft-wrapped box. Its four walls are hinged at the bottom so they can fall open outward
-    (P['walls'][side] = hinge empty, rotation 'open' = 90° about its axis); the lid lifts off; the twine slides off.
-    The lantern stands inside on the base (the act moves it there)."""
+    """The delivery: a tall kraft box printed with HELD. P['cover'] (four walls and the lid in one piece) lifts off;
+    the lantern stands inside on P['base'] (the act moves it there); P['twine'] floats off first."""
     kraft = M.setdefault('kraft', kraft_mat())
     tw = M.setdefault('twine', twine_mat())
+    st = M.setdefault('package_stamp', stamp_mat())
     P = {}
     root = P['root'] = empty('package_root', loc, c)
     root.rotation_euler = (0, 0, rz)
     base = box('package_base', PW, PD, WALL, (0, 0, 0), bevel=0.0015, mat=kraft, c=c, origin='bottom')
     base.parent = root
-    h = PH - LID_H + 0.006                         # the walls run up under the lid
-    P['walls'] = {}
-    # side: (hinge position, wall size (x, y), open rotation axis index, open angle)
-    sides = {
-        'front': ((0, -PD / 2, 0), (PW, WALL), 0, math.radians(92)),     # falls towards -Y
-        'back': ((0, PD / 2, 0), (PW, WALL), 0, math.radians(-92)),
-        'left': ((-PW / 2, 0, 0), (WALL, PD - 2 * WALL), 1, math.radians(-92)),
-        'right': ((PW / 2, 0, 0), (WALL, PD - 2 * WALL), 1, math.radians(92)),
-    }
-    for side, (pos, (sx, sy), axis, ang) in sides.items():
-        hg = empty(f'package_hinge_{side}', pos, c, root)
-        inward = Vector(pos).normalized() * (-WALL / 2)
-        w = box(f'package_wall_{side}', sx, sy, h, tuple(inward), bevel=0.0015, mat=kraft, c=c, origin='bottom')
-        w.parent = hg
-        P['walls'][side] = (hg, axis, ang)
-    lid = P['lid'] = empty('package_lid', (0, 0, PH - LID_H), c, root)
-    lb = box('package_lidbox', PW + 0.006, PD + 0.006, LID_H, (0, 0, 0), bevel=0.0025, mat=kraft, c=c, origin='bottom')
-    lb.parent = lid
+    cover = P['cover'] = empty('package_cover', (0, 0, 0), c, root)
+    h = PH - LID_H + 0.006
+    for side, (pos, (sx, sy)) in {'front': ((0, -PD / 2 + WALL / 2, 0), (PW, WALL)),
+                                  'back': ((0, PD / 2 - WALL / 2, 0), (PW, WALL)),
+                                  'left': ((-PW / 2 + WALL / 2, 0, 0), (WALL, PD - 2 * WALL)),
+                                  'right': ((PW / 2 - WALL / 2, 0, 0), (WALL, PD - 2 * WALL))}.items():
+        w = box(f'package_wall_{side}', sx, sy, h, pos, bevel=0.0015, mat=kraft, c=c, origin='bottom')
+        w.parent = cover
+    lb = box('package_lidbox', PW + 0.006, PD + 0.006, LID_H, (0, 0, PH - LID_H), bevel=0.0025, mat=kraft, c=c,
+             origin='bottom')
+    lb.parent = cover
+    # the print: on the front and the right side, a little below the lid
+    sw, sh = PW * 0.78, PW * 0.78 / 2
+    for side, (loc_, rot) in {'front': ((0, -PD / 2 - 0.0006, h * 0.52), 0.0),
+                              'right': ((PW / 2 + 0.0006, 0, h * 0.52), math.radians(90))}.items():
+        q = quad(f'package_print_{side}', sw, sh, st, c)
+        q.parent = cover
+        q.location = loc_
+        q.rotation_euler = (0, 0, rot)
+        q.location.z -= sh / 2
     tw_root = P['twine'] = empty('package_twine', (0, 0, 0), c, root)
     for ob in [_band('package_twine_x', 'x', tw, c), _band('package_twine_y', 'y', tw, c)] + _bow(tw, c):
         ob.parent = tw_root
     return P
+
+
+# ---------------------------------------------------------------- the ghost's phone
+
+PHONE_PAGES = ['phone_held', 'phone_busy', 'phone_refused', 'phone_paid']
+PHW, PHH, PHT = 0.072, 0.150, 0.008     # a modern phone, portrait
+
+
+def build_phone(M, c='Phone'):
+    """A phone in dark titanium with a black glass face; its screen shows the merchant's Held dashboard. Local: the
+    screen faces -Y, the phone stands upright (long side along Z); its origin is its centre."""
+    frame = M.setdefault('phone_frame', simple('phone_frame', (0.07, 0.07, 0.075), 0.3, metal=0.9, rough_var=0.05,
+                                               var_scale=300))
+    glass = M.setdefault('laptop_bezel', simple('laptop_bezel', (0.004, 0.004, 0.005), 0.05, spec=0.6))
+    F = {}
+    root = F['root'] = empty('phone_root', (0, 0, 0), c)
+    body = box('phone_body', PHW, PHT, PHH, (0, 0, 0), bevel=0.009, mat=frame, c=c, segs=6)
+    body.parent = root
+    face = box('phone_face', PHW - 0.003, 0.0006, PHH - 0.003, (0, -PHT / 2 - 0.0002, 0), bevel=0.008, mat=glass, c=c, segs=6)
+    face.parent = root
+    sw = PHW - 0.008
+    shh = sw * 2340 / 1080
+    F['screens'] = {}
+    for i, page in enumerate(PHONE_PAGES):
+        q = quad('phone_screen_' + page, sw, shh, M.setdefault('screen_' + page, screen_mat(page)), c)
+        q.parent = root
+        q.location = (0, -PHT / 2 - 0.0007 - i * 0.00002, -shh / 2)
+        F['screens'][page] = q
+    set_screen(F, 'phone_held')
+    return F

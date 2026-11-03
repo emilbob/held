@@ -117,3 +117,24 @@ def screen_center(L, page):
     c = mw @ Vector((0, 0, dh / 2))
     n = (mw.to_3x3() @ Vector((0, -1, 0))).normalized()
     return c, n
+
+
+def front(h):
+    """The 2D direction a rig with heading h faces."""
+    return Vector((math.sin(h), -math.cos(h)))
+
+
+def screen_view(ob, dist, side=0.0, up=0.0, turn_deg=0.0, aim_up=0.0):
+    """A camera position looking square-on at a screen plane `ob` (a quad facing its local -Y, origin at its bottom or
+    centre), dist away along its normal, optionally swung turn_deg around the vertical and shifted. Returns (pos, centre)."""
+    bpy.context.view_layer.update()
+    mw = ob.matrix_world
+    bb = [mw @ Vector(c) for c in ob.bound_box]
+    c = sum(bb, Vector()) / 8
+    n = (mw.to_3x3() @ Vector((0, -1, 0))).normalized()
+    if turn_deg:
+        from mathutils import Matrix
+        n = Matrix.Rotation(math.radians(turn_deg), 3, 'Z') @ n
+    sidev = n.cross(Vector((0, 0, 1))).normalized()
+    c = c + (mw.to_3x3() @ Vector((0, 0, 1))).normalized() * aim_up        # aim above centre (where a page's content is)
+    return tuple(c + n * dist + sidev * side + Vector((0, 0, up))), tuple(c)

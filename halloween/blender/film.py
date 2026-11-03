@@ -30,6 +30,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--still', type=int)
     ap.add_argument('--frames')
+    ap.add_argument('--list', help='comma-separated frames, each written as <out>/fNNNN.png')
     ap.add_argument('--out')
     ap.add_argument('--pct', type=int, default=66)
     ap.add_argument('--samples', type=int, default=64)
@@ -70,6 +71,11 @@ def main():
         t0 = time.time()
         bpy.ops.render.render(write_still=True)
         print(f'RENDER_TIME {time.time() - t0:.1f}s')
+    elif a.list:
+        for f in map(int, a.list.split(',')):
+            sc.frame_set(f)
+            sc.render.filepath = os.path.join(os.path.abspath(a.out), f'f{f:04d}.png')
+            bpy.ops.render.render(write_still=True)
     elif a.frames:
         f0, f1 = map(int, a.frames.split('-'))
         sc.frame_start, sc.frame_end = f0, f1

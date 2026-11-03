@@ -7,7 +7,7 @@ off in one piece), twine + bow (float off).
 """
 import bpy, bmesh, math, os
 from mathutils import Vector
-from lib import box, empty, mesh_obj, node_mat, noise, map_range, mix_rgb, simple, tube, img, rng, subsurf, ROOT
+from lib import box, empty, mesh_obj, lathe, node_mat, noise, map_range, mix_rgb, simple, tube, img, rng, subsurf, ROOT
 
 UI = os.path.join(ROOT, 'ui', 'png')
 PAGES = ['shop', 'checkout', 'held', 'released']
@@ -21,13 +21,14 @@ def aluminium():
 
 
 def screen_mat(page):
-    """The display: black glass with the page as emission (an LCD in a dark room glows, and reflects a little)."""
+    """The display: the page as emission on matte black (no reflections over the text)."""
     m, nt, bsdf, out = node_mat('screen_' + page)
     tx = nt.nodes.new('ShaderNodeTexImage')
     tx.image = img(os.path.join(UI, page + '.png'))
     tx.interpolation = 'Cubic'
     bsdf.inputs['Base Color'].default_value = (0.005, 0.005, 0.006, 1)
-    bsdf.inputs['Roughness'].default_value = 0.08
+    bsdf.inputs['Roughness'].default_value = 0.6
+    bsdf.inputs['Specular IOR Level'].default_value = 0.0         # no glints of the candles over the text
     nt.links.new(tx.outputs['Color'], bsdf.inputs['Emission Color'])
     st = nt.nodes.new('ShaderNodeValue')
     st.name = 'brightness'
@@ -227,17 +228,13 @@ def build_package(M, loc, rz=0.0, c='Package'):
     lb = box('package_lidbox', PW + 0.006, PD + 0.006, LID_H, (0, 0, PH - LID_H), bevel=0.0025, mat=kraft, c=c,
              origin='bottom')
     lb.parent = cover
-    # the print: on the front and the right side, a little below the lid
-    sw, sh = PW * 0.78, PW * 0.78 / 2
-    for side, (loc_, rot) in {'front': ((0, -PD / 2 - 0.0006, h * 0.52), 0.0),
-                              'right': ((PW / 2 + 0.0006, 0, h * 0.52), math.radians(90))}.items():
-        q = quad(f'package_print_{side}', sw, sh, st, c)
-        q.parent = cover
-        q.location = loc_
-        q.rotation_euler = (0, 0, rot)
-        q.location.z -= sh / 2
+    # the print: Held's mark over HELD, large, on the front
+    sw = PW * 0.84
+    q = quad('package_print_front', sw, sw, st, c)
+    q.parent = cover
+    q.location = (0, -PD / 2 - 0.0006, h * 0.48 - sw / 2)
     tw_root = P['twine'] = empty('package_twine', (0, 0, 0), c, root)
-    for ob in [_band('package_twine_x', 'x', tw, c), _band('package_twine_y', 'y', tw, c)] + _bow(tw, c):
+    for ob in [_band('package_twine_x', 'x', tw, c)] + _bow(tw, c):
         ob.parent = tw_root
     return P
 
@@ -245,28 +242,97 @@ def build_package(M, loc, rz=0.0, c='Package'):
 # ---------------------------------------------------------------- the ghost's phone
 
 PHONE_PAGES = ['phone_held', 'phone_busy', 'phone_refused', 'phone_paid']
-PHW, PHH, PHT = 0.072, 0.150, 0.008     # a modern phone, portrait
+PHW, PHH, PHT = 0.0716, 0.1476, 0.0083   # a modern flagship phone, portrait
+PHR = 0.0105                             # corner radius (seen from the front)
+
+
+def _outline(w, h, r, n=10):
+    """A rounded rectangle in local XZ, counter-clockwise seen from -Y."""
+    pts = []
+    for cx, cz, a0 in ((w / 2 - r, -h / 2 + r, -90), (w / 2 - r, h / 2 - r, 0), (-w / 2 + r, h / 2 - r, 90),
+                       (-w / 2 + r, -h / 2 + r, 180)):
+        for k in range(n + 1):
+            a = math.radians(a0 + 90 * k / n)
+            pts.append((cx + r * math.cos(a), cz + r * math.sin(a)))
+    return pts
+
+
+def slab(name, w, h, t, r, mat, c, bevel=0.0, y=0.0):
+    """A rounded-rectangle slab, t thick along Y (centred on y), its rims rounded by bevel."""
+    bm = bmesh.new()
+    pts = _outline(w, h, r)
+    fr = [bm.verts.new((x, y - t / 2, z)) for x, z in pts]
+    bk = [bm.verts.new((x, y + t / 2, z)) for x, z in pts]
+    bm.faces.new(fr)
+    bm.faces.new(list(reversed(bk)))
+    n = len(pts)
+    for i in range(n):
+        bm.faces.new((fr[i], bk[i], bk[(i + 1) % n], fr[(i + 1) % n]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if bevel:
+        rim = [e for e in bm.edges if all(abs(abs(v.co.y - y) - t / 2) < 1e-7 for v in e.verts)]
+        bmesh.ops.bevel(bm, geom=rim, offset=bevel, segments=4, profile=0.5, affect='EDGES', clamp_overlap=True)
+    ob = mesh_obj(name, bm, c, mat)
+    ob.data.set_sharp_from_angle(angle=math.radians(35))
+    return ob
+
+
+def disc(name, r, depth, mat, c, loc, segs=40, bevel=0.0):
+    """A short cylinder along +Y (a lens ring, a flash), its outer rim slightly rounded."""
+    prof = [(0, 0), (r, 0), (r, depth - bevel), (r - bevel, depth), (0, depth)] if bevel else \
+           [(0, 0), (r, 0), (r, depth), (0, depth)]
+    ob = lathe(name, prof, mat, segs, c)
+    ob.rotation_euler = (math.radians(-90), 0, 0)          # its Z (the axis) along +Y
+    ob.location = loc
+    return ob
 
 
 def build_phone(M, c='Phone'):
-    """A phone in dark titanium with a black glass face; its screen shows the merchant's Held dashboard. Local: the
-    screen faces -Y, the phone stands upright (long side along Z); its origin is its centre."""
-    frame = M.setdefault('phone_frame', simple('phone_frame', (0.07, 0.07, 0.075), 0.3, metal=0.9, rough_var=0.05,
-                                               var_scale=300))
-    glass = M.setdefault('laptop_bezel', simple('laptop_bezel', (0.004, 0.004, 0.005), 0.05, spec=0.6))
+    """A modern phone: a natural-titanium frame with rounded rims, black glass on the front with the screen inset (its
+    rounded corners and the camera pill are in the page images), frosted glass on the back with a raised camera plateau
+    (three lenses, flash), side buttons. Local: the screen faces -Y, the phone stands upright; its origin is its centre."""
+    ti = M.setdefault('phone_titanium', simple('phone_titanium', (0.46, 0.43, 0.39), 0.22, metal=1.0, rough_var=0.06,
+                                               var_scale=600))
+    front = M.setdefault('phone_glass', simple('phone_glass', (0.003, 0.003, 0.004), 0.04, spec=0.5))
+    back = M.setdefault('phone_back', simple('phone_back', (0.30, 0.29, 0.27), 0.42, spec=0.5, coat=0.3, coat_rough=0.3))
+    lens = M.setdefault('phone_lens', simple('phone_lens', (0.002, 0.002, 0.003), 0.02, spec=1.0, coat=1.0,
+                                             coat_rough=0.02))
+    ring = M.setdefault('phone_lens_ring', simple('phone_lens_ring', (0.30, 0.29, 0.27), 0.18, metal=1.0))
+    flash = M.setdefault('phone_flash', simple('phone_flash', (0.85, 0.80, 0.62), 0.3))
     F = {}
     root = F['root'] = empty('phone_root', (0, 0, 0), c)
-    body = box('phone_body', PHW, PHT, PHH, (0, 0, 0), bevel=0.009, mat=frame, c=c, segs=6)
-    body.parent = root
-    face = box('phone_face', PHW - 0.003, 0.0006, PHH - 0.003, (0, -PHT / 2 - 0.0002, 0), bevel=0.008, mat=glass, c=c, segs=6)
-    face.parent = root
-    sw = PHW - 0.008
-    shh = sw * 2340 / 1080
+    parts = [slab('phone_frame', PHW, PHH, PHT - 0.0016, PHR, ti, c, bevel=0.0011)]
+    parts.append(slab('phone_front', PHW - 0.0012, PHH - 0.0012, 0.0010, PHR - 0.0006, front, c, bevel=0.00035,
+                      y=-PHT / 2 + 0.0005))
+    parts.append(slab('phone_back', PHW - 0.0012, PHH - 0.0012, 0.0010, PHR - 0.0006, back, c, bevel=0.00035,
+                      y=PHT / 2 - 0.0005))
+    # the camera plateau, top left seen from the back (+X, +Z), and its lenses
+    pw = 0.0355
+    px, pz = PHW / 2 - 0.0035 - pw / 2, PHH / 2 - 0.0035 - pw / 2
+    pl = slab('phone_plateau', pw, pw, 0.0014, 0.0085, back, c, bevel=0.0005, y=PHT / 2 + 0.0007)
+    pl.location = (px, 0, pz)
+    parts.append(pl)
+    y0 = PHT / 2 + 0.0014
+    for k, (dx, dz) in enumerate(((-0.0083, 0.0083), (-0.0083, -0.0083), (0.0083, 0.0)), start=1):
+        parts.append(disc(f'phone_lensring_{k}', 0.0068, 0.0016, ring, c, (px + dx, y0, pz + dz), bevel=0.0004))
+        parts.append(disc(f'phone_lens_{k}', 0.0049, 0.0019, lens, c, (px + dx, y0, pz + dz)))
+    parts.append(disc('phone_flash', 0.0024, 0.0004, flash, c, (px + 0.0083, y0, pz + 0.0102)))
+    parts.append(disc('phone_lidar', 0.0021, 0.0004, lens, c, (px + 0.0083, y0, pz - 0.0102)))
+    # buttons: action and volume on the left (seen from the front: -X), the side button on the right
+    for name, x, z, l in (('action', -1, 0.045, 0.007), ('vol_up', -1, 0.027, 0.012), ('vol_dn', -1, 0.011, 0.012),
+                          ('side', 1, 0.020, 0.018)):
+        b = box('phone_btn_' + name, 0.0012, 0.0030, l, (x * (PHW / 2 + 0.0003), 0, z), bevel=0.0005, mat=ti, c=c)
+        parts.append(b)
+    for ob in parts:
+        ob.parent = root
+    # the screen: the page images, 1080 × 2340, inset in the front glass
+    shh = PHH - 0.0032
+    sw = shh * 1080 / 2340
     F['screens'] = {}
     for i, page in enumerate(PHONE_PAGES):
         q = quad('phone_screen_' + page, sw, shh, M.setdefault('screen_' + page, screen_mat(page)), c)
         q.parent = root
-        q.location = (0, -PHT / 2 - 0.0007 - i * 0.00002, -shh / 2)
+        q.location = (0, -PHT / 2 - 0.0001 - i * 0.00002, -shh / 2)
         F['screens'][page] = q
     set_screen(F, 'phone_held')
     return F

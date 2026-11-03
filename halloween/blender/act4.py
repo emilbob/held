@@ -15,11 +15,13 @@ import timeline as T
 
 E = T.EV
 PKG = Vector((0.95, 0.86))              # where the package is set down (on the floor between the laptop and the chair)
-NEAR_PKG = Vector((0.68, 0.60))         # where the pumpkin watches it open (clear of the package and the laptop)
+NEAR_PKG = Vector((0.60, 0.68))         # where the pumpkin watches it open (clear of the package, the laptop, and the
+                                        # camera's view of the HELD print)
 GHOST_FROM = Vector((2.6, 1.05))        # off right, behind the armchair from the room's side
 GHOST_AT = Vector((1.28, 0.98))         # beside the package, 35 cm from the lantern's centre (it must never touch it)
 CARRY = Vector((0.26, 0.06))            # the package floats along behind the ghost (it leads in), a little off the floor
 JOY_CAM = (0.30, 0.20, 0.24)            # the joy close-up's camera: the pumpkin turns to face it
+FACE = math.radians(-30)                # the package turns its printed front to the cameras
 
 
 def build(S, C):
@@ -66,12 +68,12 @@ def build(S, C):
         D.key(pr, 'location', f, (g.x + CARRY.x, g.y + CARRY.y, 0.05 + bob))
         D.key(gbody, 'location', f, z0 + bob, 2)
     D.key(pr, 'location', 841, (GHOST_FROM.x + CARRY.x, GHOST_FROM.y + CARRY.y, 0.05))
-    D.key(pr, 'rotation_euler', a, math.radians(-8), 2)
-    D.key(pr, 'rotation_euler', b, math.radians(4), 2)
+    D.key(pr, 'rotation_euler', a, FACE + math.radians(-8), 2)
+    D.key(pr, 'rotation_euler', b, FACE + math.radians(4), 2)
     c, d = E['set_down']
     D.key(pr, 'location', c, (GHOST_AT.x + CARRY.x, GHOST_AT.y + CARRY.y, 0.05))
     D.key(pr, 'location', d, (PKG.x, PKG.y, 0.0))
-    D.key(pr, 'rotation_euler', d, 0.0, 2)
+    D.key(pr, 'rotation_euler', d, FACE, 2)
     rest_h = D.heading(PKG - GHOST_AT) + math.radians(-30)
     D.key(groot, 'location', d + 4, (GHOST_AT.x + 0.03, GHOST_AT.y + 0.02, 0.0))          # it eases back a little
     D.key(groot, 'rotation_euler', d + 4, rest_h, 2)
@@ -79,8 +81,8 @@ def build(S, C):
     watch = D.heading(PKG - NEAR_PKG)
     D.hop(hero, *E['hop_pkg'], act2.AT_LAPTOP, NEAR_PKG, side=1)
     D.turn(hero, E['hop_pkg'][1], E['hop_pkg'][1] + 5, D.heading(NEAR_PKG - act2.AT_LAPTOP), watch)
-    D.cut('s08_return', 841, [(841, (0.18, 0.08, 0.40), (0.95, 0.88, 0.18), 30),
-                              (936, (0.26, 0.18, 0.36), (0.92, 0.86, 0.17), 32)], fstop=4.0)
+    D.cut('s08_return', 841, [(841, (0.18, 0.08, 0.50), (0.95, 0.88, 0.20), 30),
+                              (936, (0.26, 0.16, 0.50), (0.92, 0.86, 0.20), 32)], fstop=4.0)
 
     # ---- 09a: unwrap
     D.key(gbody, 'rotation_euler', E['twine'][0] - 2, 0.0, 0)
@@ -106,7 +108,7 @@ def build(S, C):
     # the lantern: inside all along, glowing up as it's revealed
     lr = lan['root']
     D.key(lr, 'location', 841, (PKG.x, PKG.y, 0.006))
-    D.key(lr, 'rotation_euler', 841, math.radians(20), 2)
+    D.key(lr, 'rotation_euler', 841, FACE + math.radians(20), 2)
     cast.show(lr, True, E['cover'][0])
     a, b = E['glow']
     glass = lan['glass'].node_tree
@@ -128,8 +130,8 @@ def build(S, C):
     D.hop(hero, *E['hop_back'], NEAR_PKG, act2.AT_LAPTOP, side=-1)
     face_laptop = D.heading(Vector((0, 1)))
     D.turn(hero, E['hop_back'][1], E['hop_back'][1] + 5, D.heading(act2.AT_LAPTOP - NEAR_PKG), face_laptop)
-    D.cut('s09b_joy', 991, [(991, JOY_CAM, (0.68, 0.62, 0.10), 40),
-                            (1012, (0.31, 0.22, 0.25), (0.66, 0.62, 0.10), 38)], fstop=3.2)
+    D.cut('s09b_joy', 991, [(991, JOY_CAM, (NEAR_PKG.x, NEAR_PKG.y, 0.10), 40),
+                            (1012, (0.31, 0.22, 0.25), (NEAR_PKG.x - 0.02, NEAR_PKG.y, 0.10), 38)], fstop=3.2)
 
     # ---- 09c: confirm, square on to the screen
     D.tap(hero, E['confirm'], depth=18)

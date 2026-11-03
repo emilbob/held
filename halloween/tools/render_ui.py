@@ -104,8 +104,17 @@ PAGES = {
 PW_, PH_ = 1080, 2340            # portrait phone screen
 PHONE_HEAD = f'''<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="{CSS}">
 <style>
-  html, body {{ height: 100%; overflow: hidden }}
-  body {{ zoom: 2.55 }}
+  html {{ height: 100%; overflow: hidden; background: #000 }}
+  body {{ zoom: 2.55; height: 100%; margin: 0; background: #000 }}
+  .scr {{ height: 100%; border-radius: 50px; overflow: hidden; background: var(--bg) }}
+  .sbar {{ display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 26px 0 34px;
+    font: 600 15px -apple-system, 'Helvetica Neue', sans-serif; color: var(--ink) }}
+  .pill {{ width: 112px; height: 32px; border-radius: 16px; background: #000; margin-top: 4px }}
+  .ind {{ display: flex; align-items: center; gap: 5px }}
+  .bars {{ display: flex; align-items: flex-end; gap: 1.5px; height: 11px }}
+  .bars i {{ width: 3px; background: var(--ink); border-radius: 1px }}
+  .bat {{ width: 23px; height: 11px; border: 1.2px solid var(--muted); border-radius: 3.5px; padding: 1.2px; box-sizing: border-box }}
+  .bat i {{ display: block; height: 100%; width: 78%; background: var(--ink); border-radius: 1.5px }}
   header {{ padding: 10px 14px }}
   main {{ margin: 14px auto; padding: 0 12px }}
   .stat {{ background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px }}
@@ -124,8 +133,12 @@ PHONE_HEAD = f'''<!doctype html><html><head><meta charset="utf-8"><link rel="sty
 </style></head><body>'''
 
 
+SBAR = '''<div class="sbar"><span>9:41</span><div class="pill"></div><div class="ind"><div class="bars"><i style="height:4px"></i>
+<i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></div><div class="bat"><i></i></div></div></div>'''
+
+
 def phone(held_total, badge, meta, actions, after='', balance='$0.00'):
-    return PHONE_HEAD + HEADER.replace('<span class="tag">Buyer protection for stablecoin payments</span>', '') + f'''<main>
+    return PHONE_HEAD + '<div class="scr">' + SBAR + HEADER.replace('<span class="tag">Buyer protection for stablecoin payments</span>', '') + f'''<main>
   <div class="stat"><label>{SHOP} · Balance</label><b>{balance}</b></div>
   <div class="stat held"><label>Held for buyers</label><b>{held_total}</b></div>
   <div class="card order ordercard">
@@ -134,7 +147,7 @@ def phone(held_total, badge, meta, actions, after='', balance='$0.00'):
     {actions}
     {after}
   </div>
-</main></body></html>'''
+</main></div></body></html>'''
 
 
 EARLY = '<span class="sep" style="margin:6px 0 0">Test the guarantee:</span>'
@@ -152,10 +165,10 @@ PHONE = {
 
 # the print on the package: Held's mark and wordmark, in ink on transparent (applied to the kraft as a decal)
 STAMP = f'''<!doctype html><html><head><meta charset="utf-8"><style>
-  html, body {{ margin: 0; width: 1200px; height: 600px; background: transparent; overflow: hidden }}
-  .s {{ display: flex; align-items: center; justify-content: center; gap: 46px; height: 100%;
-    font: 800 210px -apple-system, 'Helvetica Neue', Helvetica, sans-serif; letter-spacing: -0.03em; color: #15120e }}
-  .s img {{ height: 190px }}
+  html, body {{ margin: 0; width: 1000px; height: 1000px; background: transparent; overflow: hidden }}
+  .s {{ display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; height: 100%;
+    font: 800 270px/1 -apple-system, 'Helvetica Neue', Helvetica, sans-serif; letter-spacing: -0.02em; color: #15120e }}
+  .s img {{ height: 430px }}
 </style></head><body><div class="s"><img src="{LOGO}" alt="">HELD</div></body></html>'''
 
 
@@ -179,7 +192,7 @@ def main():
         shoot(html, name, W, H)
     for name, html in PHONE.items():
         shoot(html, name, PW_, PH_)
-    shoot(STAMP, 'package_stamp', 1200, 600, transparent=True)
+    shoot(STAMP, 'package_stamp', 1000, 1000, transparent=True)
 
 
 if __name__ == '__main__':

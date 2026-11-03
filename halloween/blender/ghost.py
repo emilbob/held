@@ -318,3 +318,94 @@ def build(M, loc=(0, 0, 0), rz=0.0, c='Ghost'):
     vd.visible_shadow = False
     rig['void'] = vd
     return rig
+
+
+def volume_smoke(rig, wisps, f_on, f_off, c='Ghost'):
+    """Real smoke for the vanish and the snap-back: a volume around the ghost (Eevee volumetrics, lit by the candles and
+    the fire) whose density is churning 4D noise, thick low and thinning upwards, in a soft ellipsoid; it rises as it
+    churns. Its 'amount' copies the old wisp cards' keys (which it replaces: the cards are removed)."""
+    import bmesh
+    from lib import mesh_obj, map_range, fcurves
+    m, nt, bsdf, out = node_mat('ghost_vsmoke')
+    nt.nodes.remove(bsdf)
+    vol = nt.nodes.new('ShaderNodeVolumePrincipled')
+    vol.inputs['Color'].default_value = (0.78, 0.75, 0.72, 1)
+    vol.inputs['Anisotropy'].default_value = 0.25
+    nt.links.new(vol.outputs[0], out.inputs['Volume'])
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    w = nt.nodes.new('ShaderNodeValue')
+    w.name = 'churn'
+    rise = nt.nodes.new('ShaderNodeMapping')
+    rise.inputs['Scale'].default_value = (2.2, 2.2, 1.6)
+    nt.links.new(tc.outputs['Object'], rise.inputs[0])
+    off = nt.nodes.new('ShaderNodeCombineXYZ')
+    neg = nt.nodes.new('ShaderNodeMath')
+    neg.operation = 'MULTIPLY'
+    neg.inputs[1].default_value = -0.6
+    nt.links.new(w.outputs[0], neg.inputs[0])
+    nt.links.new(neg.outputs[0], off.inputs['Z'])
+    nt.links.new(off.outputs[0], rise.inputs['Location'])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.noise_dimensions = '4D'
+    nz.inputs['Scale'].default_value = 1.6
+    nz.inputs['Detail'].default_value = 5
+    nz.inputs['Roughness'].default_value = 0.55
+    nz.inputs['Distortion'].default_value = 0.8
+    nt.links.new(rise.outputs[0], nz.inputs['Vector'])
+    nt.links.new(w.outputs[0], nz.inputs['W'])
+    puff = map_range(nt, nz.outputs['Fac'], 0.46, 0.72, 0.0, 1.0)
+    # the envelope: a soft ellipsoid, densest low
+    sq = nt.nodes.new('ShaderNodeVectorMath')
+    sq.operation = 'MULTIPLY'
+    sq.inputs[1].default_value = (1.0, 1.0, 0.85)
+    nt.links.new(tc.outputs['Object'], sq.inputs[0])
+    ln = nt.nodes.new('ShaderNodeVectorMath')
+    ln.operation = 'LENGTH'
+    nt.links.new(sq.outputs[0], ln.inputs[0])
+    env = map_range(nt, ln.outputs['Value'], 0.35, 0.95, 1.0, 0.0)
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nt.links.new(tc.outputs['Object'], sep.inputs[0])
+    low = map_range(nt, sep.outputs['Z'], -1.0, 1.0, 1.3, 0.45)
+    amt = nt.nodes.new('ShaderNodeValue')
+    amt.name = 'amount'
+    d = puff
+    for fac in (env, low, amt.outputs[0]):
+        mul = nt.nodes.new('ShaderNodeMath')
+        mul.operation = 'MULTIPLY'
+        nt.links.new(d, mul.inputs[0])
+        nt.links.new(fac, mul.inputs[1])
+        d = mul.outputs[0]
+    k = nt.nodes.new('ShaderNodeMath')
+    k.operation = 'MULTIPLY'
+    k.inputs[1].default_value = 38.0
+    nt.links.new(d, k.inputs[0])
+    nt.links.new(k.outputs[0], vol.inputs['Density'])
+    # the volume: a box around the ghost, 0.64 × 0.64 × 0.72 m, from just below its hem
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=2.0)
+    ob = mesh_obj('ghost_smoke_volume', bm, c, m, smooth_shade=False)
+    ob.parent = rig['root']
+    ob.location = (0, 0, 0.26)
+    ob.scale = (0.32, 0.32, 0.36)
+    # copy the cards' amount keys; churn steadily while it shows
+    src = bpy.data.materials['ghost_smoke'].node_tree
+    for fc in fcurves(src):
+        if 'amount' in fc.data_path:
+            for kp in fc.keyframe_points:
+                amt.outputs[0].default_value = kp.co[1]
+                amt.outputs[0].keyframe_insert('default_value', frame=int(round(kp.co[0])))
+    w.outputs[0].default_value = 0.0
+    w.outputs[0].keyframe_insert('default_value', frame=f_on)
+    w.outputs[0].default_value = 0.022 * (f_off - f_on)
+    w.outputs[0].keyframe_insert('default_value', frame=f_off)
+    for fc in fcurves(nt):
+        if 'churn' in fc.data_path:
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'LINEAR'
+    # only render it while there is smoke
+    for f, hidden in ((1, True), (f_on, False), (f_off + 1, True)):
+        ob.hide_render = hidden
+        ob.keyframe_insert('hide_render', frame=f)
+    for wi in wisps:
+        bpy.data.objects.remove(wi, do_unlink=True)
+    return ob

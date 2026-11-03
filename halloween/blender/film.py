@@ -21,6 +21,8 @@ def build():
     act3.build(S, C, A2)
     act4.build(S, C)
     act5.build(S, C)
+    import ghost
+    ghost.volume_smoke(C['ghost'], A2['wisps'], T.EV['leave'], T.EV['snap'] + 8)       # real smoke replaces the cards
     bpy.context.scene.frame_set(T.START)
     return dict(S=S, C=C, M=S['M'], rig=C['hero'], lantern=S['lantern'])
 

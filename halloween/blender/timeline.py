@@ -1,4 +1,4 @@
-"""Scene 01 timeline: one source of truth for picture and sound. Frames are 1-based at 24 fps (frame 1 = 0.0 s).
+"""The film's timeline: one source of truth for picture and sound. Frames are 1-based at 24 fps (frame 1 = 0.0 s).
 
 The pumpkin's landings are derived here so the animation (animate.py hops) and the footsteps (audio/sfx.py) agree.
 Run as a script to write out/timeline.json for the audio tools (which don't import bpy).
@@ -7,36 +7,45 @@ import json, os
 
 FPS = 24
 START, END = 1, 144           # Act I (Scene 01)
-FILM_END = 720                # the whole film: 30 s
+FILM_END = 1320               # the whole film: 55 s (Nov 3: 30 s was too fast to follow; every Held screen now holds
+                              # 2–3 s, long enough to read)
 
-# every shot of the film: name → (first frame, last frame). Acts: I 1–144, II 145–288, III 289–456, IV 457–600, V 601–720.
+# every shot of the film: name → (first frame, last frame); the acts' modules cut to a camera at each first frame.
 SHOTS = {
     's01_establish': (1, 48), 's02_reveal': (49, 96), 's03_discovery': (97, 144),
-    's04_purchase': (145, 216), 's05_trick': (217, 288),
-    's06_attempt': (289, 360), 's07_realization': (361, 456),
-    's08_return': (457, 528), 's09_reveal': (529, 600),
-    's10_friendship': (601, 672), 's11_finale': (673, 720),
+    's04a_to_laptop': (145, 216), 's04b_checkout': (217, 396),
+    's05a_rise': (397, 440), 's05b_phone_up': (441, 488), 's05c_phone_held': (489, 560), 's05d_glee': (561, 600),
+    's06a_vanish': (601, 640), 's06b_refused': (641, 712), 's06c_snap': (713, 752), 's07_realization': (753, 840),
+    's08_return': (841, 936), 's09a_unwrap': (937, 990), 's09b_joy': (991, 1012), 's09c_confirm': (1013, 1104),
+    's09d_phone_paid': (1105, 1152),
+    's10_friendship': (1153, 1236), 's11_finale': (1237, 1320),
 }
-ACTS = {1: (1, 144), 2: (145, 288), 3: (289, 456), 4: (457, 600), 5: (601, 720)}
+ACTS = {1: (1, 144), 2: (145, 600), 3: (601, 840), 4: (841, 1152), 5: (1153, 1320)}
 
-# Acts II–III story beats (frames), shared by the animation (act2.py, act3.py) and the sound (audio/acts23.py)
+# Acts II–V story beats (frames), shared by the animation (act2–act5.py) and the sound (audio/acts23.py, acts45.py)
 EV = dict(
+    # Act II: the purchase. Screens: shop until tap1, checkout until tap2, then "Payment held".
     turn=(147, 156), hops=[(157, 165), (166, 174)],            # the pumpkin turns from the lantern, hops to the laptop
-    tap1=182, tap2=202,                                         # it presses "Pay with Held", then "Pay $48.00"
-    rise=(222, 246), glee=(252, 268), leave=272,                # the ghost rises, wriggles with glee, turns to go
-    attempt=(289, 322), pulse=(323, 338), snap=339,             # dissolving; the held badge pulses; it snaps back whole
-    sag=(366, 388), resolve=(398, 408), turn_go=(410, 420),     # it slumps, draws itself up, turns to fetch the lantern
-    screen=421,                                                 # the Held screen; the three-note Held signature
-    # Act IV
-    knocks=[460, 465, 470], startle=461, turn_door=(468, 480),  # knock knock knock; the pumpkin starts, turns
-    enter=(478, 512), set_down=(512, 520), hop_pkg=(522, 530),  # the ghost floats in with the package, sets it down
-    twine=(532, 546), lid=(540, 554), walls=(552, 562),         # the twine floats off, the lid lifts, the walls fall open
-    glow=(556, 570), joy=(561, 571), hop_back=(572, 580),       # the lantern glows; the pumpkin's joy; back to the laptop
-    confirm=588,                                                # "I got it: release payment" → Paid to merchant
+    tap1=262, tap2=336,                                         # it presses "Pay with Held", then "Pay $48.00"
+    # Act II: the trick. The ghost's phone (the merchant's Held dashboard): held, then its tap on "pay yourself early".
+    rise=(400, 432), phone_up=(441, 456),                       # the ghost rises; its phone floats up before it
+    tap_early=540,                                              # it taps "Try to pay yourself early"
+    glee=(561, 577), leave=580,                                 # it wriggles with glee, turns to slip away in smoke
+    # Act III: refused.
+    attempt=(601, 640), refused=641, signature=653,             # dissolving; the phone: refused; Held's three notes
+    snap=713,                                                   # it snaps back whole
+    sag=(760, 785), resolve=(795, 805), turn_go=(808, 820),     # it slumps, draws itself up, goes to fetch the lantern
+    # Act IV: the delivery.
+    knocks=[844, 849, 854], startle=845, turn_door=(852, 864),  # knock knock knock; the pumpkin starts, turns
+    enter=(862, 896), set_down=(896, 904), hop_pkg=(906, 914),  # the ghost floats in with the package, sets it down
+    twine=(940, 954), cover=(950, 972), glow=(962, 978),        # the twine floats off, the cover lifts off the lantern
+    joy=(991, 1001), hop_back=(1004, 1012),                     # the pumpkin's joy; back to the laptop
+    confirm=1044,                                               # "I got it: release payment" → Paid to merchant
+    phone_paid=1105,                                            # the ghost's phone: paid
     # Act V
-    turn_ghost=(601, 610), hops_v=[(612, 620), (621, 629)],     # it turns to the ghost, hops to the lantern's side
-    hesitate=(630, 642), join=(642, 660), settle=(660, 668),    # the ghost hesitates, then joins it
-    endcard=694,                                                # the room fades into the Held end card (12-frame dissolve)
+    turn_ghost=(1153, 1162), hops_v=[(1164, 1172), (1173, 1181)],   # it turns to the ghost, hops to the lantern's side
+    hesitate=(1182, 1194), join=(1194, 1212), settle=(1212, 1220),  # the ghost hesitates, then joins it
+    endcard=1262,                                               # the room dissolves into the Held end card (12 frames)
 )
 
 # acts

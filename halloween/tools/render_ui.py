@@ -99,19 +99,87 @@ PAGES = {
 }
 
 
-def main():
+# ---------------------------------------------------------------- the ghost's phone: the merchant's Held dashboard
+
+PW_, PH_ = 1080, 2340            # portrait phone screen
+PHONE_HEAD = f'''<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="{CSS}">
+<style>
+  html, body {{ height: 100%; overflow: hidden }}
+  body {{ zoom: 2.55 }}
+  header {{ padding: 10px 14px }}
+  main {{ margin: 14px auto; padding: 0 12px }}
+  .stat {{ background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px }}
+  .stat label {{ font-size: 12px }}
+  .stat b {{ display: block; font-size: 30px; font-weight: 800; margin-top: 2px }}
+  .stat.held b {{ color: var(--lime) }}
+  .ordercard .row {{ display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap }}
+  .ordercard .amount {{ font-weight: 700; font-size: 16px }}
+  .ordercard .actions {{ flex-direction: column; align-items: stretch }}
+  .ordercard .actions button {{ width: 100% }}
+  .pressed {{ filter: brightness(1.6); border-color: var(--muted) !important }}
+  .refusal {{ margin-top: 10px; background: #201517; border: 1px solid var(--red); border-radius: 10px; padding: 9px 11px;
+    font-size: 14px; line-height: 1.4; color: var(--ink) }}
+  .refusal b {{ color: var(--red) }}
+  .done {{ margin-top: 10px; background: #12221a; border: 1px solid var(--green); border-radius: 10px; padding: 9px 11px; font-size: 14px }}
+</style></head><body>'''
+
+
+def phone(held_total, badge, meta, actions, after='', balance='$0.00'):
+    return PHONE_HEAD + HEADER.replace('<span class="tag">Buyer protection for stablecoin payments</span>', '') + f'''<main>
+  <div class="stat"><label>{SHOP} · Balance</label><b>{balance}</b></div>
+  <div class="stat held"><label>Held for buyers</label><b>{held_total}</b></div>
+  <div class="card order ordercard">
+    <div class="row"><div class="oid">#{ORDER}</div><div class="item">{ITEM}</div><div class="amount">{PRICE}</div>{badge}</div>
+    <div class="meta">{meta}</div>
+    {actions}
+    {after}
+  </div>
+</main></body></html>'''
+
+
+EARLY = '<span class="sep" style="margin:6px 0 0">Test the guarantee:</span>'
+PHONE = {
+    'phone_held': phone(PRICE, '<span class="badge lime">Held: protected</span>', 'Paid by <b>0x7a3f…c41e</b> · window closes in <b>6d 23h</b>',
+                        f'<div class="actions"><button>Refund buyer</button>{EARLY}<button class="ghost">Try to pay yourself early</button></div>'),
+    'phone_busy': phone(PRICE, '<span class="badge lime">Held: protected</span>', 'Paid by <b>0x7a3f…c41e</b> · window closes in <b>6d 23h</b>',
+                        f'<div class="actions"><button disabled>Refund buyer</button>{EARLY}<button class="ghost pressed">…</button></div>'),
+    'phone_refused': phone(PRICE, '<span class="badge lime">Held: protected</span>', 'Paid by <b>0x7a3f…c41e</b> · window closes in <b>6d 23h</b>',
+                           f'<div class="actions"><button>Refund buyer</button>{EARLY}<button class="ghost">Try to pay yourself early</button></div>',
+                           '<div class="refusal"><b>Refused.</b> Only the buyer can pay the merchant before the protection window ends.</div>'),
+    'phone_paid': phone('$0.00', '<span class="badge green">Paid to merchant</span>', 'Paid by <b>0x7a3f…c41e</b> · delivery confirmed',
+                        '', '<div class="done"><b>Delivery confirmed.</b> You have been paid.</div>', balance=PRICE),
+}
+
+# the print on the package: Held's mark and wordmark, in ink on transparent (applied to the kraft as a decal)
+STAMP = f'''<!doctype html><html><head><meta charset="utf-8"><style>
+  html, body {{ margin: 0; width: 1200px; height: 600px; background: transparent; overflow: hidden }}
+  .s {{ display: flex; align-items: center; justify-content: center; gap: 46px; height: 100%;
+    font: 800 210px -apple-system, 'Helvetica Neue', Helvetica, sans-serif; letter-spacing: -0.03em; color: #15120e }}
+  .s img {{ height: 190px }}
+</style></head><body><div class="s"><img src="{LOGO}" alt="">HELD</div></body></html>'''
+
+
+def shoot(html, name, w, h, transparent=False):
     build = HERE / 'ui/build'
     png = HERE / 'ui/png'
     build.mkdir(parents=True, exist_ok=True)
     png.mkdir(parents=True, exist_ok=True)
+    f = build / f'{name}.html'
+    f.write_text(html)
+    out = png / f'{name}.png'
+    extra = ['--default-background-color=00000000'] if transparent else []
+    subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files',
+                    '--force-device-scale-factor=1', *extra, f'--window-size={w},{h}', f'--screenshot={out}', f.as_uri()],
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print(out)
+
+
+def main():
     for name, html in PAGES.items():
-        f = build / f'{name}.html'
-        f.write_text(html)
-        out = png / f'{name}.png'
-        subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files',
-                        f'--window-size={W},{H}', f'--screenshot={out}', f.as_uri()], check=True,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(out)
+        shoot(html, name, W, H)
+    for name, html in PHONE.items():
+        shoot(html, name, PW_, PH_)
+    shoot(STAMP, 'package_stamp', 1200, 600, transparent=True)
 
 
 if __name__ == '__main__':

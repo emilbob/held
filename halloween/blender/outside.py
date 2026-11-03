@@ -18,12 +18,17 @@ def sky_mat():
     # gradient: deep blue overhead, a hazy lighter band low down
     grad = mix_rgb(nt, (0.06, 0.11, 0.22), (0.010, 0.018, 0.045), map_range(nt, sep.outputs['Y'], 0.15, 0.85, 0, 1))
     # moon glow (upper left of the window)
+    # the backdrop is 14 × 7 m but its UVs run 0–1 both ways: scale u by 2 so the moon (and its halo) are round
+    ux = nt.nodes.new('ShaderNodeMath')
+    ux.operation = 'MULTIPLY'
+    ux.inputs[1].default_value = 2.0
+    nt.links.new(sep.outputs['X'], ux.inputs[0])
     c = nt.nodes.new('ShaderNodeCombineXYZ')
-    nt.links.new(sep.outputs['X'], c.inputs['X'])
+    nt.links.new(ux.outputs[0], c.inputs['X'])
     nt.links.new(sep.outputs['Y'], c.inputs['Y'])
     d = nt.nodes.new('ShaderNodeVectorMath')
     d.operation = 'DISTANCE'
-    d.inputs[1].default_value = (0.33, 0.56, 0)
+    d.inputs[1].default_value = (0.66, 0.56, 0)
     nt.links.new(c.outputs[0], d.inputs[0])
     halo = map_range(nt, d.outputs['Value'], 0.0, 0.22, 1.0, 0.0)
     pw = nt.nodes.new('ShaderNodeMath')

@@ -1,5 +1,6 @@
 {
   "name": "held-e2e",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "description": "Browser end-to-end checks in a throwaway Chrome for Testing profile (never the user's main Chrome).",

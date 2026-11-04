@@ -1,0 +1,16 @@
+Copyright (c) 2026 Emil Bob. All rights reserved.
+
+This repository and everything in it (source code, smart contracts, user interface, designs, text, images,
+video, audio and other files) is proprietary. It is made visible for review only. No license is granted to copy,
+modify, distribute, sublicense, deploy, or use it, in whole or in part, for any purpose, without the prior written
+permission of the copyright holder.
+
+Exception: files that carry their own license header (for example "SPDX-License-Identifier: MIT") are licensed
+under the terms stated in that header, for the version of the file that carries it.
+
+Third-party components keep their own licenses (see their package metadata, and halloween/assets/CREDITS.md).
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+Contact: via getheld.xyz

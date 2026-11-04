@@ -1,5 +1,6 @@
 {
   "name": "held-web",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "scripts": {

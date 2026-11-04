@@ -1,0 +1,48 @@
+X POST — Held Halloween film
+(attach: held-halloween-social.mp4)
+
+=== MAIN POST ===
+
+Don't get tricked this Halloween. 🎃
+
+Held: your payment waits until delivery.
+
+getheld.xyz
+
+#Halloween #Stablecoins #Tempo
+
+
+=== HOW IT WAS MADE (thread, reply under the video) ===
+
+1/
+How we made this 55-second Halloween film for Held: no camera, no stock footage, no paid assets. It's all code, and it cost $0.
+
+🧵
+
+2/
+Everything was built in Blender 5.2 with Python scripts: the firelit room, the carved jack-o'-lantern, the ghost, the laptop, the phone and the HELD package.
+
+The pumpkin is a real 3D model, hollowed out and carved, and a candle inside lights its face.
+
+3/
+The screens use the real Held app: its own stylesheet and wording, captured in headless Chrome.
+
+The checkout, "Payment held", the refused payout on the ghost's phone and "Paid to merchant" are the app's real states.
+
+4/
+The armchair, candlesticks, clock and the wood and brick textures are free CC0 assets from Poly Haven.
+
+The fire, the candle flames and the smoke are made in Blender's shaders, without any simulation.
+
+5/
+The music and the sound effects are original too, synthesized in Python: piano, celesta, strings, fire crackle, wind and every thud.
+
+No samples, no music library.
+
+6/
+Rendered with Eevee on a MacBook Air M4: 1320 frames at 1280×720, in about 10 hours.
+
+7/
+Built with @claudeai (Claude Code): Claude wrote the 3D scenes, the animation, the soundtrack and the edit. We directed every shot.
+
+getheld.xyz

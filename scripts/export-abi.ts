@@ -4,3 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const { abi, bytecode } = JSON.parse(readFileSync(new URL('../out/HeldArbiter.json', import.meta.url), 'utf8'))
 writeFileSync(new URL('../shared/HeldArbiter.json', import.meta.url), JSON.stringify({ abi, bytecode }) + '\n')
 console.log('shared/HeldArbiter.json:', abi.length, 'ABI entries,', (bytecode.length - 2) / 2, 'bytes of bytecode')
+// The verifier input that rebuilds exactly this bytecode (server/verify-contract.ts sends it to Tempo's verifier).
+writeFileSync(new URL('../shared/HeldArbiter.verify.json', import.meta.url),
+  readFileSync(new URL('../out/HeldArbiter.verify.json', import.meta.url), 'utf8') + '\n')
+console.log('shared/HeldArbiter.verify.json: verifier input')

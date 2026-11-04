@@ -71,6 +71,10 @@ const sections: [string, [string, ReactNode, string?][]][] = [
       <>Each shop sets a deadline for its resolver at setup ({NET.testnet ? 'from 10 minutes on testnet' : '3, 7 or 14 days'}), shown on
         the order. If the resolver hasn't decided by then, the buyer gets their money back: anyone can trigger the refund, and it always
         goes to the wallet that paid. After the deadline the resolver can no longer pay the merchant.</>],
+    ['Can I read the contract that holds my money?',
+      <>Yes. Every shop's contract is published with its source code on Tempo's explorer, checked by Tempo's own verifier
+        against the code that is actually running. On your order page, open <b>this shop's contract</b> in the
+        "Protected by Held" box.</>],
     ['Has the contract been audited?',
       <>Not by an outside firm yet. It's tested extensively, including randomized tests of every rule, and was security-reviewed
         before mainnet, with what that review found fixed. Mainnet starts as a beta with low limits; an independent audit comes before

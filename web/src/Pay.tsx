@@ -145,6 +145,8 @@ export default function Pay({ id }: { id: string }) {
               confirm delivery. If something goes wrong, open a dispute: the funds can only go back to you or to the merchant.
               {resolveWindow ? <> The resolver has {duration(resolveWindow)} to decide; if they don't, you get your money back.</> : null}
               {resolverLine}
+              <br />These rules are <a href={addrUrl(order.merchantInfo.arbiter) + '?tab=contract'} target="_blank" rel="noreferrer">this shop's contract</a>,
+              published with its source code on Tempo's explorer.
               <br /><span className="muted small">{shield === 'checking' ? 'Checking this protection on the chain…'
                 : shield === 'unknown' ? <>Couldn't check this protection on the chain just now. <button type="button" className="ghost small" onClick={() => verify(order)}>Check again</button></>
                 : 'Checked on the chain just now, not just by Held.'}</span></p>

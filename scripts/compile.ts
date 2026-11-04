@@ -28,4 +28,14 @@ writeFileSync(
   new URL('../out/HeldArbiter.json', import.meta.url),
   JSON.stringify({ abi: c.abi, bytecode: '0x' + c.evm.bytecode.object, evmVersion }, null, 2),
 )
+// The exact input for Tempo's contract verifier (contracts.tempo.xyz, Sourcify API): same source key and settings as
+// above, so the verifier rebuilds byte-identical code; it needs bytecode + deployedBytecode in its output selection.
+writeFileSync(
+  new URL('../out/HeldArbiter.verify.json', import.meta.url),
+  JSON.stringify({
+    compilerVersion: solc.version().replace('.Emscripten.clang', ''),
+    contractIdentifier: 'HeldArbiter.sol:HeldArbiter',
+    stdJsonInput: { ...input, settings: { ...input.settings, outputSelection: { '*': { '*': ['abi', 'evm.bytecode', 'evm.deployedBytecode', 'evm.methodIdentifiers', 'metadata'] } } } },
+  }),
+)
 console.log(`compiled HeldArbiter (${evmVersion}), bytecode ${c.evm.bytecode.object.length / 2} bytes`)

@@ -26,6 +26,7 @@ import { isAddress, parseUnits, type Address, type Hex } from 'viem'
 import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
+import { submitVerification } from './verify-contract.ts'
 import { alertDisputes, alertFees, alertPolicyChanges } from './alerts.ts'
 import { payoutPolicyOf, policyHolds } from '../shared/protection.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
@@ -226,6 +227,11 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
         s.merchants[address.toLowerCase()] = merchant
         return merchant
       })
+      // Publish the arbiter's source on Tempo's explorer (best effort: a verifier hiccup never blocks a registration).
+      if (!existing || changing) {
+        const vr = await submitVerification(pub.chain!.id, arbiter as Address)
+        if (!vr.ok) console.warn('contract verification not submitted:', arbiter, vr.error)
+      }
       return ok({ merchant: r }, changing ? 200 : 201)
     }
 

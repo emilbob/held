@@ -1,7 +1,7 @@
 // Judge path (#/cheat, testnet only): pay $1 into the Sandbox Shop, then try every way to take it. Each attempt is a
 // real transaction from the sandbox's PUBLIC merchant or resolver key, so its failure is on Tempo's explorer; Held's
 // fee wallet is only a dry run (its key never goes in a web page). Then the only two ways out: release or refund.
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BaseError, ContractFunctionRevertedError, parseAbi, parseAbiItem, parseEventLogs, type Address, type Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import * as W from './wallet.ts'
@@ -14,7 +14,14 @@ const guardAbi = parseAbi(['function claim(address to, bytes receipt)', 'functio
 const TransferBlocked = parseAbiItem('event TransferBlocked(address indexed token, address indexed receiver, uint64 indexed blockedNonce, uint256 amount, uint8 receiptVersion, bytes receipt)')
 const FeeCharged = parseAbiItem('event FeeCharged(bytes32 indexed id, address indexed token, address indexed recipient, uint256 fee)')
 const badReceiptAbi = [...W.arbiterAbi, { name: 'BadReceipt', type: 'error', inputs: [] }] as const
+const termsAbi = parseAbi(['function feeFor(uint256 amount) view returns (uint256)', 'function protectionWindow() view returns (uint64)'])
 const AMOUNT = '1'
+const AMOUNT_BASE = 1_000_000n
+// As an adjective: "5-minute", "2-hour", "7-day"
+const span = (secs: number) => {
+  const [n, unit] = secs >= 86400 ? [secs / 86400, 'day'] : secs >= 3600 ? [secs / 3600, 'hour'] : [Math.max(1, Math.round(secs / 60)), 'minute']
+  return `${Math.round(n * 10) / 10}-${unit}`
+}
 
 type Who = 'merchant' | 'resolver' | 'held'
 interface Cheat { id: string, who: Who, label: string, refused: string }
@@ -87,6 +94,16 @@ export default function Cheat() {
   const [busy, setBusy] = useState<string | null>(null)
   const [doneAt, setDoneAt] = useState<number | null>(null)
   const [start, setStart] = useState(0)
+  // The merchant's side, read from the shop's contract before paying: Held's fee on this $1 and the protection window.
+  const [terms, setTerms] = useState<{ fee: bigint, window: number } | null>(null)
+  const termsArbiter = cfg?.sandbox?.arbiter as Address | undefined
+  useEffect(() => {
+    if (!termsArbiter) return
+    Promise.all([
+      W.pub.readContract({ address: termsArbiter, abi: termsAbi, functionName: 'feeFor', args: [AMOUNT_BASE] }),
+      W.pub.readContract({ address: termsArbiter, abi: termsAbi, functionName: 'protectionWindow' }),
+    ]).then(([fee, window]) => setTerms({ fee, window: Number(window) }), () => {})
+  }, [termsArbiter])
 
   if (cfg && (!cfg.testnet || !cfg.sandbox?.arbiter)) return <p className="muted">This page is only available on testnet.</p>
   const sb = cfg?.sandbox
@@ -169,6 +186,13 @@ export default function Cheat() {
         <p>Pay $1 into a test shop on Tempo testnet, then try 5 ways to take it: 4 real transactions, each refused by the chain
           with a failed tx you can check, and 1 dry run (Held's own wallet, because its key never goes in a web page).
           About 60 seconds, nothing to install.</p>
+        {terms && !paid && (
+          <p className="muted small"><b className="ink">When the merchant gets paid:</b> {usd(AMOUNT_BASE - terms.fee)} as soon as the buyer
+            confirms delivery. If the buyer doesn't, the merchant can take it once the {span(terms.window)} protection window ends
+            with no dispute (days in a real shop).
+            {terms.fee > 0n ? <> Held's fee is {usd(terms.fee)}, taken only when the payment is released.</> : null} A refund returns
+            the full {usd(AMOUNT_BASE)}.</p>
+        )}
         {!paid && <button className="primary" disabled={!!step || !cfg} onClick={pay}>{step ? 'Working…' : '1. Pay $1 into the Sandbox Shop'}</button>}
         {step && <p className="muted small">{step}</p>}
         {paid && !out && (
@@ -177,6 +201,8 @@ export default function Cheat() {
             Locked for this payment right now: <b>{locked === null ? '…' : usd(locked)}</b>.{' '}
             <a href={txUrl(paid.tx)} target="_blank" rel="noreferrer">payment tx ↗</a>
             <br />Protection window: <b>{countdown(windowLeft)}</b> left (short in the sandbox; days in a real shop).
+            {terms && <><br />The merchant gets <b>{usd(BigInt(paid.order.amount) - terms.fee)}</b> when the buyer confirms, or can take
+              it when this reaches 0:00 with no dispute{terms.fee > 0n && <>; Held's fee: {usd(terms.fee)}</>}.</>}
           </div>
         )}
         <Result msg={msg} />

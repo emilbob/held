@@ -1,13 +1,13 @@
 // Judge path (#/cheat, testnet only): pay $1 into the Sandbox Shop, then try every way to take it. Each attempt is a
 // real transaction from the sandbox's PUBLIC merchant or resolver key, so its failure is on Tempo's explorer; Held's
 // fee wallet is only a dry run (its key never goes in a web page). Then the only two ways out: release or refund.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { BaseError, ContractFunctionRevertedError, parseAbi, parseAbiItem, parseEventLogs, type Address, type Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import * as W from './wallet.ts'
 import { api, getConfig, useConfig, useNow, usd, short, txUrl, addrUrl, countdown, Result, type Msg } from './ui.tsx'
 import { useEntrance } from './anim.tsx'
-import { signInMessage, type Order } from '../../shared/api.ts'
+import { signInMessage, FEEDBACK_MAX, QUOTE_NAME_MAX, type Order } from '../../shared/api.ts'
 
 const GUARD: Address = '0xB10C000000000000000000000000000000000000'
 const guardAbi = parseAbi(['function claim(address to, bytes receipt)', 'function balanceOf(bytes receipt) view returns (uint256)'])
@@ -79,6 +79,37 @@ async function fundBuyer(address: Address) {
     await new Promise((r) => setTimeout(r, 1500))
   }
   throw new Error("The test funds didn't arrive. Try again in a minute.")
+}
+
+// One-sentence feedback right where the test ends (same store as #/feedback; quotable ones reach the landing).
+function QuickFeedback() {
+  const [text, setText] = useState('')
+  const [quote, setQuote] = useState(false)
+  const [quoteName, setQuoteName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [msg, setMsg] = useState<Msg>(null)
+  const send = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true); setMsg(null)
+    try { await api('/feedback', { role: 'looking', text, quote, quoteName: quote ? quoteName : '' }); setSent(true) } catch (x) { setMsg({ ok: false, text: (x as Error).message }) }
+    setBusy(false)
+  }
+  if (sent) return <p className="muted small" role="status">Thank you! Your feedback reached Held.</p>
+  return (
+    <form className="setup feedback quick" onSubmit={send}>
+      <label htmlFor="qfb">One sentence helps: what was confusing, or would you use this?</label>
+      <textarea id="qfb" rows={2} value={text} onChange={(e) => setText(e.target.value)} maxLength={FEEDBACK_MAX} required placeholder="e.g. I didn't get…" />
+      <label className="check">
+        <input type="checkbox" checked={quote} onChange={(e) => setQuote(e.target.checked)} />
+        <span>You can quote this on the Held website</span>
+      </label>
+      {quote && <input aria-label="Name or handle to show (optional)" placeholder='Name or handle to show (optional, e.g. "@ana")'
+        value={quoteName} onChange={(e) => setQuoteName(e.target.value)} maxLength={QUOTE_NAME_MAX} autoComplete="off" />}
+      <button className="primary small" disabled={busy || !text.trim()}>{busy ? 'Sending…' : 'Send'}</button>
+      <Result msg={msg} />
+    </form>
+  )
 }
 
 export default function Cheat() {
@@ -264,6 +295,7 @@ export default function Cheat() {
               {' '}<button className="ghost small" onClick={() => { setPaid(null); setOut(null) }}>Again</button>
             </div>
           )}
+          {out && <QuickFeedback />}
         </div>
       )}
       <p className="muted small after">Want the full tour: shop dashboard, disputes, the resolver's view? <a href="#/sandbox">Try the sandbox</a>.</p>

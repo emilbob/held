@@ -40,6 +40,7 @@ const stages = [
       'Refunds to an address the buyer chooses, so payments sent from an exchange are protected too',
       'Higher order limits',
       'WooCommerce payment method: pay for a whole cart with Held',
+      'Protection for AI agent payments: an agent\'s payment waits until the service delivers, or goes back to the agent',
       'From mid-2027: a 1% fee on released payments, written into each shop\'s contract when it\'s set up. Refunds are always free',
     ],
   },

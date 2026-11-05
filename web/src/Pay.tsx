@@ -221,7 +221,9 @@ export default function Pay({ id }: { id: string }) {
               onClick={() => run('pay', async () => {
                 const c = await verify(order)
                 if (!c?.ok) throw new Error(c ? c.reason : "Couldn't check this shop's protection on the chain. Nothing was sent; try again.")
-                await W.transfer(wallet, order.address, order.amount, payToken)
+                // The payment itself re-checks the protection on-chain (HeldPayCheck), so a policy switched off after
+                // this check moves nothing.
+                await W.payProtected(wallet, { merchant: order.merchant, arbiter: order.merchantInfo.arbiter }, order.address, order.amount, payToken)
               })}>
               {busy === 'pay' ? 'Sending…' : `Pay ${usd(order.amount)}${accepted.length > 1 ? ` in ${sym(payToken)}` : ''}`}
             </button>

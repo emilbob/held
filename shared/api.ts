@@ -129,6 +129,9 @@ export interface Network {
   // Refunds never pay it. Testnet: a placeholder wallet with the fee on from the start, to exercise the split.
   // Mainnet: recipient is address(0) until the real fee wallet is set, so the contract refuses to deploy.
   fee: { recipient: Address, bps: number, start: number, cap: string }
+  // HeldPayCheck (contracts/HeldPayCheck.sol): one stateless deployment per network. The buyer page pays through it so
+  // "is this shop still protected?" and the payment are one atomic step. Unset: the page refuses to pay on mainnet.
+  payCheck?: Address
   // Testnet only: a shared, already-set-up shop anyone can try (scripts/sandbox-setup.ts). The keys are PUBLIC test keys.
   sandbox?: { merchant: Address, merchantKey: Hex, resolver: Address, resolverKey: Hex, salt?: Hex, masterId?: Hex, arbiter?: Address }
 }

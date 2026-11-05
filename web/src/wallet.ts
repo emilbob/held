@@ -1,7 +1,7 @@
 // Browser-side chain access. Buyers act on HeldArbiter directly from their own wallet; Held never signs for them.
 // Tempo accepts standard EVM transactions, so any EVM wallet works (verified: eip1559 + legacy transfers are held).
 import {
-  createPublicClient, createWalletClient, custom, http, defineChain, erc20Abi,
+  createPublicClient, createWalletClient, custom, http, defineChain, erc20Abi, encodeFunctionData,
   type Address, type Hex, type EIP1193Provider, type WalletClient, type Account, type Chain, type Transport,
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
@@ -224,6 +224,58 @@ async function feeTokenFor(wallet: Wallet, preferred: Address[]): Promise<Addres
   return best >= 0 ? tokens[best] : undefined
 }
 const feeOpt = (wallet: Wallet, token: Address | undefined) => (wallet.kind === 'injected' || !token ? {} : { feeToken: token })
+
+// Pay a shop with its protection checked IN the payment (contracts/HeldPayCheck.sol). A separate check followed by a
+// plain transfer left a gap: a merchant switching its receive policy off while the wallet prompt was open got paid
+// directly, unprotected. Here, if the policy doesn't hold at the moment the payment executes, nothing moves.
+//  - Tempo Wallet and keys this page holds: ONE Tempo transaction with two calls, [requireHeld, transfer]; Tempo runs
+//    batched calls atomically, and the transfer is still the buyer's own (refunds and disputes stay the buyer's).
+//  - Browser wallets (MetaMask) can't batch on Tempo: approve exactly this amount, then payChecked (check +
+//    transferFrom in one call). Proven on testnet: the held payment's originator is still the buyer.
+const payCheckAbi = [
+  { name: 'requireHeld', type: 'function', stateMutability: 'view', outputs: [],
+    inputs: [{ type: 'address', name: 'to' }, { type: 'address', name: 'merchant' }, { type: 'address', name: 'arbiter' }, { type: 'uint64', name: 'payoutPolicyId' }] },
+  { name: 'payChecked', type: 'function', stateMutability: 'nonpayable', outputs: [],
+    inputs: [{ type: 'address', name: 'token' }, { type: 'address', name: 'to' }, { type: 'uint256', name: 'amount' }, { type: 'address', name: 'merchant' }, { type: 'address', name: 'arbiter' }, { type: 'uint64', name: 'payoutPolicyId' }] },
+  customError('NotHeld'), customError('NotMerchantAddress'), customError('TransferFailed'),
+] as const
+const payoutAbi = [{ name: 'payoutPolicyId', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint64' }] }] as const
+errorText.NotHeld = "This shop's protection isn't on right now, so nothing was sent."
+errorText.NotMerchantAddress = "This payment address doesn't belong to the shop, so nothing was sent."
+
+export async function payProtected(wallet: Wallet, shop: { merchant: Address, arbiter: Address }, to: Address, amount: string | bigint, token: Address) {
+  const check = NET.payCheck
+  if (!check) throw new Error("Payments aren't open on this network yet. Nothing was sent.")
+  const amt = BigInt(amount)
+  // v3+ arbiters whitelist their own payouts; older (testnet-only) arbiters expect "reject all" (policy id 0).
+  const payout = await pub.readContract({ address: shop.arbiter, abi: payoutAbi, functionName: 'payoutPolicyId' }).catch(() => 0n)
+  const args = [to, shop.merchant, shop.arbiter, payout] as const
+  // Ask the chain first: a clear "not protected" instead of a failed transaction (the payment itself checks again).
+  await pub.readContract({ address: check, abi: payCheckAbi, functionName: 'requireHeld', args })
+  let hash: Hex
+  if (wallet.kind !== 'injected') {
+    const calls = [
+      { to: check, data: encodeFunctionData({ abi: payCheckAbi, functionName: 'requireHeld', args }) },
+      { to: token, data: encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [to, amt] }) },
+    ]
+    hash = wallet.kind === 'tempo' && wallet.provider
+      ? await wallet.provider.request({ method: 'eth_sendTransaction', params: [{ from: wallet.address, calls }] } as never) as Hex
+      : await wallet.client.sendTransaction({ calls, feeToken: token } as never)
+  } else {
+    // Browser wallets pay contract-call fees in pathUSD (they can't name a fee token): say so before any prompt.
+    await feeTokenFor(wallet, [token])
+    const allowance = await pub.readContract({ address: token, abi: erc20Abi, functionName: 'allowance', args: [wallet.address, check] })
+    if (allowance < amt) {
+      const ah = await wallet.client.writeContract({ address: token, abi: erc20Abi, functionName: 'approve', args: [check, amt] } as never)
+      const ar = await pub.waitForTransactionReceipt({ hash: ah })
+      if (ar.status !== 'success') throw new Error('The approval failed. Nothing was sent.')
+    }
+    hash = await wallet.client.writeContract({ address: check, abi: payCheckAbi, functionName: 'payChecked', args: [token, to, amt, shop.merchant, shop.arbiter, payout], gas: 1_000_000n } as never)
+  }
+  const rc = await pub.waitForTransactionReceipt({ hash })
+  if (rc.status !== 'success') throw new Error("The payment didn't go through, and nothing was sent. Check that the shop is still protected and try again.")
+  return rc
+}
 
 export async function transfer(wallet: Wallet, to: Address, amount: string | bigint, token: Address = PATHUSD) {
   // A TIP-20 transfer pays its fee in the token sent.

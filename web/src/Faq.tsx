@@ -58,6 +58,10 @@ const sections: [string, [string, ReactNode, string?][]][] = [
         Held plugin (download it from the WordPress button), then add the <b>Pay with Held</b> block and paste your link.</>, 'website'],
   ]],
   ['Safety and trust', [
+    ['How is Held different from an escrow service like Escrow.com?',
+      <>With an escrow service, a company holds your money in its own account and pays it out, so you have to trust that company. With
+        Held, nobody holds it, Held included: the payment stays locked on Tempo, and the shop's contract can only send it to the
+        merchant or back to the wallet that paid. It's paid in stablecoins, settles in seconds, and needs no sign-up, only a wallet.</>, 'escrow'],
     ['Who actually holds the money?',
       <>Tempo does. The payment sits in Tempo's ReceivePolicyGuard under the rules of the merchant's own contract. Held's server holds
         no keys and never signs a release or refund: every action is signed by the wallet of the person taking it.</>],

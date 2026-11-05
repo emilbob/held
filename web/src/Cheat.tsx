@@ -25,7 +25,7 @@ const CHEATS: Cheat[] = [
     refused: "Tempo only lets this shop's Held contract move held money. The merchant's own key can't." },
   { id: 'third', who: 'resolver', label: 'Send the $1 to a wallet of my choice',
     refused: 'Even the resolver can only pay the merchant or refund the buyer. There is no third address.' },
-  { id: 'held', who: 'held', label: "Held takes the $1 with its own wallet",
+  { id: 'held', who: 'held', label: "Held takes the $1 with its own wallet (dry run)",
     refused: "Held's fee wallet can't claim it either." },
   { id: 'padded', who: 'merchant', label: 'Replay the payment receipt with extra bytes',
     refused: 'The contract only accepts the exact receipt. We found this hole in our own review and closed it in contract v4.' },
@@ -166,8 +166,9 @@ export default function Cheat() {
     <div className="narrow cheat" ref={root}>
       <div className="card">
         <h1>Try to steal $1</h1>
-        <p>Pay $1 into a test shop on Tempo testnet, then try every way to take it. Each attempt is a real transaction,
-          and the chain refuses it. About 60 seconds, nothing to install.</p>
+        <p>Pay $1 into a test shop on Tempo testnet, then try 5 ways to take it: 4 real transactions, each refused by the chain
+          with a failed tx you can check, and 1 dry run (Held's own wallet, because its key never goes in a web page).
+          About 60 seconds, nothing to install.</p>
         {!paid && <button className="primary" disabled={!!step || !cfg} onClick={pay}>{step ? 'Working…' : '1. Pay $1 into the Sandbox Shop'}</button>}
         {step && <p className="muted small">{step}</p>}
         {paid && !out && (
@@ -220,12 +221,15 @@ export default function Cheat() {
               <button className="primary" disabled={!!busy} onClick={() => finish('release')}>{busy === 'release' ? 'Releasing…' : 'Buyer: I got it, pay the merchant'}</button>
               <button className="secondary" disabled={!!busy} onClick={() => finish('refund')}>{busy === 'refund' ? 'Refunding…' : 'Merchant: refund the buyer'}</button>
             </div>
-            <p className="muted small">Or open a dispute on the <a href={`#/pay/${paid.order.key ?? paid.order.id}`}>buyer page</a>: the resolver
-              also gets only these two buttons.</p>
+            <p className="muted small">Or open a dispute on the <a href={`#/pay/${paid.order.key ?? paid.order.id}`}>buyer page</a>. Here the
+              sandbox's test resolver (<a href={addrUrl(paid.order.merchantInfo.resolver)} target="_blank" rel="noreferrer">{short(paid.order.merchantInfo.resolver)}</a>)
+              decides; in a real shop it's Held's neutral resolver, and the buyer sees who before paying. Either way it gets only these
+              two buttons. <a href="#/faq/resolver">Who decides disputes, and how →</a></p>
           </> : (
             <div className="protect done">
               {out.kind === 'release'
-                ? <><b>Paid to the merchant:</b> {usd(amount - out.fee)} to <a href={addrUrl(sb!.merchant)} target="_blank" rel="noreferrer">{short(sb!.merchant)}</a>
+                ? <><b>Paid to the merchant:</b> {usd(amount - out.fee)} to <b>{paid.order.merchantInfo.name || 'the merchant'}</b>{' '}
+                    (<a href={addrUrl(sb!.merchant)} target="_blank" rel="noreferrer">{short(sb!.merchant)}</a>)
                     {out.fee > 0n && <>, plus Held's {usd(out.fee)} fee</>}.</>
                 : <><b>Refunded:</b> {usd(amount)} back to the wallet that paid.</>}{' '}
               <a href={txUrl(out.tx)} target="_blank" rel="noreferrer">tx ↗</a>

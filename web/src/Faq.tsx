@@ -45,8 +45,9 @@ const sections: [string, [string, ReactNode, string?][]][] = [
       <>Yes, at any time until the payment is settled, including during a dispute. The refund can only go to the wallet that paid.</>],
     ['Who is the resolver?',
       <>Held's neutral resolver decides disputes for every shop; a shop can't name its own. The resolver can only refund the buyer
-        or pay you; it can never send the money anywhere else. After the beta it becomes a multisig, and later independent resolvers
-        Held has approved can join.</>],
+        or pay you; it can never send the money anywhere else. It decides from the notes the buyer and you send with the dispute
+        (each side can write up to 5), and it has a deadline: if it doesn't decide in time, the buyer gets the money back. After the
+        beta it becomes a multisig, and later independent resolvers Held has approved can join.</>, 'resolver'],
     ['Which stablecoins can I accept?',
       <>Up to 3 per shop. {NET.testnet ? 'On testnet: ' : 'Available: '}{coins}.</>],
     ['Can I add a "Pay with Held" button to my website?',

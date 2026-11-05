@@ -24,17 +24,18 @@ const span = (secs: number) => {
 }
 
 type Who = 'merchant' | 'resolver' | 'held'
-interface Cheat { id: string, who: Who, label: string, refused: string }
+// `to`: where the attempt tries to send the $1 (shown under each attempt, so it's clear what "stealing" means).
+interface Cheat { id: string, who: Who, label: string, to: string, refused: string }
 const CHEATS: Cheat[] = [
-  { id: 'early', who: 'merchant', label: 'Pay myself now, before the buyer has the goods',
+  { id: 'early', who: 'merchant', label: 'Pay myself now, before the buyer has the goods', to: "the merchant's wallet, before delivery",
     refused: 'Only the buyer can pay the merchant before the protection window ends.' },
-  { id: 'guard', who: 'merchant', label: "Skip Held's contract: claim the $1 straight from Tempo",
+  { id: 'guard', who: 'merchant', label: "Skip Held's contract: claim the $1 straight from Tempo", to: "the merchant's wallet, bypassing Held's contract",
     refused: "Tempo only lets this shop's Held contract move held money. The merchant's own key can't." },
-  { id: 'third', who: 'resolver', label: 'Send the $1 to a wallet of my choice',
+  { id: 'third', who: 'resolver', label: 'Send the $1 to a wallet of my choice', to: 'a brand-new random wallet',
     refused: 'Even the resolver can only pay the merchant or refund the buyer. There is no third address.' },
-  { id: 'held', who: 'held', label: "Held takes the $1 with its own wallet (dry run)",
+  { id: 'held', who: 'held', label: "Held takes the $1 with its own wallet (dry run)", to: "Held's own fee wallet",
     refused: "Held's fee wallet can't claim it either." },
-  { id: 'padded', who: 'merchant', label: 'Replay the payment receipt with extra bytes',
+  { id: 'padded', who: 'merchant', label: 'Replay the payment receipt with extra bytes', to: "the merchant's wallet, using a tampered receipt",
     refused: 'The contract only accepts the exact receipt. We found this hole in our own review and closed it in contract v4.' },
 ]
 const WHO: Record<Who, string> = { merchant: 'Merchant', resolver: 'Resolver', held: 'Held' }
@@ -219,7 +220,7 @@ export default function Cheat() {
                 <li key={c.id}>
                   <div className="try">
                     <span className="who">{WHO[c.who]}</span>
-                    <span>{c.label}</span>
+                    <span>{c.label}<br /><span className="muted small">{WHO[c.who]}'s wallet tries to send the $1 to {c.to}</span></span>
                     <button className="ghost small" disabled={!!t?.busy || windowLeft <= 0 || !!out} onClick={() => attempt(c)}>
                       {t?.busy ? 'Trying…' : t ? 'Try again' : 'Try it'}</button>
                   </div>

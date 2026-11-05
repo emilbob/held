@@ -25,10 +25,12 @@ export function Terms() {
 
         <h2>Free beta</h2>
         <ul>
-          <li>Held charges no fees during the beta. Tempo network fees (cents or less) are paid to the network, not to Held.</li>
+          <li>Held charges no fees during the mainnet beta (until mid-2027).{NET.testnet ? ' On testnet, a 1% fee in test money is switched on to show how the split works.' : ''} Tempo
+            network fees (cents or less) are paid to the network, not to Held.</li>
           <li>Each order is limited to {usd(NET.maxOrder)} while Held is in beta. Accepted stablecoins: {coins}.</li>
-          <li>Held is provided "as is", without warranties. It is new software; its contract is tested extensively but has not had an
-            independent security audit yet. Use amounts you are comfortable with.</li>
+          <li>Held is provided "as is", without warranties. It is new software; its contract is tested extensively and has had our own
+            security review, but not an independent security audit yet; one comes before order limits rise. Use amounts you are
+            comfortable with.</li>
         </ul>
 
         <h2>How protection works</h2>

@@ -19,7 +19,7 @@ const stages = [
   {
     when: 'Next', badge: 'Free beta on mainnet', cls: 'amber',
     items: [
-      'Security review of the contract and the app done before mainnet, with what it found fixed',
+      'Our own security review of the contract and the app, with what it found fixed (done; not an independent audit)',
       'Legal review with a crypto lawyer before mainnet',
       'Real stablecoins on Tempo mainnet (USDC.e, USDT0)',
       'Order limits that start low',

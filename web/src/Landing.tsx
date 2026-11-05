@@ -53,8 +53,8 @@ export default function Landing() {
         <div className="hero-copy">
           <div className="eyebrow"><Logo size={44} /><Scramble onMount ms={700} text={`Buyer protection for stablecoin payments${cfg?.testnet ? ' · Tempo testnet' : ' on Tempo'}`} /></div>
           <h1><LineReveal text="Pay a stranger on‑chain. Get your money back if it goes wrong." delay={0.15} /></h1>
-          <p className="lede">Held sets up a merchant checkout where Tempo holds the buyer's payment until delivery. The Held arbiter contract is the
-            only way out: it can release the funds to the merchant or refund the buyer. No custodian. No platform risk.</p>
+          <p className="lede">Held sets up a merchant checkout where Tempo holds the buyer's payment until delivery. Tempo lets only the shop's Held
+            contract move it, and that contract can do just two things: release the funds to the merchant or refund the buyer. No custodian.</p>
           <div className="ctas">
             {start(cta1)}
             {trySandbox('Try the sandbox (2 min)', cta2)}

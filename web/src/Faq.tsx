@@ -75,19 +75,22 @@ const sections: [string, [string, ReactNode, string?][]][] = [
     ['What if the resolver never decides a dispute?',
       <>Each shop sets a deadline for its resolver at setup ({NET.testnet ? 'from 10 minutes on testnet' : '3, 7 or 14 days'}), shown on
         the order. If the resolver hasn't decided by then, the buyer gets their money back: anyone can trigger the refund, and it always
-        goes to the wallet that paid. After the deadline the resolver can no longer pay the merchant.</>],
+        goes to the wallet that paid. After the deadline the resolver can no longer pay the merchant. One exception: if the buyer's own
+        wallet has a receive policy that refuses payments from this shop's contract, that refund can't arrive, so the money stays held
+        until the buyer changes their policy; then anyone can trigger the refund again. The order page warns about this before you pay.</>],
     ['Can I read the contract that holds my money?',
       <>Yes. Every shop's contract is published with its source code on Tempo's explorer, checked by Tempo's own verifier
         against the code that is actually running. On your order page, open <b>this shop's contract</b> in the
         "Protected by Held" box.</>],
     ['Has the contract been audited?',
-      <>Not by an outside firm yet. It's tested extensively, including randomized tests of every rule, and was security-reviewed
-        before mainnet, with what that review found fixed. Mainnet starts as a beta with low limits; an independent audit comes before
-        those limits rise.{NET.testnet ? '' : ` Orders are capped at ${usd(NET.maxOrder)}.`} See the <a href="#/roadmap">roadmap</a>.</>],
+      <>Not by an independent firm yet. It's tested extensively, including randomized tests of every rule, and has had our own
+        security review, with what that review found fixed. Mainnet starts as a beta with low limits; an independent audit comes
+        before those limits rise.{NET.testnet ? '' : ` Orders are capped at ${usd(NET.maxOrder)}.`} See the <a href="#/roadmap">roadmap</a>.</>],
   ]],
   ['Costs and the beta', [
     ['What does Held cost?',
-      <>Nothing until mid-2027. You only pay Tempo's network fee for each transaction, a cent or less, in stablecoins.
+      <>On mainnet, nothing until mid-2027. You only pay Tempo's network fee for each transaction, a cent or less, in stablecoins.
+        {NET.testnet ? ' On this testnet, the 1% fee is switched on (in test money) to show how the split works.' : ''}
         After that, Held plans a 1% fee on released payments, fixed in each shop's contract when it's set up so it can never
         be raised. Refunds are always free. See the <a href="#/roadmap">roadmap</a>.</>],
     ['Is this real money?',

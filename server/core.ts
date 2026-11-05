@@ -62,8 +62,9 @@ const header = (h: Headers, name: string) => { const v = h[name]; return typeof 
 const now = () => Math.floor(Date.now() / 1000)
 // Feedback has no id: its key is a hash of when it came and what it says.
 const feedbackKey = (f: Feedback) => sha256hex(`${f.at}:${f.role}:${f.text}`).slice(0, 16)
-const AMOUNT = /^\d+(\.\d{1,6})?$/
-// A price the API accepts: a positive number, at most the network's launch cap. Returns an error or null.
+// Whole cents only: every page shows prices in cents, so $0.001 used to become a "$0.00" order (reported by RealSpap).
+const AMOUNT = /^\d+(\.\d{1,2})?$/
+// A price the API accepts: at least $0.01 with at most 2 decimals, at most the network's launch cap. Returns an error or null.
 const priceError = (amount: unknown, network: Network, what: string) => {
   if (!amount || !AMOUNT.test(String(amount)) || parseUnits(String(amount), 6) <= 0n) return `${what} must be a number like 20 or 12.50`
   if (parseUnits(String(amount), 6) > BigInt(network.maxOrder)) return `${what} can be at most $${Number(network.maxOrder) / 1e6} for now (launch limit).`

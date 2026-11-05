@@ -6,6 +6,7 @@ import {StdPrecompiles} from "tempo-std/StdPrecompiles.sol";
 import {StdTokens} from "tempo-std/StdTokens.sol";
 import {ITIP20} from "tempo-std/interfaces/ITIP20.sol";
 import {ITIP20RolesAuth} from "tempo-std/interfaces/ITIP20RolesAuth.sol";
+import {ITIP403Registry} from "tempo-std/interfaces/ITIP403Registry.sol";
 import {HeldArbiter} from "../contracts/HeldArbiter.sol";
 
 interface ITIP403ReceivePolicy {
@@ -850,5 +851,55 @@ contract HeldArbiterTest is Test {
         }
         assertEq(other.balanceOf(MERCHANT), m0, "merchant never receives a token it doesn't accept");
         assertTrue(GUARD.balanceOf(r) == 25e6 || other.balanceOf(buyer) - b0 == 25e6, "held, or back with the payer");
+    }
+
+    // ------------------------------------------------------- fee wallet that can't receive (RealSpap, Nov 2026)
+    // Question: can Held's fee wallet block every release by refusing its 1%? A release sends the merchant's share,
+    // then the fee; if the fee transfer REVERTED, the whole release would revert.
+
+    /// The fee wallet refuses every sender with a normal receive policy: Tempo HOLDS the fee for it (no revert),
+    /// so the release goes through and the merchant is paid.
+    function test_FeeWallet_RefusingEverything_DoesNotBlockRelease() public {
+        bytes memory r = _payOrder(100e6);
+        vm.warp(FEE_START);
+        vm.prank(feeWallet);
+        REG403.setReceivePolicy(REJECT_ALL, ALLOW_ALL, feeWallet);
+        uint256 m0 = usd.balanceOf(MERCHANT);
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(MERCHANT) - m0, 99e6, "merchant still gets 99%");
+        assertEq(usd.balanceOf(feeWallet), 0, "the fee is held for the fee wallet, not delivered");
+        assertEq(usd.balanceOf(address(arbiter)), 0, "arbiter keeps nothing");
+    }
+
+    /// Same, with no recovery authority at all on the fee wallet's policy (the strictest setting it can choose).
+    function test_FeeWallet_PolicyWithoutRecovery_DoesNotBlockRelease() public {
+        bytes memory r = _payOrder(100e6);
+        vm.warp(FEE_START);
+        vm.prank(feeWallet);
+        try REG403.setReceivePolicy(REJECT_ALL, ALLOW_ALL, address(0)) {} catch { emit log("setReceivePolicy(recovery=0) refused by Tempo"); return; }
+        uint256 m0 = usd.balanceOf(MERCHANT);
+        vm.prank(buyer);
+        arbiter.release(r);
+        assertEq(usd.balanceOf(MERCHANT) - m0, 99e6, "merchant still gets 99%");
+    }
+
+    /// The TOKEN ISSUER blacklists the fee wallet (Held can't do this on mainnet: the issuers are Circle/Tether bridges).
+    /// Documents what happens: the fee transfer reverts, so the release reverts; the merchant can still be paid only
+    /// once the issuer lifts it, and the buyer can always be refunded (refunds pay no fee).
+    function test_FeeWallet_BlacklistedByIssuer_BlocksReleaseButNotRefund() public {
+        bytes memory r = _payOrder(100e6);
+        vm.warp(FEE_START);
+        address[] memory bad = new address[](1);
+        bad[0] = feeWallet;
+        uint64 bl = StdPrecompiles.TIP403_REGISTRY.createPolicyWithAccounts(address(this), ITIP403Registry.PolicyType.BLACKLIST, bad);
+        usd.changeTransferPolicyId(bl);
+        vm.prank(buyer);
+        vm.expectRevert();
+        arbiter.release(r);
+        uint256 b0 = usd.balanceOf(buyer);
+        vm.prank(MERCHANT);
+        arbiter.refund(r);
+        assertEq(usd.balanceOf(buyer) - b0, 100e6, "refund still works in full");
     }
 }

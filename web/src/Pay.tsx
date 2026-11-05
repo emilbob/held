@@ -188,6 +188,11 @@ export default function Pay({ id }: { id: string }) {
         {status === 'refunded' && <div className="protect done"><b>Refunded.</b> {usd(main!.amount)} was returned to the wallet that paid.</div>}
         {settled && <p className="askfb">How was paying with Held? <a href="#/feedback">Tell us in two minutes</a>: it decides what we build next.</p>}
         {order.underpaid && <p className="warn">This order was underpaid ({usd(main!.amount)} of {usd(order.amount)}).</p>}
+        {/* The big number above is the order's price; say so when more than that was paid (reported by RealSpap). */}
+        {main && !order.underpaid && BigInt(main.amount) > BigInt(order.amount) && (
+          <p className="warn">More than the price was paid: {usd(main.amount)} is held for a {usd(order.amount)} order. All of it can only go to
+            the merchant or back to the wallet that paid.</p>
+        )}
       </div>
 
       {!settled && <div className="card walletbox">

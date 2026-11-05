@@ -411,7 +411,8 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
             {main.resolveBy ? (main.deadlinePassed ? '. Their deadline has passed, so the buyer gets a refund.' : <> within <b className="ink">{countdown(main.resolveBy - now)}</b>, or the buyer is refunded</> ) : ''}.
             {' '}Agree with the buyer? <b className="ink">Refund buyer</b> ends the dispute right away.</span>
           <B k="refund" fn="refund" p={main} label="Refund buyer" done="Refunded to the buyer." />
-          {isSandboxShop(cfg, merchant.address) && <button className="primary" onClick={openSandboxResolver}>Decide as the resolver →</button>}
+          {/* After the deadline the resolver can't decide any more (only the refund is left), so don't offer it (reported by RealSpap). */}
+          {isSandboxShop(cfg, merchant.address) && !main.deadlinePassed && <button className="primary" onClick={openSandboxResolver}>Decide as the resolver →</button>}
           <Notes notes={o.notes?.[main.id]} me="merchant" />
           {!o.notes?.[main.id]?.length && <p className="muted small">The buyer didn't leave a note.</p>}
           {(o.notes?.[main.id] ?? []).filter((n) => n.by === 'merchant').length < NOTES_PER_SIDE ? (

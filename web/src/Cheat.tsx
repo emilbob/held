@@ -152,7 +152,8 @@ export default function Cheat() {
       const buyer = await W.connect('demo', undefined, 'buyer')
       const [order] = await Promise.all([sandboxOrder(sb.merchantKey), fundBuyer(buyer.address)])
       setStep('Paying $1 from a test wallet in this browser…')
-      const rc = await W.transfer(buyer, order.address, order.amount, W.PATHUSD)
+      // Same protected payment as the buyer page (HeldPayCheck), not a plain transfer: this page is the proof.
+      const rc = await W.payProtected(buyer, { merchant: order.merchant, arbiter: order.merchantInfo.arbiter }, order.address, order.amount, W.PATHUSD)
       const held = parseEventLogs({ abi: [TransferBlocked], logs: rc.logs })[0]
       if (rc.status !== 'success' || !held) throw new Error('The payment did not go through. Try again.')
       setPaid({ order, receipt: held.args.receipt as Hex, tx: rc.transactionHash, at: Math.floor(Date.now() / 1000) })

@@ -1,9 +1,9 @@
-// Buyer page (#/pay/:key): pay the order's unique address, then confirm delivery or open a dispute.
+// Buyer page (#/pay/:key): pay the order's unique address (only through the protected Pay button), then confirm
+// delivery or open a dispute.
 // Every action is signed by the buyer's own wallet against the merchant's HeldArbiter.
 import { useEffect, useRef, useState } from 'react'
 import { CountUp, useEntrance } from './anim.tsx'
 import type { Hex } from 'viem'
-import QRCode from 'qrcode'
 import * as W from './wallet.ts'
 import { api, session, usePoll, useNow, useConfig, useWallet, WalletPicker, walletFits, Badge, Steps, Result, Notes, usd, short, countdown, duration, openSandboxResolver, isSandboxShop, addrUrl, type Msg } from './ui.tsx'
 import { noteMessage, NOTE_MAX, NOTES_PER_SIDE, tokenSymbol, type Order, type OrderStatus } from '../../shared/api.ts'
@@ -16,10 +16,8 @@ export default function Pay({ id }: { id: string }) {
   const [order, err] = usePoll(() => api<Order>(`/orders/${id}`), 2000, [id])
   const w = useWallet('buyer')
   const wallet = w.wallet
-  const [qr, setQr] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<Msg>(null)
-  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
   const [disputing, setDisputing] = useState(false)
   const [reason, setReason] = useState('')
   const [followUp, setFollowUp] = useState('')
@@ -43,13 +41,6 @@ export default function Pay({ id }: { id: string }) {
   useEffect(() => {
     if (wallet && order) refundReachable(W.pub as never, wallet.address, order.merchant).then(setRefundOk, () => setRefundOk(true))
   }, [wallet?.address, order?.merchant])
-
-  useEffect(() => {
-    if (!order || !cfg) return
-    // EIP-681 payment request: token transfer to the order's address.
-    const token = order.merchantInfo.acceptedTokens[0] ?? W.PATHUSD
-    QRCode.toDataURL(`ethereum:${token}@${cfg.chainId}/transfer?address=${order.address}&uint256=${order.amount}`, { margin: 1, width: 220 }).then(setQr)
-  }, [order?.address, cfg])
 
   const run = async (key: string, fn: () => Promise<unknown>, done?: string) => {
     setBusy(key); setMsg(null)
@@ -150,17 +141,10 @@ export default function Pay({ id }: { id: string }) {
               <br /><span className="muted small">{shield === 'checking' ? 'Checking this protection on the chain…'
                 : shield === 'unknown' ? <>Couldn't check this protection on the chain just now. <button type="button" className="ghost small" onClick={() => verify(order)}>Check again</button></>
                 : 'Checked on the chain just now, not just by Held.'}</span></p>
-            <div className="payto">
-              {qr && <img src={qr} alt="Payment QR code" />}
-              <div>
-                <label>Send exactly {usd(order.amount)} in {accepts} on Tempo to</label>
-                <code className="addr">{order.address}</code>
-                <button className="ghost" onClick={() => navigator.clipboard.writeText(order.address).then(() => setCopied('ok'), () => setCopied('failed'))
-                  .finally(() => setTimeout(() => setCopied(null), 2000))}>{copied === 'ok' ? 'Copied ✓' : 'Copy address'}</button>
-                {copied === 'failed' && <span className="muted small"> Couldn't copy: select the address above instead.</span>}
-                <p className="muted">Send it from your own wallet, not from an exchange: only the wallet that pays can confirm delivery, open a dispute and receive a refund. It's a plain token transfer, and this address is unique to your order.</p>
-              </div>
-            </div>
+            {/* No QR code or copy-address: those invite a plain transfer, which skips the on-chain check below and pays
+                a merchant who has just switched protection off (reported by u/Bloqarl). The Pay button is the only way. */}
+            <p className="muted small">Pay with the button below, from your own wallet (not an exchange): only the wallet that pays can confirm
+              delivery, open a dispute and get a refund. The payment checks this protection in the same transaction, so if it's off, nothing moves.</p>
           </>
         )}
 

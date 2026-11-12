@@ -238,7 +238,8 @@ function Dashboard({ merchant: m, protectedNow, waitingLimit, w, testnet, onChan
     setRestoring(false)
   }
   const create = async (e: FormEvent) => {
-    e.preventDefault(); setBusy(true); setFormErr(null)
+    // A new attempt clears the last "Order #… created": an invalid price (abc, 1e3) must not leave it on screen (RealSpap's F9).
+    e.preventDefault(); setBusy(true); setFormErr(null); setCreated(null)
     try { setCreated(await api<Order>('/orders', { item, amount })); setItem(''); setAmount(''); refresh() } catch (x) { setFormErr((x as Error).message) }
     setBusy(false)
   }
@@ -444,9 +445,19 @@ function OrderCard({ order: o, wallet, merchant, testnet }: { order: Order, wall
           {p.status === 'held' ? <B k={'w' + p.id} fn="refund" p={p} label="Return to sender" done="Returned to the sender." /> : <b>{p.status === 'refunded' ? 'Returned to sender' : p.status}</b>}
         </div>
       ))}
+      {/* What happened, in the past tense, so an old "disputed" step never reads like the current status (RealSpap's F9):
+          e.g. "History: dispute opened by the buyer → dispute withdrawn, paid to you". */}
       {main && main.history.length > 1 && (
         <div className="history">
-          {main.history.slice(1).map((h, i) => <span key={i}>{h.status} <a href={txUrl(h.tx)} target="_blank">tx</a>{h.by ? ` by ${short(h.by)}` : ''}</span>)}
+          <span className="muted">History:</span>
+          {main.history.slice(1).map((h, i, all) => {
+            const byBuyer = !!h.by && h.by.toLowerCase() === main.payer.toLowerCase()
+            const afterDispute = all.slice(0, i).some((x) => x.status === 'disputed')
+            const what = h.status === 'disputed' ? `dispute opened${byBuyer ? ' by the buyer' : ''}`
+              : h.status === 'released' ? (afterDispute && byBuyer ? 'dispute withdrawn, paid to you' : 'paid to you')
+              : h.status === 'refunded' ? 'refunded to the buyer' : h.status
+            return <span key={i}>{i > 0 && '→ '}{what} <a href={txUrl(h.tx)} target="_blank">tx</a>{h.by && !byBuyer ? ` by ${short(h.by)}` : ''}</span>
+          })}
         </div>
       )}
       <Result msg={msg} />

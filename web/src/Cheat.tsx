@@ -17,6 +17,7 @@ const badReceiptAbi = [...W.arbiterAbi, { name: 'BadReceipt', type: 'error', inp
 const termsAbi = parseAbi(['function feeFor(uint256 amount) view returns (uint256)', 'function protectionWindow() view returns (uint64)'])
 const AMOUNT = '1'
 const AMOUNT_BASE = 1_000_000n
+const PAID_KEY = 'held.cheat.paid' // sessionStorage: this tab's held $1, so a reload keeps it
 // As an adjective: "5-minute", "2-hour", "7-day"
 const span = (secs: number) => {
   const [n, unit] = secs >= 86400 ? [secs / 86400, 'day'] : secs >= 3600 ? [secs / 3600, 'hour'] : [Math.max(1, Math.round(secs / 60)), 'minute']
@@ -137,6 +138,23 @@ export default function Cheat() {
     ]).then(([fee, window]) => setTerms({ fee, window: Number(window) }), () => {})
   }, [termsArbiter])
 
+  // A reload keeps the held $1 (RealSpap's F9): this tab remembers the payment, and if it was settled meanwhile, the
+  // outcome is read back from the order (its last history entry is the release or refund transaction).
+  useEffect(() => {
+    let saved: (Paid & { start?: number }) | null = null
+    try { saved = JSON.parse(sessionStorage.getItem(PAID_KEY) || 'null') } catch {}
+    if (!saved?.receipt || !saved.order?.key) return
+    setPaid(saved); setStart(saved.start ?? saved.at)
+    W.pub.readContract({ address: GUARD, abi: guardAbi, functionName: 'balanceOf', args: [saved.receipt] }).then(setLocked, () => {})
+    api<Order>(`/orders/${saved.order.key}`).then((o) => {
+      const p = o.payments.find((x) => x.receipt === saved!.receipt)
+      if (!p || (p.status !== 'released' && p.status !== 'refunded')) return
+      const last = p.history[p.history.length - 1]
+      setOut({ kind: p.status === 'released' ? 'release' : 'refund', tx: last.tx, fee: BigInt(p.status === 'released' ? p.fee ?? '0' : '0') })
+      setDoneAt(last.at ?? Math.floor(Date.now() / 1000))
+    }, () => {})
+  }, [])
+
   if (cfg && (!cfg.testnet || !cfg.sandbox?.arbiter)) return <p className="muted">This page is only available on testnet.</p>
   const sb = cfg?.sandbox
   const arbiter = sb?.arbiter as Address | undefined
@@ -156,7 +174,9 @@ export default function Cheat() {
       const rc = await W.payProtected(buyer, { merchant: order.merchant, arbiter: order.merchantInfo.arbiter }, order.address, order.amount, W.PATHUSD)
       const held = parseEventLogs({ abi: [TransferBlocked], logs: rc.logs })[0]
       if (rc.status !== 'success' || !held) throw new Error('The payment did not go through. Try again.')
-      setPaid({ order, receipt: held.args.receipt as Hex, tx: rc.transactionHash, at: Math.floor(Date.now() / 1000) })
+      const p: Paid = { order, receipt: held.args.receipt as Hex, tx: rc.transactionHash, at: Math.floor(Date.now() / 1000) }
+      setPaid(p)
+      try { sessionStorage.setItem(PAID_KEY, JSON.stringify({ ...p, start: Math.floor(Date.now() / 1000) })) } catch {}
       readLocked(held.args.receipt as Hex)
     } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
     setStep(null)
@@ -253,8 +273,9 @@ export default function Cheat() {
                   <div className="try">
                     <span className="who">{WHO[c.who]}</span>
                     <span>{c.label}<br /><span className="muted small">{WHO[c.who]}'s wallet tries to send the $1 to {c.to}</span></span>
-                    <button className="ghost small" disabled={!!t?.busy || windowLeft <= 0 || !!out} onClick={() => attempt(c)}>
-                      {t?.busy ? 'Trying…' : t ? 'Try again' : 'Try it'}</button>
+                    {/* Settled: nothing left to try (RealSpap's F9), the results stay. */}
+                    {!out && <button className="ghost small" disabled={!!t?.busy || windowLeft <= 0} onClick={() => attempt(c)}>
+                      {t?.busy ? 'Trying…' : t ? 'Try again' : 'Try it'}</button>}
                   </div>
                   {t?.error && <p className="warn small">{t.error}</p>}
                   {t && !t.busy && !t.error && (t.refused

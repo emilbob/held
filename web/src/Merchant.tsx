@@ -13,14 +13,15 @@ import { acceptedTokensOf, NOTE_MAX, NOTES_PER_SIDE, type CheckoutLinkView, type
 export default function MerchantPage() {
   const cfg = useConfig()
   const w = useWallet('merchant')
-  const [me, setMe] = useState<{ address: Address, merchant: Merchant | null, protected?: boolean | null } | null>(null)
+  type WaitingLimit = { waiting: string, limit: string, reached: boolean }
+  const [me, setMe] = useState<{ address: Address, merchant: Merchant | null, protected?: boolean | null, waitingLimit?: WaitingLimit | null } | null>(null)
   const [msg, setMsg] = useState<Msg>(null)
   const [signing, setSigning] = useState(false)
 
   // A session only counts for the wallet that's connected now.
   const sess = session.get()
   const signedIn = !!w.wallet && sess?.address.toLowerCase() === w.wallet.address.toLowerCase()
-  const loadMe = () => api<{ address: Address, merchant: Merchant | null, protected?: boolean | null }>('/me').then(setMe, () => { session.set(null); setMe(null) })
+  const loadMe = () => api<{ address: Address, merchant: Merchant | null, protected?: boolean | null, waitingLimit?: WaitingLimit | null }>('/me').then(setMe, () => { session.set(null); setMe(null) })
   useEffect(() => { if (signedIn) loadMe(); else setMe(null) }, [signedIn, w.wallet?.address])
 
   const signIn = async () => {
@@ -64,7 +65,7 @@ export default function MerchantPage() {
     </div>
   )
   if (!me.merchant) return cfg && <Setup cfg={cfg} wallet={w.wallet} onDone={loadMe} />
-  return <Dashboard merchant={me.merchant} protectedNow={me.protected ?? null} w={w} testnet={!!cfg?.testnet} onChanged={loadMe} />
+  return <Dashboard merchant={me.merchant} protectedNow={me.protected ?? null} waitingLimit={me.waitingLimit ?? null} w={w} testnet={!!cfg?.testnet} onChanged={loadMe} />
 }
 
 /** "Free until 1 July 2027, then 1% of each released payment (at most $5)." from the network's fee settings. */
@@ -216,7 +217,7 @@ function Setup({ cfg, wallet, onDone, current, onCancel }: { cfg: Config, wallet
 }
 
 // ---------------------------------------------------------------- dashboard
-function Dashboard({ merchant: m, protectedNow, w, testnet, onChanged }: { merchant: Merchant, protectedNow: boolean | null, w: ReturnType<typeof useWallet>, testnet: boolean, onChanged: () => void }) {
+function Dashboard({ merchant: m, protectedNow, waitingLimit, w, testnet, onChanged }: { merchant: Merchant, protectedNow: boolean | null, waitingLimit: { waiting: string, limit: string, reached: boolean } | null, w: ReturnType<typeof useWallet>, testnet: boolean, onChanged: () => void }) {
   const cfg = useConfig()
   const [data, err, refresh] = usePoll(() => api<{ orders: Order[] }>('/orders'), 2500, [])
   const [changing, setChanging] = useState(false)
@@ -287,11 +288,19 @@ function Dashboard({ merchant: m, protectedNow, w, testnet, onChanged }: { merch
           {restoreErr && <p className="err small">{restoreErr}</p>}
         </div>
       )}
+      {/* Beta limit on money waiting on delivery (held + disputed): new orders pause at the line, resume below it. */}
+      {waitingLimit?.reached && (
+        <div className="protect dispute">
+          <b>New orders are paused.</b> Your shop has reached Held's beta limit of {usd(waitingLimit.limit)} for payments waiting
+          on delivery. They resume as payments are released or refunded. The limit rises after Held's independent audit.
+        </div>
+      )}
       <section className="summary">
         <div><label>{m.name}</label><a href={addrUrl(m.address)} target="_blank">{short(m.address)}</a></div>
         <div><label>Balance</label><b>{w.balance === null ? '…' : <CountUp value={Number(w.balance)} format={usd} />}</b>
           {w.wallet?.kind === 'injected' && <button type="button" className="ghost small showtokens" onClick={showTokens}>See it in {w.wallet.name}</button>}</div>
-        <div><label>Held for buyers</label><b><CountUp value={heldTotal} format={usd} /></b></div>
+        <div><label>Held for buyers</label><b><CountUp value={heldTotal} format={usd} /></b>
+          {waitingLimit && <span className="muted small">of {usd(waitingLimit.limit)} beta limit</span>}</div>
         <div><label>Protection window</label>{duration(m.window)}</div>
         {m.resolveWindow ? <div><label>Resolver's deadline</label>{duration(m.resolveWindow)}</div> : null}
         <div><label>Your arbiter</label><a href={addrUrl(m.arbiter)} target="_blank">{short(m.arbiter)}</a></div>

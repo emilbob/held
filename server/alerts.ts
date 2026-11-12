@@ -6,8 +6,11 @@
 //   - fee emails (v3): Held's fee arrived in the fee wallet from a release. One email per sync, listing every new fee;
 //     sandbox fees (test money) in a separate one marked [Sandbox].
 //   - policy alerts: a shop changed its receive policy; says whether it still holds payments for its Held contract.
+//   - exposure alerts: a shop, or all shops together, crossed a beta limit for money waiting on delivery (or a shop hit
+//     its pause line). Once per crossing; also the daily summary when something is above a line.
 import { formatUnits } from 'viem'
 import { tokenSymbol, type Db, type Merchant, type Network } from '../shared/api.ts'
+import { exposureByShop, exposureLimits, totalExposure, type ShopExposure } from '../shared/exposure.ts'
 
 const usd = (units: string | bigint) => `$${Number(formatUnits(BigInt(units), 6)).toFixed(2)}`
 
@@ -73,6 +76,48 @@ export async function alertPolicyChanges(network: Network, changes: { merchant: 
   const net = network.testnet ? ' (testnet)' : ''
   const subject = off ? `Held${net}: ${off} shop${off > 1 ? 's' : ''} switched off protection` : `Held${net}: shop receive policy changed (${changes.map((c) => c.merchant.name).join(', ')})`
   await sendEmail('policy alert', subject, `A shop changed its receive policy${net}.\n\n${lines.join('\n')}\n`)
+}
+
+/** Money waiting on delivery crossed a beta limit in this sync. `shops`: crossed the alert line; `paused`: crossed the
+ *  pause line (new orders now paused, except the sandbox); `total`: all shops together crossed the total line. */
+export async function alertExposure(s: Db, network: Network, crossed: { shops: string[], paused: string[], total: boolean }) {
+  if (!process.env.RESEND_API_KEY || !process.env.ALERT_EMAIL) return
+  const limits = exposureLimits(network)
+  if (!limits || (!crossed.shops.length && !crossed.paused.length && !crossed.total)) return
+  const by = exposureByShop(s), net = network.testnet ? ' (testnet)' : ''
+  const sandbox = network.sandbox?.merchant.toLowerCase()
+  const lines: string[] = []
+  for (const k of crossed.paused) lines.push(`PAUSED: ${shopLine(s, network, k, by.get(k))}${k === sandbox ? ' [Sandbox: never paused]' : ' (new orders paused until it is below the line)'}`)
+  for (const k of crossed.shops.filter((k) => !crossed.paused.includes(k))) lines.push(`Above the alert line: ${shopLine(s, network, k, by.get(k))}`)
+  if (crossed.total) lines.push(`All shops together: ${usd(totalExposure(by))} waiting on delivery`)
+  const what = crossed.paused.length ? 'shop paused' : crossed.total ? 'total limit' : 'shop limit'
+  const subject = `Held${net}: ${what}, ${usd(totalExposure(by))} waiting on delivery`
+  const text = `Money waiting on delivery (held + disputed payments) crossed a beta limit${net}.\n\n${lines.join('\n')}\n\n` +
+    `Limits: alert ${usd(limits.alertShop)} per shop, pause ${usd(limits.pauseShop)} per shop, alert ${usd(limits.alertTotal)} in total.\n` +
+    `A script paying an order address directly skips Held's pages, so this alert is the backstop for that.\n`
+  await sendEmail('exposure alert', subject, text)
+}
+
+/** Daily summary: emailed only when a shop or the total is at or above an alert line. Returns the numbers either way. */
+export async function exposureSummary(s: Db, network: Network) {
+  const limits = exposureLimits(network), by = exposureByShop(s), total = totalExposure(by)
+  const top = [...by].sort((a, b) => (b[1].amount > a[1].amount ? 1 : -1)).slice(0, 3)
+  const over = limits ? [...by].filter(([, e]) => e.amount >= limits.alertShop) : []
+  const summary = { total: usd(total), shops: by.size, top: top.map(([k, e]) => ({ shop: s.merchants[k]?.name ?? k, waiting: usd(e.amount), payments: e.count })) }
+  if (limits && (over.length || total >= limits.alertTotal) && process.env.RESEND_API_KEY && process.env.ALERT_EMAIL) {
+    const net = network.testnet ? ' (testnet)' : ''
+    await sendEmail('exposure summary', `Held${net}: daily exposure, ${usd(total)} waiting on delivery`,
+      `Money waiting on delivery right now${net}: ${usd(total)} across ${by.size} shop(s).\n\n` +
+      top.map(([k, e]) => shopLine(s, network, k, e)).join('\n') + '\n')
+  }
+  return summary
+}
+
+function shopLine(s: Db, network: Network, k: string, e?: ShopExposure) {
+  const name = s.merchants[k]?.name ?? k
+  if (!e) return `${name}: nothing waiting`
+  const days = Math.max(0, Math.floor((Date.now() / 1000 - e.oldest) / 86400))
+  return `${name}: ${usd(e.amount)} in ${e.count} payment(s), oldest ${days} day(s) old. ${network.explorer}/address/${k}`
 }
 
 async function sendEmail(what: string, subject: string, text: string) {

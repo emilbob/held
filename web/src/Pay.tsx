@@ -130,7 +130,12 @@ export default function Pay({ id }: { id: string }) {
         {status === 'awaiting_payment' && blocked && (
           <div className="protect dispute"><b>Don't pay this order.</b> {blocked}</div>
         )}
-        {status === 'awaiting_payment' && !blocked && (
+        {/* Safe, but the shop is above Held's beta limit for money waiting on delivery: paying is paused for now. */}
+        {status === 'awaiting_payment' && !blocked && order.limitReached && (
+          <div className="protect dispute"><b>Payments are paused.</b> This shop has reached Held's beta limit for payments
+            waiting on delivery. Please try again later; nothing has been charged.</div>
+        )}
+        {status === 'awaiting_payment' && !blocked && !order.limitReached && (
           <>
             <p className="protect"><b>Protected by Held.</b> Your payment is held onchain for {duration(order.merchantInfo.window)} or until you
               confirm delivery. If something goes wrong, open a dispute: the funds can only go back to you or to the merchant.

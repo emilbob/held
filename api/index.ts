@@ -7,6 +7,7 @@ import { createApi, toJson, type DbAdapter } from '../server/core.ts'
 import type { Db, Feedback } from '../shared/api.ts'
 import { network } from '../scripts/lib.ts'
 import { pgAdapter } from '../server/pgdb.ts'
+import { exposureSummary } from '../server/alerts.ts'
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL,
@@ -62,7 +63,9 @@ async function daily(): Promise<{ status: number, body: unknown }> {
   const day = new Date().toISOString().slice(0, 10)
   const key = `held:backup:${network.name}:${day}`
   await redis.set(key, snap, { ex: (BACKUP_DAYS + 1) * 86400 })
-  return { status: 200, body: { ok: true, backup: key, orders: Object.keys(snap.orders).length, payments: Object.keys(snap.payments).length, cleaned } }
+  // Money waiting on delivery: emailed only when something is above an alert line; a failure here never fails the backup.
+  const exposure = await exposureSummary(snap, network).catch((e) => ({ error: (e as Error).message }))
+  return { status: 200, body: { ok: true, backup: key, orders: Object.keys(snap.orders).length, payments: Object.keys(snap.payments).length, cleaned, exposure } }
 }
 
 const PUBLIC_LINK = /^\/api\/links\/[A-Za-z0-9_-]+$/

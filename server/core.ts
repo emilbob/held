@@ -27,7 +27,8 @@ import { Actions } from 'viem/tempo'
 import { createIndexer, orderView } from './indexer.ts'
 import { verifyMerchant } from './merchants.ts'
 import { submitVerification } from './verify-contract.ts'
-import { alertDisputes, alertFees, alertPolicyChanges } from './alerts.ts'
+import { alertDisputes, alertExposure, alertFees, alertPolicyChanges } from './alerts.ts'
+import { exposureByShop, exposureCrossings, exposureLimits } from '../shared/exposure.ts'
 import { payoutPolicyOf, policyHolds } from '../shared/protection.ts'
 import { orderAddress, pub } from '../scripts/lib.ts'
 import { acceptedTokensOf, signInMessage, noteMessage, NOTE_MAX, NOTES_PER_SIDE, FEEDBACK_MAX, CONTACT_MAX, QUOTE_NAME_MAX, QUOTES_SHOWN, type Feedback, type CheckoutLink, type CheckoutLinkView, type Db, type Merchant, type Network, type Note, type Order, type PublicLink, type StoredOrder } from '../shared/api.ts'
@@ -107,13 +108,17 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
     lastSync = Date.now()
     try {
       // If another invocation is already syncing, just read what it wrote.
-      let saved: { s: Db, disputes: string[], fees: string[], policies: string[] } | undefined
+      let saved: { s: Db, disputes: string[], fees: string[], policies: string[], exposure: ReturnType<typeof exposureCrossings> | null } | undefined
       await db.lock(async (io) => {
         const s = await load(io)
+        // Exposure before and after this sync, under the same lock: a line crossed here is crossed exactly once.
+        const before = exposureByShop(s)
         const indexer = createIndexer({ store: s })
         head = await indexer.sync()
         await io.write(s)
-        saved = { s, disputes: indexer.newDisputes, fees: indexer.newFees, policies: indexer.policyChanges }
+        const limits = exposureLimits(network)
+        saved = { s, disputes: indexer.newDisputes, fees: indexer.newFees, policies: indexer.policyChanges,
+          exposure: limits ? exposureCrossings(before, exposureByShop(s), limits) : null }
       }, { wait: false })
       // After the lock (the save is committed), so a dispute or a fee is emailed at most once.
       if (saved) {
@@ -123,7 +128,8 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
           return m ? { merchant: m, protected: await isProtected(m, true).catch(() => null) } : null
         }))
         await Promise.all([alertDisputes(saved.s, network, saved.disputes), alertFees(saved.s, network, saved.fees),
-          alertPolicyChanges(network, policies.filter((x) => x !== null))])
+          alertPolicyChanges(network, policies.filter((x) => x !== null)),
+          saved.exposure ? alertExposure(saved.s, network, saved.exposure) : undefined])
       }
       lastErr = null
     } catch (e) { lastErr = errText(e) }
@@ -146,6 +152,17 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
   const PAUSED_FOR_MERCHANT = "Your wallet's receive policy no longer holds payments for your Held contract, so buyers wouldn't be protected. New orders are paused until you press \"Turn protection back on\" in your dashboard."
   const PAUSED_FOR_BUYER = "This shop has switched off Held's protection, so it can't take payments right now."
   const UNCHECKED = "Couldn't check the shop's protection on the chain right now. Please try again in a moment."
+  // Beta limit on money waiting on delivery (shared/exposure.ts). Read from the stored payments, no chain call. The
+  // sandbox shop is never paused: testers leave its $1 payments held, and the "try to steal $1" page must keep working.
+  function limitOf(s: Db, m: Merchant) {
+    const limits = exposureLimits(network)
+    const waiting = exposureByShop(s).get(m.address.toLowerCase())?.amount ?? 0n
+    const sandbox = network.sandbox?.merchant.toLowerCase() === m.address.toLowerCase()
+    return { waiting, limit: limits?.pauseShop ?? null, reached: !!limits && !sandbox && waiting >= limits.pauseShop }
+  }
+  const usdText = (u: bigint) => `$${(Number(u) / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+  const LIMIT_FOR_MERCHANT = (limit: bigint) => `Your shop has reached Held's beta limit for payments waiting on delivery (${usdText(limit)}). New orders resume as payments are released or refunded.`
+  const LIMIT_FOR_BUYER = "This shop can't take new payments right now: it has reached Held's beta limit. Please try again later."
 
   // The wallet behind "Authorization: Bearer <session>", or null.
   function sessionOf(s: Db, headers: Headers): Address | null {
@@ -190,8 +207,10 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const address = sessionOf(s, headers)
       if (!address) return ok({ error: 'Not signed in.' }, 401)
       const merchant = s.merchants[address.toLowerCase()] ?? null
-      // protected: null when the chain couldn't be read just now.
-      return ok({ address, merchant, protected: merchant ? await isProtected(merchant, true).catch(() => null) : null })
+      // protected: null when the chain couldn't be read just now. waitingLimit: the shop's beta limit (dashboard meter).
+      const lim = merchant ? limitOf(s, merchant) : null
+      return ok({ address, merchant, protected: merchant ? await isProtected(merchant, true).catch(() => null) : null,
+        waitingLimit: lim && lim.limit !== null ? { waiting: lim.waiting.toString(), limit: lim.limit.toString(), reached: lim.reached } : null })
     }
 
     if (path === '/api/merchants' && method === 'POST') {
@@ -245,6 +264,8 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
         const safe = await isProtected(m0).catch(() => null)
         if (safe === null) return ok({ error: UNCHECKED }, 503)
         if (!safe) return ok({ error: PAUSED_FOR_MERCHANT }, 409)
+        const lim = limitOf(s0, m0)
+        if (lim.reached) return ok({ error: LIMIT_FOR_MERCHANT(lim.limit!) }, 409)
       }
       const r = await mutate((s) => {
         const address = sessionOf(s, headers)
@@ -276,6 +297,8 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const view = orderView(s, o)
       // The buyer page also checks this on the chain itself; this flag covers anything that reads the API.
       if (view.status === 'awaiting_payment' && (await isProtected(s.merchants[o.merchant.toLowerCase()]).catch(() => true)) === false) view.protectionOff = true
+      const shop = s.merchants[o.merchant.toLowerCase()]
+      if (view.status === 'awaiting_payment' && shop && limitOf(s, shop).reached) view.limitReached = true
       return ok(!/^\d+$/.test(ref) || isMerchant ? withNotes(s, view) : view)
     }
     // ---------------------------------------------------------------- checkout links
@@ -337,6 +360,7 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const safe = owner ? await isProtected(owner).catch(() => null) : true
       if (safe === null) return ok({ error: UNCHECKED }, 503)
       if (!safe) return ok({ error: PAUSED_FOR_BUYER }, 409)
+      if (owner && limitOf(await load(), owner).reached) return ok({ error: LIMIT_FOR_BUYER }, 409)
       if (!(await db.rateLimit(`link:${lk[1]}:${clientIp(headers)}`, 3000))) return ok({ error: 'One moment, your order is being created.' }, 429)
       const r = await mutate((s) => {
         const link = s.links?.[lk[1]]

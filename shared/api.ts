@@ -91,6 +91,8 @@ export interface Order extends StoredOrder {
   payments: Payment[]
   // Awaiting payment, and the shop's receive policy no longer holds payments for its arbiter: paying now would not be protected.
   protectionOff?: boolean
+  // Awaiting payment, and the shop is above its beta limit for money waiting on delivery: paying now is paused.
+  limitReached?: boolean
 }
 
 export interface Session { address: Address, exp: number }
@@ -121,6 +123,10 @@ export interface Network {
   tokens: Token[] // the stablecoins a shop accepts (all of them, in this order; the v2 arbiter holds up to 3)
   testWrongToken?: Address // testnet only: a real token shops don't accept, for trying the wrong-token path
   maxOrder: string // launch cap: the most one order or checkout link may charge, base units (6 decimals)
+  // Beta limits on money waiting on delivery (held + disputed), base units (shared/exposure.ts). alertShop / alertTotal:
+  // email the owner when one shop / all shops cross it. pauseShop: that shop takes no new orders until it's back below
+  // (the sandbox shop is never paused: its test dollars stay held when testers don't release).
+  exposure?: { alertShop: string, pauseShop: string, alertTotal: string }
   defaultResolver: Address // Held's resolver: every shop's resolver (the server refuses others; the sandbox has its own)
   defaultWindow: number // seconds
   defaultResolveWindow: number // seconds: the resolver's deadline suggested at setup (contract v3)

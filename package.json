@@ -18,6 +18,10 @@
     "typecheck": "tsc && npm --prefix web run typecheck",
     "test:e2e": "node scripts/merchant-e2e.ts",
     "test:links": "node scripts/links-check.ts",
+    "test:pay-routes": "node scripts/pay-routes-check.ts",
+    "test:toggle": "node scripts/toggle-check.ts",
+    "test:signin": "node scripts/signin-check.ts",
+    "test:exposure": "node scripts/exposure-check.ts",
     "sandbox:reset": "node scripts/sandbox-reset.ts",
     "build:wp-plugin": "node scripts/wp-plugin.ts"
   },

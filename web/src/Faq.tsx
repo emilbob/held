@@ -55,7 +55,9 @@ const sections: [string, [string, ReactNode, string?][]][] = [
         <b>HTML button</b> for any other site that accepts HTML. The Framer, Webflow and WordPress buttons show the link's live price and grey out if
         you turn the link off. In Framer, add a new code file (Assets → Code) and paste it; in Webflow, paste it into a Code Embed
         (paid Webflow site plans; on a free plan, point a normal Button at your checkout link). In WordPress, install the
-        Held plugin (download it from the WordPress button), then add the <b>Pay with Held</b> block and paste your link.</>, 'website'],
+        Held plugin (download it from the WordPress button), then add the <b>Pay with Held</b> block and paste your link. The HTML
+        button and a plain link run no code from Held on your site. The Webflow live-price version loads Held's small button script
+        (button.js), which only draws the button and reads the price; the Framer and WordPress versions run code you install yourself.</>, 'website'],
   ]],
   ['Safety and trust', [
     ['How is Held different from an escrow service like Escrow.com?',

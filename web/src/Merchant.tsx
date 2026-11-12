@@ -527,12 +527,15 @@ function Links() {
           {copied === 'failed' && <p className="muted small">Couldn't copy: select the link above instead.</p>}
           {siteHelp === 'html' + l.id && (
             <p className="muted small sitehelp"><b className="ink">HTML button copied.</b> Paste it into an HTML or Embed block on your site
-              (Wix, Squarespace, Shopify, Webflow and most others). It shows "Pay {usd(l.amount)} with Held" and opens this link.</p>
+              (Wix, Squarespace, Shopify, Webflow and most others). It shows "Pay {usd(l.amount)} with Held" and opens this link.
+              It's plain HTML, with no script: nothing from Held runs on your page.</p>
           )}
           {siteHelp === 'webflow' + l.id && (
-            <p className="muted small sitehelp"><b className="ink">In Webflow:</b> Add (+) → Code Embed, paste what you copied, and save. The
-              button shows the live price and greys out if you turn this link off. Code Embed needs a paid Webflow site plan; on a free
-              plan, add a Button instead and set its link to <code>{linkUrl(l.id)}</code>.</p>
+            <p className="muted small sitehelp"><b className="ink">In Webflow:</b> the simplest way is a plain Button whose link is
+              <code>{linkUrl(l.id)}</code> (no script, any plan). For the live-price version: Add (+) → Code Embed, paste what you
+              copied, and save. It loads Held's small button script (button.js, about 5 KB, from getheld.xyz): it only draws the
+              button, reads this link's price and greys it out if you turn the link off. It runs on your page, so it's only as safe
+              as Held's own site; prefer the plain Button if that matters to you. Code Embed needs a paid Webflow site plan.</p>
           )}
           {siteHelp === 'wordpress' + l.id && (
             <p className="muted small sitehelp"><b className="ink">In WordPress:</b> install the Held plugin once: <a href="/held-pay-button.zip" download>download

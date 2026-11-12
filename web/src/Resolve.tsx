@@ -6,6 +6,7 @@ import type { Hex } from 'viem'
 import * as W from './wallet.ts'
 import { api, session, signInWallet, usePoll, useNow, useWallet, useConfig, countdown, WalletPicker, Result, Notes, usd, short, txUrl, addrUrl, type Msg } from './ui.tsx'
 import type { Order } from '../../shared/api.ts'
+import { refundReachable } from '../../shared/protection.ts'
 
 export default function Resolve() {
   const w = useWallet('resolver')
@@ -82,6 +83,14 @@ function Dispute({ order: o, wallet, signedIn, signIn, signing }: { order: Order
   // v3 shops: decide before resolveBy; after it the contract only lets anyone refund the buyer.
   const late = !!p.resolveBy && now >= p.resolveBy
   const disputedTx = p.history.find((h) => h.status === 'disputed')?.tx
+  // Can a refund reach the buyer right now? If their wallet's receive policy refuses this shop, a refund reverts, and
+  // after the deadline the money would stay held until the buyer changes it (RealSpap's F1). Re-read every 20 s.
+  const [refundOk, setRefundOk] = useState<boolean | null>(null)
+  useEffect(() => {
+    const check = () => refundReachable(W.pub as never, p.payer, o.merchant).then(setRefundOk, () => setRefundOk(null))
+    check(); const t = setInterval(check, 20_000)
+    return () => clearInterval(t)
+  }, [p.payer, o.merchant])
   const decide = async (fn: 'refund' | 'release', done: string) => {
     setBusy(fn); setMsg(null)
     try { await W.arbiter(wallet, p.arbiter ?? o.merchantInfo.arbiter, fn, p.receipt as Hex, o.merchantInfo.acceptedTokens); setMsg({ ok: true, text: done }) } catch (e) { setMsg({ ok: false, text: W.explain(e) }) }
@@ -102,6 +111,11 @@ function Dispute({ order: o, wallet, signedIn, signIn, signing }: { order: Order
       {p.resolveBy && (late
         ? <p className="warn small">Your deadline to decide has passed: the buyer gets their money back. You can still refund now; paying the merchant is no longer possible.</p>
         : <p className="muted small">Decide within <b className="ink">{countdown(p.resolveBy - now)}</b>. If you don't, the buyer gets their money back.</p>)}
+      {refundOk === false && (
+        <p className="warn small"><b>A refund can't reach this buyer right now:</b> their wallet's receive policy refuses payments from
+          this shop, so "Refund buyer" would fail{late ? ' and the money stays held until they change it' : ''}.
+          {!late && ' If the buyer doesn\'t fix it, paying the merchant before the deadline is the only way this dispute ends.'}</p>
+      )}
       {/* Notes are private, so they come only with a sign-in. Ask for it right here, before the decision buttons,
           so nobody decides without reading both sides. */}
       {signedIn

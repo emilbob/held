@@ -77,7 +77,9 @@ const sections: [string, [string, ReactNode, string?][]][] = [
         the order. If the resolver hasn't decided by then, the buyer gets their money back: anyone can trigger the refund, and it always
         goes to the wallet that paid. After the deadline the resolver can no longer pay the merchant. One exception: if the buyer's own
         wallet has a receive policy that refuses payments from this shop's contract, that refund can't arrive, so the money stays held
-        until the buyer changes their policy; then anyone can trigger the refund again. The order page warns about this before you pay.</>],
+        until the buyer changes their policy; then anyone can trigger the refund again. The order page warns about this before you pay,
+        won't open a dispute while a refund couldn't reach you, and the resolver is warned too, so they can still pay the merchant
+        before the deadline.</>],
     ['Can I read the contract that holds my money?',
       <>Yes. Every shop's contract is published with its source code on Tempo's explorer, checked by Tempo's own verifier
         against the code that is actually running. On your order page, open <b>this shop's contract</b> in the

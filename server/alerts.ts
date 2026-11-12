@@ -11,6 +11,8 @@
 import { formatUnits } from 'viem'
 import { tokenSymbol, type Db, type Merchant, type Network } from '../shared/api.ts'
 import { exposureByShop, exposureLimits, totalExposure, type ShopExposure } from '../shared/exposure.ts'
+import { refundReachable } from '../shared/protection.ts'
+import { pub } from '../scripts/lib.ts'
 
 const usd = (units: string | bigint) => `$${Number(formatUnits(BigInt(units), 6)).toFixed(2)}`
 
@@ -18,16 +20,20 @@ export async function alertDisputes(s: Db, network: Network, paymentIds: string[
   const key = process.env.RESEND_API_KEY, to = process.env.ALERT_EMAIL
   if (!key || !to || !paymentIds.length) return
   const resolver = network.defaultResolver.toLowerCase()
-  const lines = paymentIds.flatMap((id) => {
+  const lines = (await Promise.all(paymentIds.map(async (id) => {
     const p = s.payments[id]
     const m = p && s.merchants[p.merchant.toLowerCase()]
     if (!p || !m || m.resolver.toLowerCase() !== resolver) return []
     const order = Object.values(s.orders).find((o) => o.address.toLowerCase() === p.recipient.toLowerCase())
-    return [`${m.name}: order #${order?.id ?? '?'}${order ? ` (${order.item})` : ''}, ${usd(p.amount)}`]
-  })
+    // RealSpap's F1: if the buyer's own receive policy refuses this shop, a refund can't arrive; say so up front.
+    const reach = await refundReachable(pub as never, p.payer, p.merchant).catch(() => null)
+    const warn = reach === false ? "\n  WARNING: a refund can't reach this buyer right now (their wallet's receive policy refuses this shop)." +
+      ' If they do not fix it, paying the merchant before the deadline is the only way this dispute ends.' : ''
+    return [`${m.name}: order #${order?.id ?? '?'}${order ? ` (${order.item})` : ''}, ${usd(p.amount)}${warn}`]
+  }))).flat()
   if (!lines.length) return
   const net = network.testnet ? ' (testnet)' : ''
-  const subject = lines.length === 1 ? `Held${net}: new dispute, ${lines[0]}` : `Held${net}: ${lines.length} new disputes`
+  const subject = lines.length === 1 ? `Held${net}: new dispute, ${lines[0].split('\n')[0]}` : `Held${net}: ${lines.length} new disputes`
   const text = `A buyer opened a dispute${net}. The money stays held until you decide.\n\n${lines.join('\n')}\n\n` +
     `Decide it with your resolver wallet: ${siteUrl}/#/resolve\n`
   await sendEmail('dispute alert', subject, text)

@@ -38,9 +38,14 @@ export default function Pay({ id }: { id: string }) {
   useEffect(() => { if (order?.status === 'awaiting_payment') verify(order) }, [order?.key, order?.status])
   // A refund goes back to the paying wallet only if that wallet's own receive policy accepts this shop as a sender.
   const [refundOk, setRefundOk] = useState(true)
+  // Re-checked when the order moves on (e.g. after a dispute), since the policy can change at any time.
   useEffect(() => {
     if (wallet && order) refundReachable(W.pub as never, wallet.address, order.merchant).then(setRefundOk, () => setRefundOk(true))
-  }, [wallet?.address, order?.merchant])
+  }, [wallet?.address, order?.merchant, order?.status])
+  // A refund that can't arrive freezes a dispute: the money can only go back to this wallet, and its own receive policy
+  // refuses it. So no dispute is opened in that state (RealSpap's F1); the buyer fixes the policy first.
+  const REFUND_BLOCKED = "Your wallet's own receive policy doesn't accept payments from this shop, so a refund couldn't reach you. " +
+    'Allow this shop in your wallet\'s receive policy first (or remove the policy), then open the dispute.'
 
   const run = async (key: string, fn: () => Promise<unknown>, done?: string) => {
     setBusy(key); setMsg(null)
@@ -239,13 +244,20 @@ export default function Pay({ id }: { id: string }) {
               <button className="danger" disabled={!!busy} onClick={() => setDisputing(true)}>Something went wrong: open dispute</button>
             )}
             {status === 'held' && disputing && (
-              <form className="disputeform" onSubmit={(e) => { e.preventDefault(); run('dispute', () => openDispute(main.id, main.receipt)) }}>
+              <form className="disputeform" onSubmit={(e) => { e.preventDefault(); run('dispute', async () => {
+                // Fresh check right before the transaction, not the cached one.
+                const ok = await refundReachable(W.pub as never, main.payer, order.merchant).catch(() => true)
+                setRefundOk(ok)
+                if (!ok) throw new Error(REFUND_BLOCKED)
+                await openDispute(main.id, main.receipt)
+              }) }}>
+                {!refundOk && <p className="warn small">{REFUND_BLOCKED}</p>}
                 <label htmlFor="reason">What went wrong? The merchant and the resolver will read this.</label>
                 <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={NOTE_MAX} rows={3}
                   placeholder="e.g. Nothing arrived by the promised date." />
                 <p className="muted small">Your wallet opens the dispute, then signs your note so nobody else can write in your name.</p>
                 <div className="row">
-                  <button className="danger" disabled={!!busy}>{busy === 'dispute' ? 'Opening…' : 'Send dispute'}</button>
+                  <button className="danger" disabled={!!busy || !refundOk}>{busy === 'dispute' ? 'Opening…' : 'Send dispute'}</button>
                   <button type="button" className="ghost" disabled={!!busy} onClick={() => setDisputing(false)}>Cancel</button>
                 </div>
               </form>
@@ -257,6 +269,11 @@ export default function Pay({ id }: { id: string }) {
 
         {/* v3 shops: past the deadline any wallet can trigger the buyer's refund (it always goes to the wallet that paid);
             before it, the paying wallet can withdraw its dispute by paying the merchant itself. */}
+        {/* Changed after disputing: the refund this dispute ends in can't arrive until the buyer undoes it. */}
+        {wallet && main && status === 'disputed' && isPayer && !refundOk && (
+          <p className="warn">Your wallet's receive policy now refuses payments from this shop, so your refund can't reach you.
+            Allow this shop again (or remove the policy); until then the money stays held, and the resolver may pay the merchant instead.</p>
+        )}
         {wallet && main && status === 'disputed' && deadlinePassed && (
           <div className="actions">
             <button className="primary" disabled={!!busy} onClick={() => run('deadline', callArbiter('refund', main.receipt), 'Refunded to the wallet that paid.')}>

@@ -15,7 +15,7 @@ const STEPS: { n: string, phase: FramePhase, title: string, text: string, state:
   { n: '01', phase: 'open', title: 'An order, its own address',
     text: "The merchant creates an order or a checkout link, or puts a \"Pay with Held\" button on their site: any website, with ready-made versions for Framer, Webflow and WordPress. Every order gets its own pay-to address. No transaction, no cost.", state: 'order · waiting for payment' },
   { n: '02', phase: 'held', title: 'Paid, and held by Tempo',
-    text: "The buyer sends a plain transfer from their own wallet: no escrow contract, no approvals. Tempo's protocol holds the payment. Not the merchant, not Held.", state: 'held by Tempo · protected' },
+    text: "The buyer pays from their own wallet, through a check that the shop is protected: if it isn't, nothing moves. Tempo's protocol holds the payment. Not the merchant, not Held.", state: 'held by Tempo · protected' },
   { n: '03', phase: 'released', title: 'Delivered: the merchant is paid',
     text: 'The buyer confirms delivery, or the protection window ends, and the payment goes to the merchant. Instantly.', state: 'released → merchant' },
   { n: '04', phase: 'refunded', title: 'Problem: the buyer gets it back',
@@ -32,9 +32,15 @@ export default function Landing() {
   // wallet): the sandbox's shared merchant or a test wallet doesn't count. The dashboard then reopens that wallet.
   const w = useWallet('merchant')
   const ready = !!w.wallet && walletFits(w.wallet.kind, 'real')
-  const start = (ref?: typeof cta1) => (
-    <button ref={ref} className={`cta ${ref || !sandbox || ready ? 'primary' : ''}`} disabled={!ready} aria-describedby={ready ? undefined : 'connectfirst'}
+  // Hero: on testnet, "try to steal $1" is the main way in for new visitors (letting people try to break it builds more
+  // trust than saying it's safe); once your own wallet is connected, starting your shop is.
+  const start = (ref?: typeof cta1, main = !!ref) => (
+    <button ref={ref} className={`cta ${main || !sandbox || ready ? 'primary' : ''}`} disabled={!ready} aria-describedby={ready ? undefined : 'connectfirst'}
       onClick={() => { location.hash = '#/merchant' }}>Start accepting payments</button>
+  )
+  const tryCheat = (ref?: typeof cta2) => sandbox && (
+    <button ref={ref} className={`cta ${ready ? '' : 'primary'}`} onClick={() => { location.hash = '#/cheat' }}>
+      Try to steal $1 (60 s, no wallet)</button>
   )
   // With your own wallet connected you're setting up a real shop, so the shared sandbox is off until you disconnect.
   const trySandbox = (label: string, ref?: typeof cta2) => sandbox && (
@@ -53,11 +59,11 @@ export default function Landing() {
         <div className="hero-copy">
           <div className="eyebrow"><Logo size={44} /><Scramble onMount ms={700} text={`Buyer protection for stablecoin payments${cfg?.testnet ? ' · Tempo testnet' : ' on Tempo'}`} /></div>
           <h1><LineReveal text="Pay a stranger on‑chain. Get your money back if it goes wrong." delay={0.15} /></h1>
-          <p className="lede">Held sets up a merchant checkout where Tempo holds the buyer's payment until delivery. Tempo lets only the shop's Held
-            contract move it, and that contract can do just two things: release the funds to the merchant or refund the buyer. No custodian.</p>
+          <p className="lede"><b>Your money is held safely until delivery, and nobody can run off with it: not the seller, not Held.</b> Tempo
+            lets only the shop's Held contract move the payment, and that contract can do just two things: release it to the merchant or
+            refund the buyer. No custodian.</p>
           <div className="ctas">
-            {start(cta1)}
-            {trySandbox('Try the sandbox (2 min)', cta2)}
+            {sandbox ? <>{tryCheat(cta2)}{start(cta1, ready)}</> : start(cta1)}
           </div>
           {connect}
           {ready && (

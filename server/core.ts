@@ -195,6 +195,14 @@ export function createApi({ network, db }: { network: Network, db: DbAdapter }) 
       const message = signInMessage(address, header(headers, 'host'), issued)
       const valid = await pub.verifyMessage({ address, message, signature: signature as Hex }).catch(() => false)
       if (!valid) return ok({ error: "Signature doesn't match this wallet." }, 401)
+      // Single use (RealSpap's F8): a valid sign-in signature works once. The marker outlives the ±5-minute window it
+      // could be accepted in, so an intercepted signature can't be replayed for a second session. Not for the sandbox's
+      // wallets: their keys are public anyway, and a local key signs the same message identically, so two visitors
+      // starting the steal-$1 test in the same second would otherwise lock each other out.
+      const sb = network.testnet ? network.sandbox : undefined
+      const publicKeyWallet = !!sb && [sb.merchant, sb.resolver].some((x) => x.toLowerCase() === address.toLowerCase())
+      if (!publicKeyWallet && !(await db.rateLimit(`signin:${sha256hex(signature.toLowerCase())}`, 2 * SIGN_IN_MAX_AGE * 1000 + 60_000)))
+        return ok({ error: 'This sign-in was already used. Please sign again.' }, 401)
       const token = randomBytes(24).toString('base64url')
       await mutate((s) => {
         for (const [k, v] of Object.entries(s.sessions)) if (v.exp <= now()) delete s.sessions[k] // prune

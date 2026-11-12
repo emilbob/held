@@ -30,7 +30,7 @@ const CHEATS: Cheat[] = [
   { id: 'early', who: 'merchant', label: 'Pay myself now, before the buyer has the goods', to: "the merchant's wallet, before delivery",
     refused: 'Only the buyer can pay the merchant before the protection window ends.' },
   { id: 'guard', who: 'merchant', label: "Skip Held's contract: claim the $1 straight from Tempo", to: "the merchant's wallet, bypassing Held's contract",
-    refused: "Tempo only lets this shop's Held contract move held money. The merchant's own key can't." },
+    refused: "Tempo only lets this shop's Held contract move held money, and that contract's code only sends it to the merchant or back to the payer. The merchant's own key can't move it." },
   { id: 'third', who: 'resolver', label: 'Send the $1 to a wallet of my choice', to: 'a brand-new random wallet',
     refused: 'Even the resolver can only pay the merchant or refund the buyer. There is no third address.' },
   { id: 'held', who: 'held', label: "Held takes the $1 with its own wallet (dry run)", to: "Held's own fee wallet",
